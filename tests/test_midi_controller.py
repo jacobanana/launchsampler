@@ -172,7 +172,7 @@ class TestLaunchpadController:
         time.sleep(0.2)
 
         # Should have connected
-        with controller._lock:
+        with controller._port_lock:
             assert controller.current_port == "Launchpad X"
 
         controller.stop()
@@ -187,3 +187,44 @@ class TestLaunchpadController:
 
             # Check for warning (caplog may need logger configured)
             controller.stop()
+
+    def test_midi_callback_thread_safety(self):
+        """Test that MIDI callback is thread-safe."""
+        controller = LaunchpadController()
+        callback_calls = []
+
+        def on_pressed(pad_index: int):
+            callback_calls.append(('pressed', pad_index))
+
+        def on_released(pad_index: int):
+            callback_calls.append(('released', pad_index))
+
+        controller.on_pad_pressed(on_pressed)
+        controller.on_pad_released(on_released)
+
+        # Simulate MIDI messages from callback thread
+        import mido
+        note_on = mido.Message('note_on', note=32, velocity=100)
+        note_off = mido.Message('note_off', note=32, velocity=0)
+
+        controller._midi_callback(note_on)
+        controller._midi_callback(note_off)
+
+        assert callback_calls == [('pressed', 32), ('released', 32)]
+
+    def test_midi_callback_filters_clock(self):
+        """Test that clock messages are filtered."""
+        controller = LaunchpadController()
+        callback_calls = []
+
+        def on_pressed(pad_index: int):
+            callback_calls.append(pad_index)
+
+        controller.on_pad_pressed(on_pressed)
+
+        # Clock message should be ignored
+        import mido
+        clock_msg = mido.Message('clock')
+        controller._midi_callback(clock_msg)
+
+        assert len(callback_calls) == 0

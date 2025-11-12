@@ -39,7 +39,6 @@ class LaunchpadController:
         self.poll_interval = poll_interval
         self.running = False
         self.monitor_thread: Optional[threading.Thread] = None
-        self.message_thread: Optional[threading.Thread] = None
         self.current_port: Optional[str] = None
         self.inport: Optional[mido.ports.BaseInput] = None
 
@@ -47,26 +46,33 @@ class LaunchpadController:
         self._on_pad_pressed: Optional[Callable[[int], None]] = None
         self._on_pad_released: Optional[Callable[[int], None]] = None
 
-        # Thread lock for port access
-        self._lock = threading.Lock()
+        # Thread lock for callbacks and port access
+        self._callback_lock = threading.Lock()
+        self._port_lock = threading.Lock()
 
     def on_pad_pressed(self, callback: Callable[[int], None]) -> None:
         """
         Register callback for pad press events.
 
+        Callback is executed in MIDI thread - keep it fast!
+
         Args:
             callback: Function that takes pad_index (0-63) as argument
         """
-        self._on_pad_pressed = callback
+        with self._callback_lock:
+            self._on_pad_pressed = callback
 
     def on_pad_released(self, callback: Callable[[int], None]) -> None:
         """
         Register callback for pad release events.
 
+        Callback is executed in MIDI thread - keep it fast!
+
         Args:
             callback: Function that takes pad_index (0-63) as argument
         """
-        self._on_pad_released = callback
+        with self._callback_lock:
+            self._on_pad_released = callback
 
     def start(self) -> None:
         """Start monitoring for Launchpad devices."""
@@ -87,7 +93,7 @@ class LaunchpadController:
         self.running = False
 
         # Close current port
-        with self._lock:
+        with self._port_lock:
             if self.inport:
                 try:
                     self.inport.close()
@@ -99,8 +105,6 @@ class LaunchpadController:
         # Wait for threads to finish
         if self.monitor_thread and self.monitor_thread.is_alive():
             self.monitor_thread.join(timeout=1.0)
-        if self.message_thread and self.message_thread.is_alive():
-            self.message_thread.join(timeout=1.0)
 
         logger.info("LaunchpadController stopped")
 
@@ -150,7 +154,7 @@ class LaunchpadController:
 
                 last_available_ports = available_ports
 
-                with self._lock:
+                with self._port_lock:
                     # If we have a port but it's no longer available
                     if self.current_port and self.current_port not in available_ports:
                         logger.warning(f"Launchpad disconnected: {self.current_port}")
@@ -186,21 +190,14 @@ class LaunchpadController:
 
     def _connect_to_port(self, port_name: str) -> None:
         """
-        Connect to a MIDI port and start message processing.
+        Connect to a MIDI port using callback-based approach.
 
-        Note: Should be called with _lock held.
+        Note: Should be called with _port_lock held.
         """
         try:
-            self.inport = mido.open_input(port_name)
+            # Open port with callback for immediate message processing
+            self.inport = mido.open_input(port_name, callback=self._midi_callback)
             self.current_port = port_name
-
-            # Start message processing thread
-            if self.message_thread and self.message_thread.is_alive():
-                # Wait for old thread to finish
-                self.message_thread.join(timeout=0.5)
-
-            self.message_thread = threading.Thread(target=self._process_messages, daemon=True)
-            self.message_thread.start()
 
             logger.info(f"Connected to {port_name}")
 
@@ -209,55 +206,56 @@ class LaunchpadController:
             self.inport = None
             self.current_port = None
 
-    def _process_messages(self) -> None:
-        """Process incoming MIDI messages."""
-        while self.running:
-            try:
-                with self._lock:
-                    if not self.inport:
-                        break
+    def _midi_callback(self, msg: mido.Message) -> None:
+        """
+        MIDI message callback - called from mido's thread.
 
-                    # Process pending messages
-                    for msg in self.inport.iter_pending():
-                        if not self.running:
-                            break
+        This is called immediately when MIDI messages arrive,
+        providing the lowest possible latency.
+        """
+        try:
+            # Filter out clock messages
+            if msg.type == 'clock':
+                return
 
-                        # Filter out clock messages
-                        if msg.type == 'clock':
-                            continue
+            # Handle note on/off
+            if msg.type == 'note_on':
+                # Note on with velocity 0 is actually note off
+                if msg.velocity > 0:
+                    self._handle_note_on(msg.note)
+                else:
+                    self._handle_note_off(msg.note)
+            elif msg.type == 'note_off':
+                self._handle_note_off(msg.note)
 
-                        # Handle note on/off
-                        if msg.type == 'note_on':
-                            # Note on with velocity 0 is actually note off
-                            if msg.velocity > 0:
-                                self._handle_note_on(msg.note)
-                            else:
-                                self._handle_note_off(msg.note)
-                        elif msg.type == 'note_off':
-                            self._handle_note_off(msg.note)
-
-                # Small delay to prevent busy waiting
-                time.sleep(0.001)
-
-            except Exception as e:
-                logger.error(f"Error processing MIDI messages: {e}")
-                break
+        except Exception as e:
+            logger.error(f"Error in MIDI callback: {e}")
 
     def _handle_note_on(self, note: int) -> None:
-        """Handle note on (pad pressed) event."""
+        """
+        Handle note on (pad pressed) event.
+
+        Thread-safe: Called from MIDI callback thread.
+        """
         # Convert MIDI note to pad index (0-63)
         # Launchpad uses notes 0-63 for the 8x8 grid
         if 0 <= note < 64:
             logger.debug(f"Pad pressed: {note}")
-            if self._on_pad_pressed:
-                self._on_pad_pressed(note)
+            with self._callback_lock:
+                if self._on_pad_pressed:
+                    self._on_pad_pressed(note)
 
     def _handle_note_off(self, note: int) -> None:
-        """Handle note off (pad released) event."""
+        """
+        Handle note off (pad released) event.
+
+        Thread-safe: Called from MIDI callback thread.
+        """
         if 0 <= note < 64:
             logger.debug(f"Pad released: {note}")
-            if self._on_pad_released:
-                self._on_pad_released(note)
+            with self._callback_lock:
+                if self._on_pad_released:
+                    self._on_pad_released(note)
 
     def __enter__(self):
         """Context manager entry."""
