@@ -142,6 +142,30 @@ class TestPlaybackState:
         assert state.position == 50
 
     @pytest.mark.unit
+    def test_seamless_loop(self, sample_audio_array):
+        """Test seamless looping at buffer boundary."""
+        audio = AudioData.from_array(sample_audio_array, sample_rate=44100)
+        state = PlaybackState(audio_data=audio, mode=PlaybackMode.LOOP)
+
+        state.start()
+        # Position near end of buffer
+        buffer_size = len(sample_audio_array)
+        state.position = buffer_size - 10
+
+        # Request more frames than available before loop
+        frames = state.get_frames(20)
+
+        # Should get exactly 20 frames (10 from end + 10 from beginning)
+        assert frames is not None
+        assert len(frames) == 20
+
+        # First 10 should match end of buffer
+        np.testing.assert_array_almost_equal(frames[:10], sample_audio_array[-10:])
+
+        # Last 10 should match beginning of buffer
+        np.testing.assert_array_almost_equal(frames[10:], sample_audio_array[:10])
+
+    @pytest.mark.unit
     def test_get_frames(self, sample_audio_array):
         """Test getting audio frames."""
         audio = AudioData.from_array(sample_audio_array, sample_rate=44100)

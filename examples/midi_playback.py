@@ -90,7 +90,7 @@ def main():
         logger.info(f"Pad {i}: {sample.name} ({mode.value})")
 
     # Create AudioManager
-    with AudioManager(sample_rate=44100, buffer_size=512) as audio_manager:
+    with AudioManager(sample_rate=44100, buffer_size=128) as audio_manager:
         logger.info("AudioManager started")
 
         # Load all samples into AudioManager

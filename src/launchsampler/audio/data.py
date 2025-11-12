@@ -171,6 +171,9 @@ class PlaybackState:
         """
         Get next audio frames for playback.
 
+        Handles seamless looping when in LOOP mode by wrapping around
+        the end of the buffer.
+
         Args:
             num_frames: Number of frames to get
 
@@ -181,21 +184,47 @@ class PlaybackState:
             return None
 
         start_pos = int(self.position)
-        end_pos = int(self.position + num_frames)
+        total_frames = self.audio_data.num_frames
 
-        # Handle end of buffer
-        if start_pos >= self.audio_data.num_frames:
+        # Handle end of buffer for non-loop modes
+        if start_pos >= total_frames:
             return None
 
-        if end_pos > self.audio_data.num_frames:
-            # Truncate to available frames
-            end_pos = self.audio_data.num_frames
+        end_pos = start_pos + num_frames
 
-        # Extract frames
-        if self.audio_data.num_channels == 1:
-            frames = self.audio_data.data[start_pos:end_pos]
+        # Check if we need to wrap around (for LOOP mode)
+        if end_pos > total_frames:
+            if self.mode == PlaybackMode.LOOP:
+                # Seamlessly wrap around for looping
+                # Get frames from current position to end
+                if self.audio_data.num_channels == 1:
+                    first_part = self.audio_data.data[start_pos:total_frames]
+                else:
+                    first_part = self.audio_data.data[start_pos:total_frames, :]
+
+                # Calculate how many frames we need from the beginning
+                remaining_frames = num_frames - (total_frames - start_pos)
+
+                # Get frames from beginning
+                if self.audio_data.num_channels == 1:
+                    second_part = self.audio_data.data[0:remaining_frames]
+                    frames = np.concatenate([first_part, second_part])
+                else:
+                    second_part = self.audio_data.data[0:remaining_frames, :]
+                    frames = np.concatenate([first_part, second_part], axis=0)
+            else:
+                # For ONE_SHOT and HOLD, truncate at end
+                end_pos = total_frames
+                if self.audio_data.num_channels == 1:
+                    frames = self.audio_data.data[start_pos:end_pos]
+                else:
+                    frames = self.audio_data.data[start_pos:end_pos, :]
         else:
-            frames = self.audio_data.data[start_pos:end_pos, :]
+            # Normal case - extract frames
+            if self.audio_data.num_channels == 1:
+                frames = self.audio_data.data[start_pos:end_pos]
+            else:
+                frames = self.audio_data.data[start_pos:end_pos, :]
 
         # Apply volume
         if self.volume != 1.0:
