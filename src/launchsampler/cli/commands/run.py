@@ -3,6 +3,7 @@
 import logging
 import time
 from pathlib import Path
+from typing import Optional
 
 import click
 
@@ -29,18 +30,11 @@ def setup_logging():
     help='Audio device ID (use "launchsampler list audio" to see available devices)'
 )
 @click.option(
-    '--sample-rate',
-    '-r',
-    type=int,
-    default=48000,
-    help='Sample rate in Hz (default: 48000)'
-)
-@click.option(
     '--buffer-size',
     '-b',
     type=int,
-    default=64,
-    help='Audio buffer size in frames (default: 64, lower = less latency)'
+    default=None,
+    help='Audio buffer size in frames (default: from config, typically 512)'
 )
 @click.option(
     '--samples-dir',
@@ -49,7 +43,7 @@ def setup_logging():
     default=Path("test_samples"),
     help='Directory containing WAV samples (default: test_samples/)'
 )
-def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path):
+def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Path):
     """
     Run MIDI-controlled Launchpad sampler.
 
@@ -74,12 +68,20 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
 
     click.echo("Starting MIDI-controlled Launchpad sampler...")
 
-    # Create application with configuration
-    config = AppConfig(
-        sample_rate=sample_rate,
-        buffer_size=buffer_size,
-        samples_dir=samples_dir
-    )
+    # Load configuration (from file or defaults)
+    config = AppConfig.load_or_default()
+
+    # Update config with CLI arguments (only if explicitly provided)
+    config.samples_dir = samples_dir
+
+    if audio_device is not None:
+        config.default_audio_device = audio_device
+
+    if buffer_size is not None:
+        config.default_buffer_size = buffer_size
+
+    # Save config so preferences are remembered for next time
+    config.save()
 
     # Event callback for UI output
     def on_pad_event(event_type: str, pad_index: int):
@@ -95,20 +97,19 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
 
     app = SamplerApplication(config=config, on_pad_event=on_pad_event)
 
-    # Load samples
+    # Load samples (uses config.samples_dir)
     try:
-        launchpad = app.load_samples_from_directory(samples_dir)
+        launchpad = app.load_samples_from_directory()
         click.echo(f"Found {len(launchpad.assigned_pads)} sample(s)")
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         click.echo("Create the directory and add some WAV files", err=True)
         raise click.Abort()
 
-    # Start audio and MIDI
+    # Start audio and MIDI (config defaults are used for None values)
     try:
         app.start(
             audio_device=audio_device,
-            sample_rate=sample_rate,
             buffer_size=buffer_size
         )
     except ValueError as e:

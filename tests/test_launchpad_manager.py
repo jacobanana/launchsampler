@@ -19,7 +19,7 @@ class TestSamplerEngine:
 
         if devices:
             device_id = devices[0][0]
-            audio_device = AudioDevice(device=device_id, sample_rate=44100, buffer_size=128)
+            audio_device = AudioDevice(device=device_id, buffer_size=128)
             manager = SamplerEngine(audio_device)
 
             assert manager is not None

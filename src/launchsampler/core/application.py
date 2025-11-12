@@ -79,7 +79,6 @@ class SamplerApplication:
             default_volume=default_volume
         )
 
-        logger.info(f"Loaded {len(self.launchpad.assigned_pads)} samples from {dir_path}")
         return self.launchpad
 
     def load_set(self, set_name: str) -> Set:
@@ -131,17 +130,17 @@ class SamplerApplication:
     def start(
         self,
         audio_device: Optional[int] = None,
-        sample_rate: Optional[int] = None,
         buffer_size: Optional[int] = None,
         low_latency: bool = True
     ) -> None:
         """
         Start the sampler (audio + MIDI).
 
+        Uses configuration defaults for any unspecified parameters.
+
         Args:
-            audio_device: Audio device ID (None = default)
-            sample_rate: Sample rate in Hz (None = use config)
-            buffer_size: Buffer size in frames (None = use config)
+            audio_device: Audio device ID (None = use config default)
+            buffer_size: Buffer size in frames (None = use config default)
             low_latency: Enable low-latency mode
 
         Raises:
@@ -155,11 +154,14 @@ class SamplerApplication:
         if not self.launchpad:
             raise RuntimeError("No samples loaded. Call load_samples_from_directory() or load_set() first")
 
+        # Use config defaults for unspecified parameters
+        device_id = audio_device if audio_device is not None else self.config.default_audio_device
+        buffer = buffer_size if buffer_size is not None else self.config.default_buffer_size
+
         # Create audio device
         self._audio_device = AudioDevice(
-            device=audio_device,
-            sample_rate=sample_rate or self.config.sample_rate,
-            buffer_size=buffer_size or self.config.buffer_size,
+            device=device_id,
+            buffer_size=buffer,
             low_latency=low_latency
         )
 
@@ -169,8 +171,10 @@ class SamplerApplication:
             num_pads=LaunchpadDevice.NUM_PADS
         )
 
-        # Create controller
-        self._controller = LaunchpadController(poll_interval=2.0)
+        # Create controller using config poll interval
+        self._controller = LaunchpadController(
+            poll_interval=self.config.midi_poll_interval
+        )
 
         # Load samples into audio engine
         loaded_count = 0

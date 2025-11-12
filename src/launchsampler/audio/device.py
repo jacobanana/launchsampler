@@ -20,7 +20,6 @@ class AudioDevice:
 
     def __init__(
         self,
-        sample_rate: int = 44100,
         buffer_size: int = 128,
         num_channels: int = 2,
         device: Optional[int] = None,
@@ -39,7 +38,6 @@ class AudioDevice:
         Raises:
             ValueError: If device doesn't use low-latency API
         """
-        self.sample_rate = sample_rate
         self.buffer_size = buffer_size
         self.num_channels = num_channels
         self.low_latency = low_latency
@@ -271,6 +269,11 @@ class AudioDevice:
         if self._stream:
             return self._stream.latency
         return 0.0
+    
+    @property
+    def sample_rate(self) -> int:
+        """Get current sample rate."""
+        return sd.query_devices(self.device)['default_samplerate'] if self.device is not None else sd.default.samplerate
 
     @staticmethod
     def list_output_devices():

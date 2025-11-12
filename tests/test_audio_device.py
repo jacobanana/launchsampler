@@ -118,11 +118,9 @@ class TestAudioDevice:
             device_id = devices[0][0]
             device = AudioDevice(
                 device=device_id,
-                sample_rate=48000,
                 buffer_size=128
             )
 
-            assert device.sample_rate == 48000
             assert device.buffer_size == 128
             assert device.device == device_id
             assert not device.is_running

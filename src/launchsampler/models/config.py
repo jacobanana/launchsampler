@@ -19,18 +19,20 @@ class AppConfig(BaseModel):
         description="Directory for audio samples"
     )
 
-    # Audio settings
-    sample_rate: int = Field(default=44100, description="Audio sample rate (Hz)")
-    buffer_size: int = Field(default=512, description="Audio buffer size")
+    # Audio defaults (used if not overridden at runtime)
+    default_audio_device: Optional[int] = Field(
+        default=None,
+        description="Default audio output device ID (None = system default)"
+    )
+    default_buffer_size: int = Field(
+        default=512,
+        description="Default audio buffer size in frames"
+    )
 
     # MIDI settings
-    midi_input_device: Optional[str] = Field(
-        default=None,
-        description="MIDI input device name"
-    )
-    midi_output_device: Optional[str] = Field(
-        default=None,
-        description="MIDI output device name"
+    midi_poll_interval: float = Field(
+        default=2.0,
+        description="How often to check for MIDI device changes (seconds)"
     )
 
     # Session settings

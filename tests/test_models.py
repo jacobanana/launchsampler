@@ -292,24 +292,23 @@ class TestAppConfig:
     def test_default_config(self):
         """Test creating default config."""
         config = AppConfig()
-        assert config.sample_rate == 44100
-        assert config.buffer_size == 512
+        assert config.default_buffer_size == 512
+        assert config.default_audio_device is None
 
     @pytest.mark.unit
     def test_load_or_default(self, temp_dir):
         """Test loading config or creating default."""
         # Non-existent file should return default
         config = AppConfig.load_or_default(temp_dir / "nonexistent.json")
-        assert config.sample_rate == 44100
+        assert config.default_buffer_size == 512
 
     @pytest.mark.unit
     def test_save_and_load(self, temp_dir):
         """Test saving and loading config."""
-        config = AppConfig(sample_rate=48000, buffer_size=256)
+        config = AppConfig(default_buffer_size=256)
         save_path = temp_dir / "config.json"
         config.save(save_path)
 
         # Load and verify
         loaded = AppConfig.load_or_default(save_path)
-        assert loaded.sample_rate == 48000
-        assert loaded.buffer_size == 256
+        assert loaded.default_buffer_size == 256
