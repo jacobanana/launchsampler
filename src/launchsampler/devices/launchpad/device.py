@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 
 import mido
 
-from ..models import Color
+from launchsampler.models import Color
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,10 @@ class LaunchpadDevice:
     Defines Launchpad-specific patterns, message parsing, and LED control.
     Pure functions - no state, just protocol knowledge.
     """
+
+    # Launchpad hardware constants
+    NUM_PADS = 64  # 8x8 grid
+    GRID_SIZE = 8  # 8x8 grid
 
     # Launchpad device name patterns to detect
     PATTERNS = [
@@ -89,14 +93,14 @@ class LaunchpadDevice:
             # Note on with velocity 0 is actually note off
             if msg.velocity > 0:
                 # Launchpad uses notes 0-63 for the 8x8 grid
-                if 0 <= msg.note < 64:
+                if 0 <= msg.note < LaunchpadDevice.NUM_PADS:
                     return ("pad_press", msg.note)
             else:
-                if 0 <= msg.note < 64:
+                if 0 <= msg.note < LaunchpadDevice.NUM_PADS:
                     return ("pad_release", msg.note)
 
         elif msg.type == 'note_off':
-            if 0 <= msg.note < 64:
+            if 0 <= msg.note < LaunchpadDevice.NUM_PADS:
                 return ("pad_release", msg.note)
 
         return None

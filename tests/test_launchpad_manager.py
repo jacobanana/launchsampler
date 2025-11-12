@@ -1,26 +1,26 @@
-"""Tests for LaunchpadManager."""
+"""Tests for SamplerEngine."""
 
 from pathlib import Path
 
 import pytest
 
 from launchsampler.audio import AudioDevice
-from launchsampler.launchpad import LaunchpadManager
+from launchsampler.core import SamplerEngine
 from launchsampler.models import Pad, PlaybackMode, Sample
 
 
 @pytest.mark.unit
-class TestLaunchpadManager:
-    """Test LaunchpadManager class."""
+class TestSamplerEngine:
+    """Test SamplerEngine class."""
 
     def test_create_manager(self):
-        """Test creating LaunchpadManager with AudioDevice."""
+        """Test creating SamplerEngine with AudioDevice."""
         devices, _ = AudioDevice.list_output_devices()
 
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id, sample_rate=44100, buffer_size=128)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             assert manager is not None
             assert not manager.is_running
@@ -33,7 +33,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             # Create test sample
             sample_path = Path("test_samples/kick.wav")
@@ -51,7 +51,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             pad = Pad(x=0, y=0)
             success = manager.load_sample(0, pad)
@@ -64,7 +64,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
@@ -82,7 +82,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
@@ -100,7 +100,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             manager.stop_all()  # Should not raise
 
@@ -111,7 +111,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
@@ -128,7 +128,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             manager.set_master_volume(0.5)
             assert manager._master_volume == 0.5
@@ -140,7 +140,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             # No pad loaded
             info = manager.get_playback_info(0)
@@ -165,7 +165,7 @@ class TestLaunchpadManager:
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
@@ -176,13 +176,13 @@ class TestLaunchpadManager:
                 manager.unload_sample(0)
 
     def test_context_manager(self):
-        """Test using LaunchpadManager as context manager."""
+        """Test using SamplerEngine as context manager."""
         devices, _ = AudioDevice.list_output_devices()
 
         if devices:
             device_id = devices[0][0]
             audio_device = AudioDevice(device=device_id)
-            manager = LaunchpadManager(audio_device)
+            manager = SamplerEngine(audio_device)
 
             with manager:
                 assert manager.is_running

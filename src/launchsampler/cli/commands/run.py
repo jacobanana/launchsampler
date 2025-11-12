@@ -1,16 +1,13 @@
 """Run command implementation."""
 
 import logging
-import queue
-import threading
 import time
 from pathlib import Path
 
 import click
 
-from launchsampler.audio import AudioDevice
-from launchsampler.launchpad import LaunchpadController, LaunchpadManager
-from launchsampler.models import Launchpad, PlaybackMode
+from launchsampler.core import SamplerApplication
+from launchsampler.models import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -77,102 +74,66 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
 
     click.echo("Starting MIDI-controlled Launchpad sampler...")
 
-    # Create Launchpad configuration from samples directory
-    # This auto-configures modes/colors based on filename conventions
+    # Create application with configuration
+    config = AppConfig(
+        sample_rate=sample_rate,
+        buffer_size=buffer_size,
+        samples_dir=samples_dir
+    )
+
+    # Event callback for UI output
+    def on_pad_event(event_type: str, pad_index: int):
+        """Handle pad events and display to user."""
+        if not app.launchpad:
+            return
+
+        pad = app.launchpad.pads[pad_index]
+        if event_type == "pressed" and pad.sample:
+            click.echo(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
+        elif event_type == "released":
+            click.echo(f"■ Pad {pad_index} stopped")
+
+    app = SamplerApplication(config=config, on_pad_event=on_pad_event)
+
+    # Load samples
     try:
-        launchpad = Launchpad.from_sample_directory(
-            samples_dir=samples_dir,
-            auto_configure=True,
-            default_volume=0.1
-        )
+        launchpad = app.load_samples_from_directory(samples_dir)
+        click.echo(f"Found {len(launchpad.assigned_pads)} sample(s)")
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         click.echo("Create the directory and add some WAV files", err=True)
         raise click.Abort()
 
-    num_samples = len(launchpad.assigned_pads)
-    click.echo(f"Found {num_samples} sample(s)")
-
-    # Create audio device
+    # Start audio and MIDI
     try:
-        audio_device_obj = AudioDevice(
-            device=audio_device,
+        app.start(
+            audio_device=audio_device,
             sample_rate=sample_rate,
-            buffer_size=buffer_size,
-            low_latency=True
+            buffer_size=buffer_size
         )
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         click.echo("\nUse 'launchsampler list audio' to see available devices", err=True)
         raise click.Abort()
 
-    # Create manager with device
-    manager = LaunchpadManager(audio_device_obj)
+    click.echo("\nReady! Press pads on your Launchpad")
+    click.echo("Press Ctrl+C to exit\n")
+    click.echo("Playback modes:")
+    click.echo("  Red (ONE_SHOT): Plays fully, ignores release")
+    click.echo("  Green (LOOP): Loops until released")
+    click.echo("  Blue (HOLD): Plays while held, stops on release")
 
-    # Create non-blocking output queue for console messages
-    output_queue = queue.Queue()
-
-    def output_worker():
-        """Background thread for console output (non-blocking I/O)."""
+    # Event loop
+    try:
         while True:
-            msg = output_queue.get()
-            if msg is None:  # Shutdown signal
-                break
-            click.echo(msg)
+            time.sleep(1)
 
-    # Start output worker thread
-    output_thread = threading.Thread(target=output_worker, daemon=True)
-    output_thread.start()
+            # Show active voices (debug)
+            active = app.active_voices
+            if active > 0:
+                logger.debug(f"Active voices: {active}")
 
-    with manager:
-        # Load all assigned samples into the audio manager
-        for i, pad in enumerate(launchpad.pads):
-            if pad.is_assigned:
-                success = manager.load_sample(i, pad)
-                if not success:
-                    logger.error(f"Failed to load sample for pad {i}")
-
-        # Create MIDI controller
-        with LaunchpadController(poll_interval=2.0) as midi_controller:
-            logger.info("LaunchpadController started")
-
-            # Wire up callbacks
-            def on_pad_pressed(pad_index: int):
-                """Handle pad press - trigger playback."""
-                pad = launchpad.pads[pad_index]
-                if pad.sample:
-                    manager.trigger_pad(pad_index)
-                    # Non-blocking output - enqueue message
-                    output_queue.put_nowait(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
-
-            def on_pad_released(pad_index: int):
-                """Handle pad release - stop if LOOP or HOLD mode."""
-                pad = launchpad.pads[pad_index]
-                if pad.sample and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
-                    manager.release_pad(pad_index)
-                    # Non-blocking output - enqueue message
-                    output_queue.put_nowait(f"■ Pad {pad_index} stopped")
-
-            # Register callbacks
-            midi_controller.on_pad_pressed(on_pad_pressed)
-            midi_controller.on_pad_released(on_pad_released)
-
-            click.echo("\nReady! Press pads on your Launchpad")
-            click.echo("Press Ctrl+C to exit\n")
-            click.echo("Playback modes:")
-            click.echo("  Red (ONE_SHOT): Plays fully, ignores release")
-            click.echo("  Green (LOOP): Loops until released")
-            click.echo("  Blue (HOLD): Plays while held, stops on release")
-
-            try:
-                # Keep running
-                while True:
-                    time.sleep(1)
-
-                    # Show active voices (debug)
-                    active = manager.active_voices
-                    if active > 0:
-                        logger.debug(f"Active voices: {active}")
-
-            except KeyboardInterrupt:
-                click.echo("\nExiting...")
+    except KeyboardInterrupt:
+        click.echo("\nExiting...")
+    finally:
+        app.stop()

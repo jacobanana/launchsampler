@@ -5,8 +5,8 @@ from typing import Callable, Optional
 
 import mido
 
-from ..midi import MidiManager
-from ..models import Color
+from launchsampler.midi import MidiManager
+from launchsampler.models import Color
 from .device import LaunchpadDevice
 
 logger = logging.getLogger(__name__)
@@ -113,6 +113,11 @@ class LaunchpadController:
     def is_connected(self) -> bool:
         """Check if Launchpad device is connected."""
         return self._midi.is_connected
+
+    @property
+    def num_pads(self) -> int:
+        """Get number of pads on this Launchpad device."""
+        return LaunchpadDevice.NUM_PADS
 
     def __enter__(self):
         """Context manager entry."""

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from launchsampler.launchpad import LaunchpadController, LaunchpadDevice
+from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 
 
 @pytest.mark.unit

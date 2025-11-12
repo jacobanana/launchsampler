@@ -1,4 +1,4 @@
-"""Application-specific orchestration for 64-pad Launchpad sampler."""
+"""Device-agnostic audio playback engine for multi-pad samplers."""
 
 import logging
 from threading import Lock
@@ -13,22 +13,27 @@ from launchsampler.models import Pad, PlaybackMode
 logger = logging.getLogger(__name__)
 
 
-class LaunchpadManager:
+class SamplerEngine:
     """
-    Orchestrates audio playback for 64-pad Launchpad sampler.
+    Audio playback engine for multi-pad samplers.
+
+    Device-agnostic engine that manages audio playback for N pads.
+    Works with any MIDI controller that provides pad triggers.
 
     Composes generic audio primitives (device, loader, mixer) with
-    application-specific logic (pads, samples, triggering).
+    pad-based playback management.
     """
 
-    def __init__(self, audio_device: AudioDevice):
+    def __init__(self, audio_device: AudioDevice, num_pads: int = 64):
         """
-        Initialize Launchpad manager.
+        Initialize sampler engine.
 
         Args:
             audio_device: Configured AudioDevice instance
+            num_pads: Number of pads to manage (default: 64 for Launchpad)
         """
         self._device = audio_device
+        self._num_pads = num_pads
         self._loader = SampleLoader(target_sample_rate=audio_device.sample_rate)
         self._mixer = AudioMixer(num_channels=audio_device.num_channels)
 
@@ -48,12 +53,16 @@ class LaunchpadManager:
         Load audio sample for a pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
             pad: Pad model with sample information
 
         Returns:
             True if loaded successfully, False otherwise
         """
+        if pad_index < 0 or pad_index >= self._num_pads:
+            logger.error(f"Invalid pad index: {pad_index} (valid: 0-{self._num_pads-1})")
+            return False
+
         if not pad.is_assigned or pad.sample is None:
             return False
 
@@ -89,7 +98,7 @@ class LaunchpadManager:
         Unload sample from pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
             if pad_index in self._playback_states:
@@ -101,7 +110,7 @@ class LaunchpadManager:
         Trigger playback for a pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
             if pad_index in self._playback_states:
@@ -118,7 +127,7 @@ class LaunchpadManager:
         For ONE_SHOT mode: Does nothing (sample plays fully)
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
             if pad_index in self._playback_states:
@@ -131,7 +140,7 @@ class LaunchpadManager:
         Stop playback for a pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
             if pad_index in self._playback_states:
@@ -148,7 +157,7 @@ class LaunchpadManager:
         Update volume for a pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
             volume: New volume (0.0-1.0)
         """
         with self._lock:
@@ -160,7 +169,7 @@ class LaunchpadManager:
         Update playback mode for a pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
             mode: New playback mode
         """
         with self._lock:
@@ -181,7 +190,7 @@ class LaunchpadManager:
         Get playback information for a pad.
 
         Args:
-            pad_index: Pad index (0-63)
+            pad_index: Pad index (0 to num_pads-1)
 
         Returns:
             Dictionary with playback info or None
@@ -263,6 +272,11 @@ class LaunchpadManager:
         """Get number of currently playing voices."""
         with self._lock:
             return sum(1 for state in self._playback_states.values() if state.is_playing)
+
+    @property
+    def num_pads(self) -> int:
+        """Get number of pads managed by this engine."""
+        return self._num_pads
 
     def __enter__(self):
         """Context manager entry."""
