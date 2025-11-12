@@ -17,7 +17,7 @@ def setup_logging():
     """Configure logging for CLI."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format='%(levelname)s - %(message)s'
     )
 
 
@@ -73,7 +73,7 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
     """
     setup_logging()
 
-    logger.info("Starting MIDI-controlled Launchpad sampler")
+    click.echo("Starting MIDI-controlled Launchpad sampler...")
 
     # Validate samples directory
     if not samples_dir.exists():
@@ -90,7 +90,7 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
         click.echo(f"Error: No audio files found in {samples_dir}", err=True)
         raise click.Abort()
 
-    logger.info(f"Found {len(sample_files)} samples")
+    click.echo(f"Found {len(sample_files)} sample(s)")
 
     # Create Launchpad configuration
     launchpad = Launchpad.create_empty()
@@ -118,7 +118,7 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
         pad.mode = mode
         pad.volume = 0.1
 
-        logger.info(f"Pad {i}: {sample.name} ({mode.value})")
+        logger.debug(f"Pad {i}: {sample.name} ({mode.value})")
 
     # Create audio device
     try:
@@ -154,15 +154,15 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
                 """Handle pad press - trigger playback."""
                 pad = launchpad.pads[pad_index]
                 if pad.sample:
-                    logger.info(f"Pad {pad_index} pressed: {pad.sample.name} ({pad.mode.value})")
                     manager.trigger_pad(pad_index)
+                    click.echo(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
 
             def on_pad_released(pad_index: int):
                 """Handle pad release - stop if LOOP or HOLD mode."""
                 pad = launchpad.pads[pad_index]
                 if pad.sample and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
-                    logger.info(f"Pad {pad_index} released: stopping {pad.mode.value}")
                     manager.release_pad(pad_index)
+                    click.echo(f"■ Pad {pad_index} stopped")
 
             # Register callbacks
             midi_controller.on_pad_pressed(on_pad_pressed)
