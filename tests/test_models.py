@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
+import numpy as np
 import pytest
+import soundfile as sf
 
 from launchsampler.models import (
     AppConfig,
@@ -162,6 +164,101 @@ class TestLaunchpad:
         launchpad.get_pad(0, 0).sample = sample_model
         launchpad.get_pad(1, 1).sample = sample_model
         assert len(launchpad.assigned_pads) == 2
+
+    @pytest.mark.unit
+    def test_from_sample_directory(self, temp_dir):
+        """Test creating Launchpad from sample directory."""
+        # Create test audio files with different naming conventions
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+
+        # Create files with different naming patterns
+        files = [
+            ("kick_oneshot.wav", PlaybackMode.ONE_SHOT),
+            ("bass_loop.wav", PlaybackMode.LOOP),
+            ("pad_tone.wav", PlaybackMode.LOOP),
+            ("vocal_hold.wav", PlaybackMode.HOLD),
+        ]
+
+        for filename, _ in files:
+            sf.write(str(temp_dir / filename), audio_data, sample_rate)
+
+        # Test auto-configuration
+        launchpad = Launchpad.from_sample_directory(
+            temp_dir, auto_configure=True, default_volume=0.5
+        )
+
+        # Verify correct number of samples loaded
+        assert len(launchpad.assigned_pads) == 4
+
+        # Verify auto-configuration worked correctly
+        pad0 = launchpad.pads[0]  # bass_loop (alphabetically first)
+        assert pad0.is_assigned
+        assert pad0.mode == PlaybackMode.LOOP
+        assert pad0.color == Color(r=0, g=127, b=0)  # Green
+        assert pad0.volume == 0.5
+
+        pad1 = launchpad.pads[1]  # kick_oneshot
+        assert pad1.mode == PlaybackMode.ONE_SHOT
+        assert pad1.color == Color(r=127, g=0, b=0)  # Red
+
+        pad2 = launchpad.pads[2]  # pad_tone
+        assert pad2.mode == PlaybackMode.LOOP
+        assert pad2.color == Color(r=0, g=127, b=0)  # Green
+
+        pad3 = launchpad.pads[3]  # vocal_hold
+        assert pad3.mode == PlaybackMode.HOLD
+        assert pad3.color == Color(r=0, g=0, b=127)  # Blue
+
+    @pytest.mark.unit
+    def test_from_sample_directory_no_auto_configure(self, temp_dir):
+        """Test creating Launchpad without auto-configuration."""
+        # Create a test audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        sf.write(str(temp_dir / "test_loop.wav"), audio_data, sample_rate)
+
+        launchpad = Launchpad.from_sample_directory(
+            temp_dir, auto_configure=False, default_volume=0.8
+        )
+
+        # Should still use ONE_SHOT as default even with "loop" in name
+        pad0 = launchpad.pads[0]
+        assert pad0.mode == PlaybackMode.ONE_SHOT
+        assert pad0.color == Color(r=127, g=0, b=0)  # Red (ONE_SHOT default)
+        assert pad0.volume == 0.8
+
+    @pytest.mark.unit
+    def test_from_sample_directory_invalid_path(self):
+        """Test that invalid directory raises ValueError."""
+        with pytest.raises(ValueError, match="not found"):
+            Launchpad.from_sample_directory(Path("/nonexistent/path"))
+
+    @pytest.mark.unit
+    def test_from_sample_directory_no_files(self, temp_dir):
+        """Test that directory with no audio files raises ValueError."""
+        with pytest.raises(ValueError, match="No audio files found"):
+            Launchpad.from_sample_directory(temp_dir)
+
+
+class TestPlaybackMode:
+    """Test PlaybackMode enum."""
+
+    @pytest.mark.unit
+    def test_get_default_color(self):
+        """Test getting default colors for playback modes."""
+        # ONE_SHOT should be red
+        assert PlaybackMode.ONE_SHOT.get_default_color() == Color(r=127, g=0, b=0)
+
+        # LOOP should be green
+        assert PlaybackMode.LOOP.get_default_color() == Color(r=0, g=127, b=0)
+
+        # HOLD should be blue
+        assert PlaybackMode.HOLD.get_default_color() == Color(r=0, g=0, b=127)
 
 
 class TestSet:

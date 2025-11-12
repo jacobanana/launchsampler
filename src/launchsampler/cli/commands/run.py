@@ -10,7 +10,7 @@ import click
 
 from launchsampler.audio import AudioDevice
 from launchsampler.launchpad import LaunchpadController, LaunchpadManager
-from launchsampler.models import Color, Launchpad, PlaybackMode, Sample
+from launchsampler.models import Launchpad, PlaybackMode
 
 logger = logging.getLogger(__name__)
 
@@ -77,50 +77,21 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
 
     click.echo("Starting MIDI-controlled Launchpad sampler...")
 
-    # Validate samples directory
-    if not samples_dir.exists():
-        click.echo(f"Error: Samples directory not found: {samples_dir}", err=True)
+    # Create Launchpad configuration from samples directory
+    # This auto-configures modes/colors based on filename conventions
+    try:
+        launchpad = Launchpad.from_sample_directory(
+            samples_dir=samples_dir,
+            auto_configure=True,
+            default_volume=0.1
+        )
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
         click.echo("Create the directory and add some WAV files", err=True)
         raise click.Abort()
 
-    # Find audio files
-    extensions = ['*.wav', '*.mp3', '*.flac']
-    sample_files = []
-    for ext in extensions:
-        sample_files.extend(samples_dir.glob(ext))
-    if not sample_files:
-        click.echo(f"Error: No audio files found in {samples_dir}", err=True)
-        raise click.Abort()
-
-    click.echo(f"Found {len(sample_files)} sample(s)")
-
-    # Create Launchpad configuration
-    launchpad = Launchpad.create_empty()
-
-    # Load and assign samples to pads
-    for i, sample_file in enumerate(sample_files[:64]):  # Max 64 pads
-        sample = Sample.from_file(sample_file)
-        sample_name_lower = sample_file.stem.lower()
-
-        # Set mode based on sample name (convention)
-        if "tone" in sample_name_lower or "loop" in sample_name_lower:
-            mode = PlaybackMode.LOOP
-            color = Color(r=0, g=127, b=0)  # Green for LOOP
-        elif "hold" in sample_name_lower:
-            mode = PlaybackMode.HOLD
-            color = Color(r=0, g=0, b=127)  # Blue for HOLD
-        else:
-            mode = PlaybackMode.ONE_SHOT
-            color = Color(r=127, g=0, b=0)  # Red for ONE_SHOT
-
-        # Assign to pad
-        pad = launchpad.pads[i]
-        pad.sample = sample
-        pad.color = color
-        pad.mode = mode
-        pad.volume = 0.1
-
-        logger.debug(f"Pad {i}: {sample.name} ({mode.value})")
+    num_samples = len(launchpad.assigned_pads)
+    click.echo(f"Found {num_samples} sample(s)")
 
     # Create audio device
     try:
@@ -154,10 +125,9 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
     output_thread.start()
 
     with manager:
-        # Load all samples
-        for i in range(64):
-            pad = launchpad.pads[i]
-            if pad.sample:
+        # Load all assigned samples into the audio manager
+        for i, pad in enumerate(launchpad.pads):
+            if pad.is_assigned:
                 success = manager.load_sample(i, pad)
                 if not success:
                     logger.error(f"Failed to load sample for pad {i}")
