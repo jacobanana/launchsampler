@@ -2,7 +2,7 @@
 
 import click
 
-from .commands import list_group, run
+from .commands import audio_group, midi_group, run
 
 
 @click.group()
@@ -18,7 +18,8 @@ def cli():
 
 
 # Register commands
-cli.add_command(list_group)
+cli.add_command(audio_group)
+cli.add_command(midi_group)
 cli.add_command(run)
 
 

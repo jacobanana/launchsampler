@@ -1,6 +1,7 @@
 """CLI commands for launchsampler."""
 
-from .list import list_group
+from .audio import audio_group
+from .midi import midi_group
 from .run import run
 
-__all__ = ["list_group", "run"]
+__all__ = ["audio_group", "midi_group", "run"]

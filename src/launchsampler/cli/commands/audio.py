@@ -1,18 +1,17 @@
-"""List command implementations."""
+"""Audio command implementations."""
 
 import click
 
 from launchsampler.audio import AudioManager
-from launchsampler.midi import MidiManager
 
 
-@click.group(name="list")
-def list_group():
-    """List available devices and ports."""
+@click.group(name="audio")
+def audio_group():
+    """Audio device commands."""
     pass
 
 
-@list_group.command(name="audio")
+@audio_group.command(name="list")
 def list_audio():
     """List available ASIO and WASAPI audio output devices."""
     click.echo("Available low-latency audio output devices (ASIO/WASAPI only):\n")
@@ -36,23 +35,3 @@ def list_audio():
             click.echo(f"    Latency: {latency_ms:.1f} ms")
 
         click.echo()  # Blank line between devices
-
-
-@list_group.command(name="midi")
-def list_midi():
-    """List available MIDI ports."""
-    ports = MidiManager.list_ports()
-
-    click.echo("MIDI Input Ports:\n")
-    if not ports['input']:
-        click.echo("  No MIDI input ports found.")
-    else:
-        for i, port in enumerate(ports['input']):
-            click.echo(f"  [{i}] {port}")
-
-    click.echo("\nMIDI Output Ports:\n")
-    if not ports['output']:
-        click.echo("  No MIDI output ports found.")
-    else:
-        for i, port in enumerate(ports['output']):
-            click.echo(f"  [{i}] {port}")
