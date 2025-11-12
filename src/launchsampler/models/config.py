@@ -3,13 +3,11 @@
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 
 class AppConfig(BaseModel):
     """Application configuration and settings."""
-
-    model_config = ConfigDict()
 
     # Paths
     sets_dir: Path = Field(

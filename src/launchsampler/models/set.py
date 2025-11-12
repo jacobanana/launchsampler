@@ -3,15 +3,13 @@
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer
 
 from .launchpad import Launchpad
 
 
 class Set(BaseModel):
     """A saved configuration of pad assignments."""
-
-    model_config = ConfigDict()
 
     name: str = Field(description="Set name")
     launchpad: Launchpad = Field(description="Launchpad configuration")
