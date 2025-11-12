@@ -223,3 +223,31 @@ class TestAudioManager:
         """Test getting default device."""
         device = AudioManager.get_default_device()
         assert isinstance(device, int)
+
+    @pytest.mark.unit
+    def test_device_validation_invalid_api(self):
+        """Test that non-ASIO/WASAPI devices are rejected."""
+        import sounddevice as sd
+
+        # Find a non-ASIO/WASAPI device (like MME)
+        devices = sd.query_devices()
+        hostapis = sd.query_hostapis()
+
+        invalid_device = None
+        for i, device in enumerate(devices):
+            if device['max_output_channels'] > 0:
+                hostapi = hostapis[device['hostapi']]
+                if 'ASIO' not in hostapi['name'] and 'WASAPI' not in hostapi['name']:
+                    invalid_device = i
+                    break
+
+        # If we found an invalid device, test that it's rejected
+        if invalid_device is not None:
+            with pytest.raises(ValueError, match="Only ASIO or WASAPI devices are supported"):
+                AudioManager(device=invalid_device)
+
+    @pytest.mark.unit
+    def test_device_validation_invalid_id(self):
+        """Test that invalid device IDs are rejected."""
+        with pytest.raises(ValueError, match="Invalid device ID"):
+            AudioManager(device=999999)

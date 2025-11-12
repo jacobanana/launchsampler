@@ -1,5 +1,6 @@
 """Audio manager for handling playback with sounddevice."""
 
+import logging
 from pathlib import Path
 from threading import Lock
 from typing import Dict, Optional
@@ -11,6 +12,8 @@ from ..models import Pad, PlaybackMode
 from .data import AudioData, PlaybackState
 from .loader import SampleLoader
 from .mixer import AudioMixer
+
+logger = logging.getLogger(__name__)
 
 
 class AudioManager:
@@ -27,22 +30,35 @@ class AudioManager:
     def __init__(
         self,
         sample_rate: int = 44100,
-        buffer_size: int = 512,
+        buffer_size: int = 128,
         num_channels: int = 2,
-        device: Optional[int] = None
+        device: Optional[int] = None,
+        low_latency: bool = True
     ):
         """
         Initialize audio manager.
 
         Args:
             sample_rate: Audio sample rate in Hz
-            buffer_size: Audio buffer size in frames
+            buffer_size: Audio buffer size in frames (lower = less latency, more CPU)
+                         Recommended: 64-128 for low latency, 256-512 for stability
             num_channels: Number of output channels (1=mono, 2=stereo)
-            device: Output device ID (None for default)
+            device: Output device ID (None for system default, use print_devices() to list)
+                    Only ASIO or WASAPI devices are allowed
+            low_latency: Enable low-latency optimizations (WASAPI exclusive on Windows)
+
+        Raises:
+            ValueError: If device is not ASIO or WASAPI
         """
         self.sample_rate = sample_rate
         self.buffer_size = buffer_size
         self.num_channels = num_channels
+        self.low_latency = low_latency
+
+        # Validate device if specified
+        if device is not None:
+            self._validate_device(device)
+
         self.device = device
 
         # Audio components
@@ -63,11 +79,129 @@ class AudioManager:
         # Master volume
         self._master_volume = 1.0
 
+    @staticmethod
+    def _is_valid_device(device_id: int) -> tuple[bool, str, str]:
+        """
+        Check if device is ASIO or WASAPI.
+
+        Args:
+            device_id: Device ID to check
+
+        Returns:
+            Tuple of (is_valid, hostapi_name, device_name)
+
+        Raises:
+            ValueError: If device_id is invalid
+        """
+        try:
+            device_info = sd.query_devices(device_id)
+            hostapi_info = sd.query_hostapis(device_info['hostapi'])
+            hostapi_name = hostapi_info['name']
+            device_name = device_info['name']
+
+            # Check if ASIO or WASAPI
+            is_valid = 'ASIO' in hostapi_name or 'WASAPI' in hostapi_name
+            return is_valid, hostapi_name, device_name
+
+        except Exception:
+            raise ValueError(f"Invalid device ID: {device_id}. Use AudioManager.print_devices() to list available devices.")
+
+    def _validate_device(self, device_id: int) -> None:
+        """
+        Validate that device is ASIO or WASAPI.
+
+        Args:
+            device_id: Device ID to validate
+
+        Raises:
+            ValueError: If device is not ASIO or WASAPI
+        """
+        is_valid, hostapi_name, device_name = self._is_valid_device(device_id)
+
+        if not is_valid:
+            raise ValueError(
+                f"Device '{device_name}' uses Host API '{hostapi_name}'. "
+                f"Only ASIO or WASAPI devices are supported for low-latency playback. "
+                f"Use AudioManager.print_devices() to find suitable devices."
+            )
+
+        logger.info(f"Validated device: {device_name} ({hostapi_name})")
+
     def start(self) -> None:
         """Start audio stream."""
+
         if self._is_running:
             return
 
+        # Determine and validate device
+        device_id = self.device if self.device is not None else sd.default.device[1]
+
+        # Validate device is ASIO or WASAPI
+        is_valid, hostapi_name, device_name = self._is_valid_device(device_id)
+        if not is_valid:
+            raise ValueError(
+                f"Device '{device_name}' uses Host API '{hostapi_name}'. "
+                f"Only ASIO or WASAPI devices are supported for low-latency playback. "
+                f"Use AudioManager.print_devices() to find suitable devices, "
+                f"then specify with AudioManager(device=X)"
+            )
+
+        # Log device information
+        device_info = sd.query_devices(device_id)
+        is_asio = 'ASIO' in hostapi_name
+
+        logger.info(f"Audio device: {device_name}")
+        logger.info(f"  Host API: {hostapi_name}")
+        logger.info(f"  Max output channels: {device_info['max_output_channels']}")
+        logger.info(f"  Default sample rate: {device_info['default_samplerate']} Hz")
+        logger.info(f"  Default low latency: {device_info['default_low_output_latency']*1000:.1f}ms")
+        logger.info(f"  Default high latency: {device_info['default_high_output_latency']*1000:.1f}ms")
+
+        # ASIO devices don't use WASAPI settings
+        if is_asio:
+            self._stream = sd.OutputStream(
+                samplerate=self.sample_rate,
+                blocksize=self.buffer_size,
+                channels=self.num_channels,
+                device=self.device,
+                dtype=np.float32,
+                callback=self._audio_callback
+            )
+            self._stream.start()
+            self._is_running = True
+            latency = self._stream.latency
+            logger.info(f"Audio stream started (ASIO)")
+            logger.info(f"  Buffer size: {self.buffer_size} frames ({self.buffer_size/self.sample_rate*1000:.1f}ms)")
+            logger.info(f"  Total latency: {latency*1000:.1f}ms")
+            return
+
+        # Try with low-latency settings first, fall back to standard if it fails
+        if self.low_latency and hasattr(sd, 'WasapiSettings'):
+            try:
+                # Try WASAPI exclusive mode (Windows only)
+                extra_settings = sd.WasapiSettings(exclusive=True)
+                self._stream = sd.OutputStream(
+                    samplerate=self.sample_rate,
+                    blocksize=self.buffer_size,
+                    channels=self.num_channels,
+                    device=self.device,
+                    dtype=np.float32,
+                    callback=self._audio_callback,
+                    prime_output_buffers_using_stream_callback=False,
+                    extra_settings=extra_settings
+                )
+                self._stream.start()
+                self._is_running = True
+                latency = self._stream.latency
+                logger.info(f"Audio stream started (WASAPI exclusive mode)")
+                logger.info(f"  Buffer size: {self.buffer_size} frames ({self.buffer_size/self.sample_rate*1000:.1f}ms)")
+                logger.info(f"  Total latency: {latency*1000:.1f}ms")
+                return
+            except sd.PortAudioError as e:
+                # Exclusive mode not supported, fall back to shared mode
+                logger.info(f"WASAPI exclusive mode not available, falling back to shared mode")
+
+        # Standard mode (or fallback from exclusive mode failure)
         self._stream = sd.OutputStream(
             samplerate=self.sample_rate,
             blocksize=self.buffer_size,
@@ -78,6 +212,10 @@ class AudioManager:
         )
         self._stream.start()
         self._is_running = True
+        latency = self._stream.latency
+        logger.info(f"Audio stream started (shared mode)")
+        logger.info(f"  Buffer size: {self.buffer_size} frames ({self.buffer_size/self.sample_rate*1000:.1f}ms)")
+        logger.info(f"  Total latency: {latency*1000:.1f}ms")
 
     def stop(self) -> None:
         """Stop audio stream."""
@@ -316,6 +454,36 @@ class AudioManager:
             List of device dictionaries
         """
         return sd.query_devices()
+
+    @staticmethod
+    def print_devices() -> None:
+        """
+        Print all available ASIO and WASAPI audio output devices.
+
+        Only shows devices suitable for low-latency playback.
+        """
+        devices = sd.query_devices()
+        hostapis = sd.query_hostapis()
+
+        logger.info("Available low-latency audio output devices (ASIO/WASAPI only):")
+        found_devices = False
+
+        for i, device in enumerate(devices):
+            if device['max_output_channels'] > 0:
+                hostapi = hostapis[device['hostapi']]
+                hostapi_name = hostapi['name']
+
+                # Only show ASIO or WASAPI devices
+                if 'ASIO' in hostapi_name or 'WASAPI' in hostapi_name:
+                    found_devices = True
+                    logger.info(f"  [{i}] {device['name']}")
+                    logger.info(f"      Host API: {hostapi_name}")
+                    logger.info(f"      Channels: {device['max_output_channels']}")
+                    logger.info(f"      Sample rate: {device['default_samplerate']} Hz")
+                    logger.info(f"      Low latency: {device['default_low_output_latency']*1000:.1f}ms")
+
+        if not found_devices:
+            logger.warning("No ASIO or WASAPI devices found. Install ASIO drivers for best performance.")
 
     @staticmethod
     def get_default_device() -> int:

@@ -27,8 +27,18 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    # TODO: help user select audio device interactively
+    device = 13
     """Run MIDI-controlled playback example."""
     logger.info("Starting MIDI-controlled Launchpad sampler")
+
+    # Print all available audio devices to help you choose
+    # Look for ASIO devices for lowest latency
+    AudioManager.print_devices()
+
+    # To use a specific device (like ASIO), set device=X where X is the device ID from print_devices()
+    # For example: AudioManager(buffer_size=64, device=5, low_latency=False)
+    # Note: ASIO devices don't need low_latency=True (they have their own low-latency API)
 
     # Create a Launchpad configuration
     launchpad = Launchpad.create_empty()
@@ -64,34 +74,26 @@ def main():
             mode = PlaybackMode.LOOP
             color = Color(r=0, g=127, b=0)  # Green for LOOP
             logger.info(f"Found tone sample - setting to LOOP mode")
-        elif "kick" in sample_name_lower:
+        else:
             mode = PlaybackMode.ONE_SHOT
             color = Color(r=127, g=0, b=0)  # Red for ONE_SHOT
-            logger.info(f"Found kick sample - setting to ONE_SHOT mode")
-        else:
-            # Alternate modes for other samples
-            if i % 3 == 0:
-                mode = PlaybackMode.ONE_SHOT
-                color = Color(r=127, g=0, b=0)  # Red
-            elif i % 3 == 1:
-                mode = PlaybackMode.LOOP
-                color = Color(r=0, g=127, b=0)  # Green
-            else:
-                mode = PlaybackMode.HOLD
-                color = Color(r=0, g=0, b=127)  # Blue
+            logger.info(f"Found {sample.name} sample - setting to ONE_SHOT mode")
 
         # Get the existing pad and modify it
         pad = launchpad.pads[i]
         pad.sample = sample
         pad.color = color
         pad.mode = mode
-        pad.volume = 0.8
+        pad.volume = 0.1
 
         logger.info(f"Pad {i}: {sample.name} ({mode.value})")
 
-    # Create AudioManager
-    with AudioManager(sample_rate=44100, buffer_size=128) as audio_manager:
-        logger.info("AudioManager started")
+    # Create AudioManager with ultra-low-latency settings
+    # buffer_size=64: ~1.5ms latency (recommended for live performance)
+    # buffer_size=128: ~3ms latency (good balance)
+    # buffer_size=256: ~6ms latency (safer for stability)
+    # device=None: Uses system default (change to specific device ID for ASIO)
+    with AudioManager(device=device, sample_rate=48000, buffer_size=64, low_latency=True) as audio_manager:
 
         # Load all samples into AudioManager
         for i in range(64):
