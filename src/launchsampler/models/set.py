@@ -2,9 +2,8 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from .launchpad import Launchpad
 
@@ -12,11 +11,17 @@ from .launchpad import Launchpad
 class Set(BaseModel):
     """A saved configuration of pad assignments."""
 
+    model_config = ConfigDict()
+
     name: str = Field(description="Set name")
     launchpad: Launchpad = Field(description="Launchpad configuration")
     created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
     modified_at: datetime = Field(default_factory=datetime.now, description="Last modified timestamp")
-    description: Optional[str] = Field(default=None, description="Optional description")
+
+    @field_serializer("created_at", "modified_at")
+    def serialize_datetime(self, dt: datetime) -> str:
+        """Serialize datetime to ISO format."""
+        return dt.isoformat()
 
     def save_to_file(self, path: Path) -> None:
         """Save set to JSON file."""
@@ -34,13 +39,3 @@ class Set(BaseModel):
             name=name,
             launchpad=Launchpad.create_empty()
         )
-
-    def update_timestamp(self) -> None:
-        """Update the modified_at timestamp."""
-        self.modified_at = datetime.now()
-
-    class Config:
-        """Pydantic config."""
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }

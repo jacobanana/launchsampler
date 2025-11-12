@@ -8,6 +8,7 @@ dependencies = [
     "numpy>=2.3.4",
     "pydantic>=2.12.4",
     "sounddevice>=0.5.3",
+    "soundfile>=0.13.0",
 ]
 
 [project.scripts]
@@ -16,3 +17,8 @@ launchsampler = "launchsampler.__main__:main"
 [build-system]
 requires = ["uv_build>=0.9.8,<0.10.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]

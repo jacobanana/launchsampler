@@ -1,18 +1,20 @@
 """Sample model for audio file metadata."""
 
 from pathlib import Path
-from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, field_serializer
 
 
 class Sample(BaseModel):
     """Audio sample metadata (not the actual audio data)."""
 
+    model_config = ConfigDict(
+        # Allow Path objects to be serialized
+        arbitrary_types_allowed=False,
+    )
+
     name: str = Field(description="Sample name")
     path: Path = Field(description="Path to audio file")
-    duration: Optional[float] = Field(default=None, description="Duration in seconds")
-    sample_rate: Optional[int] = Field(default=None, description="Sample rate in Hz")
 
     @field_validator("path")
     @classmethod
@@ -21,6 +23,11 @@ class Sample(BaseModel):
         if not isinstance(v, Path):
             return Path(v)
         return v
+
+    @field_serializer("path")
+    def serialize_path(self, path: Path) -> str:
+        """Serialize Path to string."""
+        return str(path)
 
     @classmethod
     def from_file(cls, path: Path) -> "Sample":
@@ -33,9 +40,3 @@ class Sample(BaseModel):
     def exists(self) -> bool:
         """Check if the audio file exists."""
         return self.path.exists()
-
-    class Config:
-        """Pydantic config."""
-        json_encoders = {
-            Path: str
-        }

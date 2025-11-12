@@ -3,13 +3,15 @@
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from .enums import LaunchpadModel
 
 
 class AppConfig(BaseModel):
     """Application configuration and settings."""
+
+    model_config = ConfigDict()
 
     # Paths
     sets_dir: Path = Field(
@@ -46,6 +48,11 @@ class AppConfig(BaseModel):
     )
     auto_save: bool = Field(default=True, description="Auto-save on changes")
 
+    @field_serializer("sets_dir", "samples_dir")
+    def serialize_path(self, path: Path) -> str:
+        """Serialize Path to string."""
+        return str(path)
+
     def ensure_directories(self) -> None:
         """Create config directories if they don't exist."""
         self.sets_dir.mkdir(parents=True, exist_ok=True)
@@ -71,9 +78,3 @@ class AppConfig(BaseModel):
 
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.model_dump_json(indent=2))
-
-    class Config:
-        """Pydantic config."""
-        json_encoders = {
-            Path: str
-        }

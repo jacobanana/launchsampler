@@ -19,26 +19,6 @@ class Color(BaseModel):
         return v
 
     @classmethod
-    def red(cls) -> "Color":
-        """Create red color."""
-        return cls(r=127, g=0, b=0)
-
-    @classmethod
-    def green(cls) -> "Color":
-        """Create green color."""
-        return cls(r=0, g=127, b=0)
-
-    @classmethod
-    def blue(cls) -> "Color":
-        """Create blue color."""
-        return cls(r=0, g=0, b=127)
-
-    @classmethod
-    def yellow(cls) -> "Color":
-        """Create yellow color."""
-        return cls(r=127, g=127, b=0)
-
-    @classmethod
     def off(cls) -> "Color":
         """Create off (black) color."""
         return cls(r=0, g=0, b=0)
