@@ -48,25 +48,37 @@ def main():
 
     logger.info(f"Found {len(sample_files)} samples")
 
-    # Assign first few samples to pads with different modes
+    # Assign samples to pads with specific modes
+    # tone.wav -> LOOP mode (pad 0)
+    # kick.wav -> ONE_SHOT mode (pad 1)
+    # Others -> Alternate between modes
     for i, sample_file in enumerate(sample_files[:8]):
         if i >= 64:  # Only 64 pads
             break
 
         sample = Sample.from_file(sample_file)
-        x = i % 8
-        y = i // 8
+        sample_name_lower = sample_file.stem.lower()
 
-        # Alternate playback modes for demonstration
-        if i % 3 == 0:
-            mode = PlaybackMode.ONE_SHOT
-            color = Color(r=127, g=0, b=0)  # Red
-        elif i % 3 == 1:
+        # Set mode based on sample name
+        if "tone" in sample_name_lower:
             mode = PlaybackMode.LOOP
-            color = Color(r=0, g=127, b=0)  # Green
+            color = Color(r=0, g=127, b=0)  # Green for LOOP
+            logger.info(f"Found tone sample - setting to LOOP mode")
+        elif "kick" in sample_name_lower:
+            mode = PlaybackMode.ONE_SHOT
+            color = Color(r=127, g=0, b=0)  # Red for ONE_SHOT
+            logger.info(f"Found kick sample - setting to ONE_SHOT mode")
         else:
-            mode = PlaybackMode.HOLD
-            color = Color(r=0, g=0, b=127)  # Blue
+            # Alternate modes for other samples
+            if i % 3 == 0:
+                mode = PlaybackMode.ONE_SHOT
+                color = Color(r=127, g=0, b=0)  # Red
+            elif i % 3 == 1:
+                mode = PlaybackMode.LOOP
+                color = Color(r=0, g=127, b=0)  # Green
+            else:
+                mode = PlaybackMode.HOLD
+                color = Color(r=0, g=0, b=127)  # Blue
 
         # Get the existing pad and modify it
         pad = launchpad.pads[i]

@@ -160,7 +160,11 @@ class AudioManager:
 
     def release_pad(self, pad_index: int) -> None:
         """
-        Release pad (for HOLD mode).
+        Release pad (for HOLD and LOOP modes).
+
+        For HOLD mode: Stops playback immediately
+        For LOOP mode: Stops looping
+        For ONE_SHOT mode: Does nothing (sample plays fully)
 
         Args:
             pad_index: Pad index (0-63)
@@ -168,7 +172,7 @@ class AudioManager:
         with self._lock:
             if pad_index in self._playback_states:
                 state = self._playback_states[pad_index]
-                if state.mode == PlaybackMode.HOLD:
+                if state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
                     state.stop()
 
     def stop_pad(self, pad_index: int) -> None:
