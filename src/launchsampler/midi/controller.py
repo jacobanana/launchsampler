@@ -39,7 +39,6 @@ class LaunchpadController:
         self.poll_interval = poll_interval
         self.running = False
         self.monitor_thread: Optional[threading.Thread] = None
-        self.current_port: Optional[str] = None
         self.inport: Optional[mido.ports.BaseInput] = None
 
         # Event callbacks
@@ -97,7 +96,6 @@ class LaunchpadController:
                 except Exception as e:
                     logger.error(f"Error closing MIDI port: {e}")
                 self.inport = None
-            self.current_port = None
 
         # Wait for threads to finish
         if self.monitor_thread and self.monitor_thread.is_alive():
@@ -153,21 +151,19 @@ class LaunchpadController:
 
                 with self._port_lock:
                     # If we have a port but it's no longer available
-                    if self.current_port and self.current_port not in available_ports:
-                        logger.warning(f"Launchpad disconnected: {self.current_port}")
-                        if self.inport:
-                            try:
-                                self.inport.close()
-                            except Exception:
-                                pass
-                            self.inport = None
-                        self.current_port = None
+                    if self.inport and self.inport.name not in available_ports:
+                        logger.warning(f"Launchpad disconnected: {self.inport.name}")
+                        try:
+                            self.inport.close()
+                        except Exception:
+                            pass
+                        self.inport = None
                         # Reset warning flag so we can warn again
                         if hasattr(self, '_no_device_warned'):
                             delattr(self, '_no_device_warned')
 
                     # If we don't have a port, try to find one
-                    if not self.current_port:
+                    if not self.inport:
                         port = self._find_launchpad_port()
                         if port:
                             logger.info(f"Launchpad detected: {port}")
@@ -194,14 +190,11 @@ class LaunchpadController:
         try:
             # Open port with callback for immediate message processing
             self.inport = mido.open_input(port_name, callback=self._midi_callback)
-            self.current_port = port_name
-
             logger.info(f"Connected to {port_name}")
 
         except Exception as e:
             logger.error(f"Failed to connect to {port_name}: {e}")
             self.inport = None
-            self.current_port = None
 
     def _midi_callback(self, msg: mido.Message) -> None:
         """
