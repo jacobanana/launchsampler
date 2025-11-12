@@ -48,13 +48,14 @@ class SamplerEngine:
         # Register audio callback
         self._device.set_callback(self._audio_callback)
 
-    def load_sample(self, pad_index: int, pad: Pad) -> bool:
+    def load_sample(self, pad_index: int, pad: Pad, normalize: bool = True) -> bool:
         """
         Load audio sample for a pad.
 
         Args:
             pad_index: Pad index (0 to num_pads-1)
             pad: Pad model with sample information
+            normalize: Whether to normalize audio after loading
 
         Returns:
             True if loaded successfully, False otherwise
@@ -75,6 +76,10 @@ class SamplerEngine:
                 self._audio_cache[path_str] = audio_data
             else:
                 audio_data = self._audio_cache[path_str]
+
+            # Normalize audio if needed
+            if normalize:
+                audio_data.normalize()
 
             # Create or update playback state
             with self._lock:
