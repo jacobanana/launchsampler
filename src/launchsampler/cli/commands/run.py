@@ -2,6 +2,8 @@
 
 import logging
 import time
+import queue
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -83,6 +85,21 @@ def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Pa
     # Save config so preferences are remembered for next time
     config.save()
 
+    # Create non-blocking output queue for console messages
+    output_queue = queue.Queue()
+
+    def output_worker():
+        """Background thread for console output (non-blocking I/O)."""
+        while True:
+            msg = output_queue.get()
+            if msg is None:  # Shutdown signal
+                break
+            click.echo(msg)
+
+    # Start output worker thread
+    output_thread = threading.Thread(target=output_worker, daemon=True)
+    output_thread.start()
+
     # Event callback for UI output
     def on_pad_event(event_type: str, pad_index: int):
         """Handle pad events and display to user."""
@@ -91,9 +108,10 @@ def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Pa
 
         pad = app.launchpad.pads[pad_index]
         if event_type == "pressed" and pad.sample:
-            click.echo(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
+            # Non-blocking output - enqueue message
+            output_queue.put_nowait(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
         elif event_type == "released":
-            click.echo(f"■ Pad {pad_index} stopped")
+            output_queue.put_nowait(f"■ Pad {pad_index} stopped")
 
     app = SamplerApplication(config=config, on_pad_event=on_pad_event)
 
