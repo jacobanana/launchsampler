@@ -13,94 +13,45 @@ Launchpad Sampler provides low-latency audio playback for 64 pads (8×8 grid) wi
 uv sync
 
 # Run tests
-pytest
+uv run pytest
 
 # Run application
-python launchsampler
+uv run launchsampler
 ```
 
 ## Architecture
 
-### Separation of Concerns Pattern
+### Core Layers
 
-The system is organized into three distinct layers:
+**1. Models** (Pydantic) - Serializable configuration
+- Color, Sample, Pad, Launchpad, Set, AppConfig
+- JSON persistence, type-safe validation
 
-**1. Metadata Layer** (Pydantic Models)
-- Serializable configuration stored as JSON
-- Type-safe validation and schemas
-- Models: Color, Sample, Pad, Launchpad, Set, AppConfig
+**2. Audio** (NumPy + sounddevice) - Real-time playback
+- AudioData, PlaybackState (dataclasses for performance)
+- SampleLoader, AudioMixer, AudioManager
+- Low-latency mixing, 64+ voices
 
-**2. Runtime Data Layer** (Dataclasses)
-- Performance-critical audio data (NumPy arrays)
-- Non-serializable, minimal overhead (~100ns instantiation)
-- Components: AudioData, PlaybackState
+**3. MIDI** (mido) - Generic MIDI I/O
+- MidiInputManager, MidiOutputManager, MidiManager
+- Hot-plug support, callback-based
+- Device-agnostic with optional port selection
 
-**3. Audio Engine** (sounddevice)
-- Real-time playback and mixing
-- Thread-safe operations
-- Components: SampleLoader, AudioMixer, AudioManager
+**4. Launchpad** - Device-specific protocol
+- LaunchpadDevice (patterns, parsing, port selection)
+- LaunchpadController (high-level API)
+- Composes generic MIDI with Launchpad protocol
 
-### Why This Design?
+**5. CLI** (Click) - User interface
+- Commands: `run`, `list audio`, `list midi`
+- ASIO/WASAPI device filtering
 
-- **Pydantic**: Validation, serialization, type safety (metadata only)
-- **Dataclasses**: 500× faster than Pydantic (hot audio paths)
-- **Clean separation**: Metadata can be saved/loaded independently from audio processing
+### Design Rationale
 
-## Core Components
-
-### Models (`src/launchsampler/models/`)
-
-```python
-# Enums
-PlaybackMode: ONE_SHOT | LOOP | HOLD
-LaunchpadModel: LAUNCHPAD_X | LAUNCHPAD_MINI | LAUNCHPAD_PRO
-
-# Core models
-Color(r, g, b)              # RGB 0-127 for MIDI
-Sample(name, path)          # Audio file metadata
-Pad(x, y, sample, color,    # Single pad in grid
-    mode, volume)
-Launchpad(model, pads[64])  # 8×8 grid with MIDI conversion
-Set(name, launchpad,        # Saved configuration
-    created_at, modified_at)
-AppConfig(...)              # App settings
-```
-
-**Key Methods:**
-- `Launchpad.note_to_xy(note)` / `xy_to_note(x, y)` - MIDI conversion
-- `Set.save_to_file()` / `load_from_file()` - JSON persistence
-- `Color.off()` - Turn off LED
-
-### Audio Engine (`src/launchsampler/audio/`)
-
-```python
-# Dataclasses (runtime)
-AudioData(data, sample_rate,     # NumPy float32 arrays
-          num_channels, num_frames)
-PlaybackState(is_playing, position,  # Playback state
-              mode, volume, audio_data)
-
-# Audio processing
-SampleLoader       # Load WAV/FLAC/OGG files
-AudioMixer         # Mix multiple sources, soft clipping
-AudioManager       # Main engine (64 pads, real-time)
-```
-
-**AudioManager API:**
-```python
-with AudioManager(sample_rate=44100, buffer_size=512) as manager:
-    # Load
-    manager.load_sample(pad_index, pad)
-
-    # Control
-    manager.trigger_pad(pad_index)
-    manager.stop_pad(pad_index)
-    manager.set_master_volume(0.8)
-
-    # Monitor
-    info = manager.get_playback_info(pad_index)
-    voices = manager.active_voices
-```
+- **Pydantic**: Validation, serialization (metadata only)
+- **Dataclasses**: 500× faster (hot audio paths)
+- **Separation**: Generic MIDI reusable for other controllers
+- **Composition**: Device logic in protocol, not managers
 
 ## Features
 
@@ -139,36 +90,28 @@ soundfile = ">=0.13.0"   # File loading
 
 ```
 src/launchsampler/
-├── models/          # Pydantic
-│   ├── enums.py
-│   ├── color.py
-│   ├── sample.py
-│   ├── pad.py
-│   ├── launchpad.py
-│   ├── set.py
-│   └── config.py
-└── audio/           # Audio engine
-    ├── data.py      # AudioData, PlaybackState
-    ├── loader.py    # SampleLoader
-    ├── mixer.py     # AudioMixer
-    └── manager.py   # AudioManager
+├── models/          # Pydantic models (config, serialization)
+├── audio/           # Audio engine (playback, mixing)
+├── midi/            # Generic MIDI I/O (hot-plug, managers)
+├── launchpad/       # Launchpad-specific (device, controller)
+└── cli/             # Click commands (run, list)
 
-tests/               # unit tests
+tests/               # Unit tests
 ```
 
 ## Testing
 
 ```bash
 # All tests
-pytest
+uv run pytest
 
 # Verbose
-pytest -v
+uv run pytest -v
 
 # Specific
-pytest tests/test_models.py
+uv run pytest tests/test_models.py
 
 # With warnings
-pytest -W default
+uv run pytest -W default
 ```
 
