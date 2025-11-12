@@ -2,8 +2,8 @@
 
 import click
 
-from ...audio import AudioManager
-from ...midi import MidiManager
+from launchsampler.audio import AudioManager
+from launchsampler.midi import MidiManager
 
 
 @click.group(name="list")
