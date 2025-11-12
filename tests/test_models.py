@@ -8,7 +8,6 @@ from launchsampler.models import (
     AppConfig,
     Color,
     Launchpad,
-    LaunchpadModel,
     Pad,
     PlaybackMode,
     Sample,
@@ -198,7 +197,6 @@ class TestAppConfig:
         config = AppConfig()
         assert config.sample_rate == 44100
         assert config.buffer_size == 512
-        assert config.launchpad_model == LaunchpadModel.LAUNCHPAD_X
 
     @pytest.mark.unit
     def test_load_or_default(self, temp_dir):

@@ -4,17 +4,12 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from .enums import LaunchpadModel
 from .pad import Pad
 
 
 class Launchpad(BaseModel):
     """Represents the complete 8x8 grid of pads."""
 
-    model: LaunchpadModel = Field(
-        default=LaunchpadModel.LAUNCHPAD_X,
-        description="Launchpad hardware model"
-    )
     pads: list[Pad] = Field(
         default_factory=lambda: [
             Pad(x=x, y=y) for y in range(8) for x in range(8)
@@ -65,6 +60,6 @@ class Launchpad(BaseModel):
         return [pad for pad in self.pads if pad.is_assigned]
 
     @classmethod
-    def create_empty(cls, model: LaunchpadModel = LaunchpadModel.LAUNCHPAD_X) -> "Launchpad":
+    def create_empty(cls) -> "Launchpad":
         """Create a new empty Launchpad."""
-        return cls(model=model)
+        return cls()
