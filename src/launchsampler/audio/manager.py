@@ -1,14 +1,14 @@
 """Audio manager for handling playback with sounddevice."""
 
 import logging
-from pathlib import Path
+import sys
 from threading import Lock
 from typing import Dict, Optional
 
 import numpy as np
 import sounddevice as sd
 
-from ..models import Pad, PlaybackMode
+from launchsampler.models import Pad, PlaybackMode
 from .data import AudioData, PlaybackState
 from .loader import SampleLoader
 from .mixer import AudioMixer
@@ -80,9 +80,28 @@ class AudioManager:
         self._master_volume = 1.0
 
     @staticmethod
+    def _get_platform_apis() -> tuple[list[str], str]:
+        """
+        Get platform-specific low-latency APIs.
+
+        - Windows: ASIO, WASAPI
+        - macOS: Core Audio
+        - Linux: ALSA, JACK
+
+        Returns:
+            Tuple of (api_list, api_names_string)
+        """
+        if sys.platform == 'win32':
+            return ['ASIO', 'WASAPI'], "ASIO/WASAPI"
+        elif sys.platform == 'darwin':
+            return ['Core Audio'], "Core Audio"
+        else:
+            return ['ALSA', 'JACK'], "ALSA/JACK"
+
+    @staticmethod
     def _is_valid_device(device_id: int) -> tuple[bool, str, str]:
         """
-        Check if device is ASIO or WASAPI.
+        Check if device uses a low-latency audio API.
 
         Args:
             device_id: Device ID to check
@@ -99,8 +118,8 @@ class AudioManager:
             hostapi_name = hostapi_info['name']
             device_name = device_info['name']
 
-            # Check if ASIO or WASAPI
-            is_valid = 'ASIO' in hostapi_name or 'WASAPI' in hostapi_name
+            low_latency_apis, _ = AudioManager._get_platform_apis()
+            is_valid = any(api in hostapi_name for api in low_latency_apis)
             return is_valid, hostapi_name, device_name
 
         except Exception:
@@ -108,20 +127,21 @@ class AudioManager:
 
     def _validate_device(self, device_id: int) -> None:
         """
-        Validate that device is ASIO or WASAPI.
+        Validate that device uses a low-latency audio API.
 
         Args:
             device_id: Device ID to validate
 
         Raises:
-            ValueError: If device is not ASIO or WASAPI
+            ValueError: If device doesn't use a low-latency API
         """
         is_valid, hostapi_name, device_name = self._is_valid_device(device_id)
 
         if not is_valid:
+            _, api_names = AudioManager._get_platform_apis()
             raise ValueError(
                 f"Device '{device_name}' uses Host API '{hostapi_name}'. "
-                f"Only ASIO or WASAPI devices are supported for low-latency playback. "
+                f"Only {api_names} devices are supported for low-latency playback. "
                 f"Use AudioManager.print_devices() to find suitable devices."
             )
 
@@ -136,7 +156,7 @@ class AudioManager:
         # Determine and validate device
         device_id = self.device if self.device is not None else sd.default.device[1]
 
-        # Validate device is ASIO or WASAPI
+        # Validate device is low-latency
         is_valid, hostapi_name, device_name = self._is_valid_device(device_id)
         if not is_valid:
             raise ValueError(
@@ -458,14 +478,21 @@ class AudioManager:
     @staticmethod
     def list_output_devices():
         """
-        List all available ASIO and WASAPI audio output devices.
+        List all available low-latency audio output devices.
+
+        On Windows: ASIO and WASAPI devices
+        On macOS: Core Audio devices
+        On Linux: ALSA and JACK devices
 
         Returns:
-            List of tuples: (device_id, device_name, host_api_name, device_info)
+            Tuple of (devices, api_names) where:
+            - devices: List of tuples (device_id, device_name, host_api_name, device_info)
+            - api_names: String describing the platform APIs (e.g., "ASIO/WASAPI")
         """
         devices = sd.query_devices()
         hostapis = sd.query_hostapis()
 
+        low_latency_apis, api_names = AudioManager._get_platform_apis()
         available_devices = []
 
         for i, device in enumerate(devices):
@@ -473,41 +500,32 @@ class AudioManager:
                 hostapi = hostapis[device['hostapi']]
                 hostapi_name = hostapi['name']
 
-                # Only include ASIO or WASAPI devices
-                if 'ASIO' in hostapi_name or 'WASAPI' in hostapi_name:
+                if any(api in hostapi_name for api in low_latency_apis):
                     available_devices.append((i, device['name'], hostapi_name, device))
 
-        return available_devices
+        return available_devices, api_names
 
     @staticmethod
     def print_devices() -> None:
         """
-        Print all available ASIO and WASAPI audio output devices.
+        Print all available low-latency audio output devices.
 
-        Only shows devices suitable for low-latency playback.
+        Only shows devices suitable for low-latency playback (platform-specific).
         """
-        devices = sd.query_devices()
-        hostapis = sd.query_hostapis()
+        devices, api_names = AudioManager.list_output_devices()
 
-        logger.info("Available low-latency audio output devices (ASIO/WASAPI only):")
-        found_devices = False
+        logger.info(f"Available low-latency audio output devices ({api_names} only):")
 
-        for i, device in enumerate(devices):
-            if device['max_output_channels'] > 0:
-                hostapi = hostapis[device['hostapi']]
-                hostapi_name = hostapi['name']
+        if not devices:
+            logger.warning(f"No {api_names} devices found.")
+            return
 
-                # Only show ASIO or WASAPI devices
-                if 'ASIO' in hostapi_name or 'WASAPI' in hostapi_name:
-                    found_devices = True
-                    logger.info(f"  [{i}] {device['name']}")
-                    logger.info(f"      Host API: {hostapi_name}")
-                    logger.info(f"      Channels: {device['max_output_channels']}")
-                    logger.info(f"      Sample rate: {device['default_samplerate']} Hz")
-                    logger.info(f"      Low latency: {device['default_low_output_latency']*1000:.1f}ms")
-
-        if not found_devices:
-            logger.warning("No ASIO or WASAPI devices found. Install ASIO drivers for best performance.")
+        for device_id, device_name, hostapi_name, device_info in devices:
+            logger.info(f"  [{device_id}] {device_name}")
+            logger.info(f"      Host API: {hostapi_name}")
+            logger.info(f"      Channels: {device_info['max_output_channels']}")
+            logger.info(f"      Sample rate: {device_info['default_samplerate']} Hz")
+            logger.info(f"      Low latency: {device_info['default_low_output_latency']*1000:.1f}ms")
 
     @staticmethod
     def get_default_device() -> int:

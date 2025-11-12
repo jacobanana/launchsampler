@@ -13,14 +13,14 @@ def audio_group():
 
 @audio_group.command(name="list")
 def list_audio():
-    """List available ASIO and WASAPI audio output devices."""
-    click.echo("Available low-latency audio output devices (ASIO/WASAPI only):\n")
+    """List available low-latency audio output devices."""
+    devices, api_names = AudioManager.list_output_devices()
 
-    devices = AudioManager.list_output_devices()
+    click.echo(f"Available low-latency audio output devices ({api_names}):\n")
 
     if not devices:
-        click.echo("No ASIO or WASAPI devices found.")
-        click.echo("\nNote: Only ASIO and WASAPI devices are supported for low-latency playback.")
+        click.echo(f"No {api_names} devices found.")
+        click.echo(f"\nNote: Only {api_names} devices are supported for low-latency playback.")
         return
 
     for device_id, name, host_api, info in devices:
