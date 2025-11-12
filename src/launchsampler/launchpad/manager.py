@@ -224,28 +224,34 @@ class LaunchpadManager:
             outdata: Output buffer to fill
             frames: Number of frames requested
         """
-        # Get active playback states
-        with self._lock:
-            active_states = [
-                state for state in self._playback_states.values()
-                if state.is_playing
-            ]
+        try:
+            # Get active playback states
+            with self._lock:
+                active_states = [
+                    state for state in self._playback_states.values()
+                    if state.is_playing
+                ]
 
-        # Mix all active sources
-        mixed = self._mixer.mix(active_states, frames)
+            # Mix all active sources
+            mixed = self._mixer.mix(active_states, frames)
 
-        # Apply master volume
-        if self._master_volume != 1.0:
-            self._mixer.apply_master_volume(mixed, self._master_volume)
+            # Apply master volume
+            if self._master_volume != 1.0:
+                self._mixer.apply_master_volume(mixed, self._master_volume)
 
-        # Soft clip to prevent harsh distortion
-        self._mixer.soft_clip(mixed)
+            # Soft clip to prevent harsh distortion
+            self._mixer.soft_clip(mixed)
 
-        # Copy to output buffer
-        if self._device.num_channels == 1:
-            outdata[:, 0] = mixed
-        else:
-            outdata[:] = mixed
+            # Copy to output buffer
+            if self._device.num_channels == 1:
+                outdata[:, 0] = mixed
+            else:
+                outdata[:] = mixed
+
+        except Exception as e:
+            # Log error and output silence to prevent audio stream crash
+            logger.exception(f"Error in audio callback: {e}")
+            outdata.fill(0.0)
 
     @property
     def is_running(self) -> bool:
