@@ -6,8 +6,8 @@ from pathlib import Path
 
 import click
 
-from launchsampler.audio import AudioManager
-from launchsampler.launchpad import LaunchpadController
+from launchsampler.audio import AudioDevice
+from launchsampler.launchpad import LaunchpadController, LaunchpadManager
 from launchsampler.models import Color, Launchpad, PlaybackMode, Sample
 
 logger = logging.getLogger(__name__)
@@ -81,10 +81,13 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
         click.echo("Create the directory and add some WAV files", err=True)
         raise click.Abort()
 
-    # Find WAV files
-    sample_files = list(samples_dir.glob("*.wav"))
+    # Find audio files
+    extensions = ['*.wav', '*.mp3', '*.flac']
+    sample_files = []
+    for ext in extensions:
+        sample_files.extend(samples_dir.glob(ext))
     if not sample_files:
-        click.echo(f"Error: No WAV files found in {samples_dir}", err=True)
+        click.echo(f"Error: No audio files found in {samples_dir}", err=True)
         raise click.Abort()
 
     logger.info(f"Found {len(sample_files)} samples")
@@ -117,9 +120,9 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
 
         logger.info(f"Pad {i}: {sample.name} ({mode.value})")
 
-    # Create AudioManager
+    # Create audio device
     try:
-        audio_manager = AudioManager(
+        audio_device_obj = AudioDevice(
             device=audio_device,
             sample_rate=sample_rate,
             buffer_size=buffer_size,
@@ -130,12 +133,15 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
         click.echo("\nUse 'launchsampler list audio' to see available devices", err=True)
         raise click.Abort()
 
-    with audio_manager:
+    # Create manager with device
+    manager = LaunchpadManager(audio_device_obj)
+
+    with manager:
         # Load all samples
         for i in range(64):
             pad = launchpad.pads[i]
             if pad.sample:
-                success = audio_manager.load_sample(i, pad)
+                success = manager.load_sample(i, pad)
                 if not success:
                     logger.error(f"Failed to load sample for pad {i}")
 
@@ -149,14 +155,14 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
                 pad = launchpad.pads[pad_index]
                 if pad.sample:
                     logger.info(f"Pad {pad_index} pressed: {pad.sample.name} ({pad.mode.value})")
-                    audio_manager.trigger_pad(pad_index)
+                    manager.trigger_pad(pad_index)
 
             def on_pad_released(pad_index: int):
                 """Handle pad release - stop if LOOP or HOLD mode."""
                 pad = launchpad.pads[pad_index]
                 if pad.sample and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
                     logger.info(f"Pad {pad_index} released: stopping {pad.mode.value}")
-                    audio_manager.release_pad(pad_index)
+                    manager.release_pad(pad_index)
 
             # Register callbacks
             midi_controller.on_pad_pressed(on_pad_pressed)
@@ -175,7 +181,7 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
                     time.sleep(1)
 
                     # Show active voices (debug)
-                    active = audio_manager.active_voices
+                    active = manager.active_voices
                     if active > 0:
                         logger.debug(f"Active voices: {active}")
 

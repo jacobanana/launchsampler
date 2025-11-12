@@ -2,5 +2,6 @@
 
 from .controller import LaunchpadController
 from .device import LaunchpadDevice
+from .manager import LaunchpadManager
 
-__all__ = ["LaunchpadController", "LaunchpadDevice"]
+__all__ = ["LaunchpadController", "LaunchpadDevice", "LaunchpadManager"]

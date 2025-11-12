@@ -2,7 +2,7 @@
 
 import click
 
-from launchsampler.audio import AudioManager
+from launchsampler.audio import AudioDevice
 
 
 @click.group(name="audio")
@@ -14,7 +14,7 @@ def audio_group():
 @audio_group.command(name="list")
 def list_audio():
     """List available low-latency audio output devices."""
-    devices, api_names = AudioManager.list_output_devices()
+    devices, api_names = AudioDevice.list_output_devices()
 
     click.echo(f"Available low-latency audio output devices ({api_names}):\n")
 

@@ -1,0 +1,268 @@
+"""Application-specific orchestration for 64-pad Launchpad sampler."""
+
+import logging
+from threading import Lock
+from typing import Dict, Optional
+
+import numpy as np
+
+from launchsampler.audio import AudioDevice, AudioMixer, SampleLoader
+from launchsampler.audio.data import AudioData, PlaybackState
+from launchsampler.models import Pad, PlaybackMode
+
+logger = logging.getLogger(__name__)
+
+
+class LaunchpadManager:
+    """
+    Orchestrates audio playback for 64-pad Launchpad sampler.
+
+    Composes generic audio primitives (device, loader, mixer) with
+    application-specific logic (pads, samples, triggering).
+    """
+
+    def __init__(self, audio_device: AudioDevice):
+        """
+        Initialize Launchpad manager.
+
+        Args:
+            audio_device: Configured AudioDevice instance
+        """
+        self._device = audio_device
+        self._loader = SampleLoader(target_sample_rate=audio_device.sample_rate)
+        self._mixer = AudioMixer(num_channels=audio_device.num_channels)
+
+        # Application state
+        self._audio_cache: Dict[str, AudioData] = {}  # path -> AudioData
+        self._playback_states: Dict[int, PlaybackState] = {}  # pad_index -> PlaybackState
+        self._master_volume = 1.0
+
+        # Thread safety
+        self._lock = Lock()
+
+        # Register audio callback
+        self._device.set_callback(self._audio_callback)
+
+    def load_sample(self, pad_index: int, pad: Pad) -> bool:
+        """
+        Load audio sample for a pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+            pad: Pad model with sample information
+
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        if not pad.is_assigned or pad.sample is None:
+            return False
+
+        path_str = str(pad.sample.path)
+
+        try:
+            # Check cache first
+            if path_str not in self._audio_cache:
+                audio_data = self._loader.load(pad.sample.path)
+                self._audio_cache[path_str] = audio_data
+            else:
+                audio_data = self._audio_cache[path_str]
+
+            # Create or update playback state
+            with self._lock:
+                if pad_index not in self._playback_states:
+                    self._playback_states[pad_index] = PlaybackState()
+
+                state = self._playback_states[pad_index]
+                state.audio_data = audio_data
+                state.mode = pad.mode
+                state.volume = pad.volume
+                state.reset()
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error loading sample for pad {pad_index}: {e}")
+            return False
+
+    def unload_sample(self, pad_index: int) -> None:
+        """
+        Unload sample from pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+        """
+        with self._lock:
+            if pad_index in self._playback_states:
+                self._playback_states[pad_index].stop()
+                self._playback_states[pad_index].audio_data = None
+
+    def trigger_pad(self, pad_index: int) -> None:
+        """
+        Trigger playback for a pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+        """
+        with self._lock:
+            if pad_index in self._playback_states:
+                state = self._playback_states[pad_index]
+                if state.audio_data is not None:
+                    state.start()
+
+    def release_pad(self, pad_index: int) -> None:
+        """
+        Release pad (for HOLD and LOOP modes).
+
+        For HOLD mode: Stops playback immediately
+        For LOOP mode: Stops looping
+        For ONE_SHOT mode: Does nothing (sample plays fully)
+
+        Args:
+            pad_index: Pad index (0-63)
+        """
+        with self._lock:
+            if pad_index in self._playback_states:
+                state = self._playback_states[pad_index]
+                if state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
+                    state.stop()
+
+    def stop_pad(self, pad_index: int) -> None:
+        """
+        Stop playback for a pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+        """
+        with self._lock:
+            if pad_index in self._playback_states:
+                self._playback_states[pad_index].stop()
+
+    def stop_all(self) -> None:
+        """Stop all playing pads."""
+        with self._lock:
+            for state in self._playback_states.values():
+                state.stop()
+
+    def update_pad_volume(self, pad_index: int, volume: float) -> None:
+        """
+        Update volume for a pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+            volume: New volume (0.0-1.0)
+        """
+        with self._lock:
+            if pad_index in self._playback_states:
+                self._playback_states[pad_index].volume = volume
+
+    def update_pad_mode(self, pad_index: int, mode: PlaybackMode) -> None:
+        """
+        Update playback mode for a pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+            mode: New playback mode
+        """
+        with self._lock:
+            if pad_index in self._playback_states:
+                self._playback_states[pad_index].mode = mode
+
+    def set_master_volume(self, volume: float) -> None:
+        """
+        Set master output volume.
+
+        Args:
+            volume: Master volume (0.0-1.0)
+        """
+        self._master_volume = max(0.0, min(1.0, volume))
+
+    def get_playback_info(self, pad_index: int) -> Optional[dict]:
+        """
+        Get playback information for a pad.
+
+        Args:
+            pad_index: Pad index (0-63)
+
+        Returns:
+            Dictionary with playback info or None
+        """
+        with self._lock:
+            if pad_index not in self._playback_states:
+                return None
+
+            state = self._playback_states[pad_index]
+            return {
+                'is_playing': state.is_playing,
+                'progress': state.progress,
+                'time_elapsed': state.time_elapsed,
+                'time_remaining': state.time_remaining,
+                'mode': state.mode.value,
+                'volume': state.volume,
+            }
+
+    def clear_cache(self) -> None:
+        """Clear audio cache (useful to free memory)."""
+        with self._lock:
+            self._audio_cache.clear()
+
+    def start(self) -> None:
+        """Start audio device and begin playback."""
+        self._device.start()
+
+    def stop(self) -> None:
+        """Stop audio device and all playback."""
+        self.stop_all()
+        self._device.stop()
+
+    def _audio_callback(self, outdata: np.ndarray, frames: int) -> None:
+        """
+        Audio callback for mixing and rendering.
+
+        Called by AudioDevice for each audio block.
+
+        Args:
+            outdata: Output buffer to fill
+            frames: Number of frames requested
+        """
+        # Get active playback states
+        with self._lock:
+            active_states = [
+                state for state in self._playback_states.values()
+                if state.is_playing
+            ]
+
+        # Mix all active sources
+        mixed = self._mixer.mix(active_states, frames)
+
+        # Apply master volume
+        if self._master_volume != 1.0:
+            self._mixer.apply_master_volume(mixed, self._master_volume)
+
+        # Soft clip to prevent harsh distortion
+        self._mixer.soft_clip(mixed)
+
+        # Copy to output buffer
+        if self._device.num_channels == 1:
+            outdata[:, 0] = mixed
+        else:
+            outdata[:] = mixed
+
+    @property
+    def is_running(self) -> bool:
+        """Check if audio device is running."""
+        return self._device.is_running
+
+    @property
+    def active_voices(self) -> int:
+        """Get number of currently playing voices."""
+        with self._lock:
+            return sum(1 for state in self._playback_states.values() if state.is_playing)
+
+    def __enter__(self):
+        """Context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.stop()
