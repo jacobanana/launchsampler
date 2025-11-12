@@ -1,5 +1,7 @@
-"""MIDI controller for Launchpad integration."""
+"""MIDI management - generic MIDI functionality."""
 
-from .controller import LaunchpadController
+from .input_manager import MidiInputManager
+from .manager import MidiManager
+from .output_manager import MidiOutputManager
 
-__all__ = ["LaunchpadController"]
+__all__ = ["MidiInputManager", "MidiOutputManager", "MidiManager"]

@@ -3,7 +3,7 @@
 import click
 
 from ...audio import AudioManager
-from ...midi import LaunchpadController
+from ...midi import MidiManager
 
 
 @click.group(name="list")
@@ -40,14 +40,19 @@ def list_audio():
 
 @list_group.command(name="midi")
 def list_midi():
-    """List available MIDI input ports."""
-    click.echo("Available MIDI input ports:\n")
+    """List available MIDI ports."""
+    ports = MidiManager.list_ports()
 
-    ports = LaunchpadController.list_ports()
+    click.echo("MIDI Input Ports:\n")
+    if not ports['input']:
+        click.echo("  No MIDI input ports found.")
+    else:
+        for i, port in enumerate(ports['input']):
+            click.echo(f"  [{i}] {port}")
 
-    if not ports:
-        click.echo("No MIDI input ports found.")
-        return
-
-    for i, port in enumerate(ports):
-        click.echo(f"[{i}] {port}")
+    click.echo("\nMIDI Output Ports:\n")
+    if not ports['output']:
+        click.echo("  No MIDI output ports found.")
+    else:
+        for i, port in enumerate(ports['output']):
+            click.echo(f"  [{i}] {port}")

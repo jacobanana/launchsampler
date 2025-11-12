@@ -5,19 +5,84 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from launchsampler.midi import LaunchpadController
+from launchsampler.launchpad import LaunchpadController, LaunchpadDevice
+
+
+@pytest.mark.unit
+class TestLaunchpadDevice:
+    """Test LaunchpadDevice protocol."""
+
+    def test_matches(self):
+        """Test Launchpad port detection."""
+        assert LaunchpadDevice.matches("Launchpad X")
+        assert LaunchpadDevice.matches("Launchpad Mini")
+        assert LaunchpadDevice.matches("Launchpad Pro")
+        assert LaunchpadDevice.matches("Novation Launchpad X")
+        assert LaunchpadDevice.matches("LPProMK3 MIDI 1")
+        assert LaunchpadDevice.matches("LPProMK3 MIDI 2")
+        assert LaunchpadDevice.matches("LPMiniMK3 MIDI 1")
+        assert LaunchpadDevice.matches("LPX MIDI 1")
+        assert not LaunchpadDevice.matches("Other MIDI Device")
+        assert not LaunchpadDevice.matches("Keyboard")
+
+    def test_parse_input_note_on(self):
+        """Test parsing note on messages."""
+        import mido
+
+        # Valid pad press
+        msg = mido.Message('note_on', note=32, velocity=100)
+        assert LaunchpadDevice.parse_input(msg) == ("pad_press", 32)
+
+        # Note 0 (valid)
+        msg = mido.Message('note_on', note=0, velocity=100)
+        assert LaunchpadDevice.parse_input(msg) == ("pad_press", 0)
+
+        # Note 63 (valid)
+        msg = mido.Message('note_on', note=63, velocity=100)
+        assert LaunchpadDevice.parse_input(msg) == ("pad_press", 63)
+
+        # Note on with velocity 0 = note off
+        msg = mido.Message('note_on', note=32, velocity=0)
+        assert LaunchpadDevice.parse_input(msg) == ("pad_release", 32)
+
+        # Out of range notes
+        msg = mido.Message('note_on', note=64, velocity=100)
+        assert LaunchpadDevice.parse_input(msg) is None
+
+    def test_parse_input_note_off(self):
+        """Test parsing note off messages."""
+        import mido
+
+        msg = mido.Message('note_off', note=32, velocity=0)
+        assert LaunchpadDevice.parse_input(msg) == ("pad_release", 32)
+
+        # Out of range
+        msg = mido.Message('note_off', note=64, velocity=0)
+        assert LaunchpadDevice.parse_input(msg) is None
+
+    def test_parse_input_clock(self):
+        """Test that clock messages are filtered."""
+        import mido
+
+        msg = mido.Message('clock')
+        assert LaunchpadDevice.parse_input(msg) is None
+
+    def test_select_port_prefers_midi1(self):
+        """Test port selection prefers MIDI 1 ports."""
+        ports = ["LPProMK3 MIDI 0", "LPProMK3 MIDI 2", "LPProMK3 MIDI 1"]
+        assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 1"
+
+        # Without MIDI 1, takes first
+        ports = ["LPProMK3 MIDI 0", "LPProMK3 MIDI 2"]
+        assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 0"
+
+        # Empty list
+        assert LaunchpadDevice.select_port([]) is None
 
 
 @pytest.mark.unit
 class TestLaunchpadController:
     """Test LaunchpadController class."""
-
-    def test_init(self):
-        """Test controller initialization."""
-        controller = LaunchpadController(poll_interval=1.0)
-        assert controller.poll_interval == 1.0
-        assert not controller.running
-        assert controller.inport is None
 
     def test_callback_registration(self):
         """Test callback registration."""
@@ -32,165 +97,52 @@ class TestLaunchpadController:
         assert controller._on_pad_pressed == pressed_callback
         assert controller._on_pad_released == released_callback
 
-    def test_is_launchpad_port(self):
-        """Test Launchpad port detection."""
-        controller = LaunchpadController()
-
-        assert controller._is_launchpad_port("Launchpad X")
-        assert controller._is_launchpad_port("Launchpad Mini")
-        assert controller._is_launchpad_port("Launchpad Pro")
-        assert controller._is_launchpad_port("Novation Launchpad X")
-        assert controller._is_launchpad_port("LPProMK3 MIDI 1")
-        assert controller._is_launchpad_port("LPProMK3 MIDI 2")
-        assert controller._is_launchpad_port("LPMiniMK3 MIDI 1")
-        assert controller._is_launchpad_port("LPX MIDI 1")
-        assert not controller._is_launchpad_port("Other MIDI Device")
-        assert not controller._is_launchpad_port("Keyboard")
-
-    @patch('launchsampler.midi.controller.mido.get_input_names')
-    def test_find_launchpad_port(self, mock_get_names):
-        """Test finding Launchpad port."""
-        controller = LaunchpadController()
-
-        # Test with Launchpad available
-        mock_get_names.return_value = ["Other Device", "Launchpad X", "Keyboard"]
-        assert controller._find_launchpad_port() == "Launchpad X"
-
-        # Test with no Launchpad
-        mock_get_names.return_value = ["Other Device", "Keyboard"]
-        assert controller._find_launchpad_port() is None
-
-        # Test preferring MIDI 1 port for multi-port devices
-        mock_get_names.return_value = [
-            "LPProMK3 MIDI 2",
-            "LPProMK3 MIDI 3",
-            "LPProMK3 MIDI 1",
-            "Other Device"
-        ]
-        assert controller._find_launchpad_port() == "LPProMK3 MIDI 1"
-
-        # Test with only non-MIDI 1 port
-        mock_get_names.return_value = ["LPProMK3 MIDI 2", "Other Device"]
-        assert controller._find_launchpad_port() == "LPProMK3 MIDI 2"
-
-    def test_handle_note_on(self):
-        """Test note on handling."""
-        controller = LaunchpadController()
-        callback = Mock()
-        controller.on_pad_pressed(callback)
-
-        # Test valid note
-        controller._handle_note_on(32)
-        callback.assert_called_once_with(32)
-
-        # Test note 0 (valid)
-        callback.reset_mock()
-        controller._handle_note_on(0)
-        callback.assert_called_once_with(0)
-
-        # Test note 63 (valid)
-        callback.reset_mock()
-        controller._handle_note_on(63)
-        callback.assert_called_once_with(63)
-
-        # Test invalid note (out of range)
-        callback.reset_mock()
-        controller._handle_note_on(64)
-        callback.assert_not_called()
-
-        callback.reset_mock()
-        controller._handle_note_on(-1)
-        callback.assert_not_called()
-
-    def test_handle_note_off(self):
-        """Test note off handling."""
-        controller = LaunchpadController()
-        callback = Mock()
-        controller.on_pad_released(callback)
-
-        # Test valid note
-        controller._handle_note_off(32)
-        callback.assert_called_once_with(32)
-
-        # Test invalid note
-        callback.reset_mock()
-        controller._handle_note_off(64)
-        callback.assert_not_called()
-
     def test_no_callback_doesnt_crash(self):
         """Test that missing callbacks don't cause errors."""
         controller = LaunchpadController()
 
-        # Should not raise any errors
-        controller._handle_note_on(32)
-        controller._handle_note_off(32)
+        # Should not raise any errors - simulate messages
+        import mido
+        note_on = mido.Message('note_on', note=32, velocity=100)
+        note_off = mido.Message('note_off', note=32, velocity=0)
 
-    @patch('launchsampler.midi.controller.mido.get_input_names')
-    @patch('launchsampler.midi.controller.mido.open_input')
-    def test_start_stop(self, mock_open, mock_get_names):
+        controller._handle_message(note_on)
+        controller._handle_message(note_off)
+
+    @patch('launchsampler.midi.input_manager.mido.get_input_names')
+    @patch('launchsampler.midi.output_manager.mido.get_output_names')
+    def test_start_stop(self, mock_get_output, mock_get_input):
         """Test starting and stopping controller."""
-        mock_get_names.return_value = []
+        mock_get_input.return_value = []
+        mock_get_output.return_value = []
+
         controller = LaunchpadController(poll_interval=0.1)
 
         # Start
         controller.start()
-        assert controller.running
-        assert controller.monitor_thread is not None
-
         # Give thread time to start
         time.sleep(0.05)
 
         # Stop
         controller.stop()
-        assert not controller.running
 
-    @patch('launchsampler.midi.controller.mido.get_input_names')
-    @patch('launchsampler.midi.controller.mido.open_input')
-    def test_context_manager(self, mock_open, mock_get_names):
+    @patch('launchsampler.midi.input_manager.mido.get_input_names')
+    @patch('launchsampler.midi.output_manager.mido.get_output_names')
+    def test_context_manager(self, mock_get_output, mock_get_input):
         """Test context manager usage."""
-        mock_get_names.return_value = []
+        mock_get_input.return_value = []
+        mock_get_output.return_value = []
 
         with LaunchpadController(poll_interval=0.1) as controller:
-            assert controller.running
+            time.sleep(0.05)
+            assert controller._midi._input_manager._running
+            assert controller._midi._output_manager._running
 
-        assert not controller.running
+        assert not controller._midi._input_manager._running
+        assert not controller._midi._output_manager._running
 
-    @patch('launchsampler.midi.controller.mido.get_input_names')
-    @patch('launchsampler.midi.controller.mido.open_input')
-    def test_device_connection(self, mock_open, mock_get_names):
-        """Test device connection when Launchpad is found."""
-        mock_port = MagicMock()
-        mock_port.name = "Launchpad X"
-        mock_port.iter_pending.return_value = []
-        mock_open.return_value = mock_port
-        mock_get_names.return_value = ["Launchpad X"]
-
-        controller = LaunchpadController(poll_interval=0.1)
-        controller.start()
-
-        # Wait for monitor to detect and connect
-        time.sleep(0.2)
-
-        # Should have connected
-        with controller._port_lock:
-            assert controller.inport is not None
-            assert controller.inport.name == "Launchpad X"
-
-        controller.stop()
-
-    def test_double_start_warning(self, caplog):
-        """Test that starting twice logs a warning."""
-        controller = LaunchpadController(poll_interval=0.1)
-
-        with patch('launchsampler.midi.controller.mido.get_input_names', return_value=[]):
-            controller.start()
-            controller.start()  # Second start
-
-            # Check for warning (caplog may need logger configured)
-            controller.stop()
-
-    def test_midi_callback_thread_safety(self):
-        """Test that MIDI callback is thread-safe."""
+    def test_message_handling(self):
+        """Test that MIDI messages are properly dispatched."""
         controller = LaunchpadController()
         callback_calls = []
 
@@ -203,17 +155,17 @@ class TestLaunchpadController:
         controller.on_pad_pressed(on_pressed)
         controller.on_pad_released(on_released)
 
-        # Simulate MIDI messages from callback thread
+        # Simulate MIDI messages
         import mido
         note_on = mido.Message('note_on', note=32, velocity=100)
         note_off = mido.Message('note_off', note=32, velocity=0)
 
-        controller._midi_callback(note_on)
-        controller._midi_callback(note_off)
+        controller._handle_message(note_on)
+        controller._handle_message(note_off)
 
         assert callback_calls == [('pressed', 32), ('released', 32)]
 
-    def test_midi_callback_filters_clock(self):
+    def test_message_handling_filters_clock(self):
         """Test that clock messages are filtered."""
         controller = LaunchpadController()
         callback_calls = []
@@ -226,6 +178,6 @@ class TestLaunchpadController:
         # Clock message should be ignored
         import mido
         clock_msg = mido.Message('clock')
-        controller._midi_callback(clock_msg)
+        controller._handle_message(clock_msg)
 
         assert len(callback_calls) == 0

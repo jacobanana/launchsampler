@@ -6,9 +6,9 @@ from pathlib import Path
 
 import click
 
-from ...audio import AudioManager
-from ...midi import LaunchpadController
-from ...models import Color, Launchpad, PlaybackMode, Sample
+from launchsampler.audio import AudioManager
+from launchsampler.launchpad import LaunchpadController
+from launchsampler.models import Color, Launchpad, PlaybackMode, Sample
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +65,11 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
       # Use specific audio device
       launchsampler run --audio-device 13
 
-      # Use custom samples directory
-      launchsampler run --samples-dir ./my_samples
-
       # Use larger buffer for stability (higher latency)
       launchsampler run --buffer-size 128
+
+      # Use custom samples directory
+      launchsampler run --samples-dir ./my_samples
     """
     setup_logging()
 
