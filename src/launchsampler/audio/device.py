@@ -143,87 +143,16 @@ class AudioDevice:
         if self._callback is None:
             raise RuntimeError("No audio callback set. Call set_callback() first.")
 
-        # Determine and validate device
-        device_id = self.device if self.device is not None else sd.default.device[1]
+        device_id = self.device or sd.default.device[1]
+        self._validate_low_latency_device(device_id)
+        self._log_device_info(device_id)
 
-        # Validate device
-        is_valid, hostapi_name, device_name = self._is_valid_device(device_id)
-        if not is_valid:
-            _, api_names = AudioDevice._get_platform_apis()
-            raise ValueError(
-                f"Device '{device_name}' uses Host API '{hostapi_name}'. "
-                f"Only {api_names} devices are supported for low-latency playback. "
-                f"Use AudioDevice.list_output_devices() to find suitable devices."
-            )
+        # Select stream configuration
+        stream_kwargs = self._get_stream_config(device_id)
 
-        # Log device information
-        device_info = sd.query_devices(device_id)
-        is_asio = 'ASIO' in hostapi_name
+        # Try to start the stream
+        self._start_stream(stream_kwargs)
 
-        logger.info(f"Audio device: {device_name}")
-        logger.info(f"  Host API: {hostapi_name}")
-        logger.info(f"  Max output channels: {device_info['max_output_channels']}")
-        logger.info(f"  Default sample rate: {device_info['default_samplerate']} Hz")
-        logger.info(f"  Default low latency: {device_info['default_low_output_latency']*1000:.1f}ms")
-
-        # ASIO devices don't use WASAPI settings
-        if is_asio:
-            self._stream = sd.OutputStream(
-                samplerate=self.sample_rate,
-                blocksize=self.buffer_size,
-                channels=self.num_channels,
-                device=self.device,
-                dtype=np.float32,
-                callback=self._audio_callback
-            )
-            self._stream.start()
-            self._is_running = True
-            latency = self._stream.latency
-            logger.info(f"Audio stream started (ASIO)")
-            logger.info(f"  Buffer size: {self.buffer_size} frames ({self.buffer_size/self.sample_rate*1000:.1f}ms)")
-            logger.info(f"  Total latency: {latency*1000:.1f}ms")
-            return
-
-        # Try with low-latency settings first, fall back to standard if it fails
-        if self.low_latency and hasattr(sd, 'WasapiSettings'):
-            try:
-                # Try WASAPI exclusive mode (Windows only)
-                extra_settings = sd.WasapiSettings(exclusive=True)
-                self._stream = sd.OutputStream(
-                    samplerate=self.sample_rate,
-                    blocksize=self.buffer_size,
-                    channels=self.num_channels,
-                    device=self.device,
-                    dtype=np.float32,
-                    callback=self._audio_callback,
-                    prime_output_buffers_using_stream_callback=False,
-                    extra_settings=extra_settings
-                )
-                self._stream.start()
-                self._is_running = True
-                latency = self._stream.latency
-                logger.info(f"Audio stream started (WASAPI exclusive mode)")
-                logger.info(f"  Buffer size: {self.buffer_size} frames ({self.buffer_size/self.sample_rate*1000:.1f}ms)")
-                logger.info(f"  Total latency: {latency*1000:.1f}ms")
-                return
-            except sd.PortAudioError:
-                logger.info("WASAPI exclusive mode not available, falling back to shared mode")
-
-        # Standard mode (or fallback from exclusive mode failure)
-        self._stream = sd.OutputStream(
-            samplerate=self.sample_rate,
-            blocksize=self.buffer_size,
-            channels=self.num_channels,
-            device=self.device,
-            dtype=np.float32,
-            callback=self._audio_callback
-        )
-        self._stream.start()
-        self._is_running = True
-        latency = self._stream.latency
-        logger.info(f"Audio stream started (shared mode)")
-        logger.info(f"  Buffer size: {self.buffer_size} frames ({self.buffer_size/self.sample_rate*1000:.1f}ms)")
-        logger.info(f"  Total latency: {latency*1000:.1f}ms")
 
     def stop(self) -> None:
         """Stop audio stream."""
@@ -236,6 +165,72 @@ class AudioDevice:
             self._stream = None
 
         self._is_running = False
+
+    def _validate_low_latency_device(self, device_id: int) -> None:
+        """Ensure the selected device supports a low-latency API."""
+        is_valid, hostapi_name, device_name = self._is_valid_device(device_id)
+        if not is_valid:
+            _, api_names = self._get_platform_apis()
+            raise ValueError(
+                f"Device '{device_name}' uses Host API '{hostapi_name}'. "
+                f"Only {api_names} devices are supported for low-latency playback."
+            )
+        logger.info(f"Validated device: {device_name} ({hostapi_name})")
+
+    def _log_device_info(self, device_id: int) -> None:
+        """Log details about the chosen audio device."""
+        device_info = sd.query_devices(device_id)
+        hostapi_info = sd.query_hostapis(device_info['hostapi'])
+        logger.info(f"Audio device: {device_info['name']}")
+        logger.info(f"  Host API: {hostapi_info['name']}")
+        logger.info(f"  Max output channels: {device_info['max_output_channels']}")
+        logger.info(f"  Default sample rate: {device_info['default_samplerate']} Hz")
+        logger.info(f"  Default low latency: {device_info['default_low_output_latency']*1000:.1f}ms")
+
+    def _get_stream_config(self, device_id: int) -> dict:
+        """Return appropriate stream configuration for the platform/device."""
+        hostapi_name = sd.query_hostapis(sd.query_devices(device_id)['hostapi'])['name']
+        is_asio = 'ASIO' in hostapi_name
+
+        base_config = dict(
+            samplerate=self.sample_rate,
+            blocksize=self.buffer_size,
+            channels=self.num_channels,
+            device=device_id,
+            dtype=np.float32,
+            callback=self._audio_callback,
+        )
+
+        # ASIO devices
+        if is_asio:
+            logger.debug("Using ASIO configuration")
+            return base_config
+
+        # WASAPI exclusive mode if available
+        if self.low_latency and hasattr(sd, 'WasapiSettings'):
+            try:
+                base_config['extra_settings'] = sd.WasapiSettings(exclusive=True)
+                base_config['prime_output_buffers_using_stream_callback'] = False
+                logger.debug("Using WASAPI exclusive mode configuration")
+                return base_config
+            except sd.PortAudioError:
+                logger.info("WASAPI exclusive mode not available, falling back to shared mode")
+
+        logger.debug("Using standard shared mode configuration")
+        return base_config
+
+    def _start_stream(self, config: dict) -> None:
+        """Create and start the stream with the given configuration."""
+        self._stream = sd.OutputStream(**config)
+        self._stream.start()
+        self._is_running = True
+
+        latency_ms = self._stream.latency * 1000
+        buffer_ms = self.buffer_size / self.sample_rate * 1000
+        logger.info("Audio stream started")
+        logger.info(f"  Buffer size: {self.buffer_size} frames ({buffer_ms:.1f}ms)")
+        logger.info(f"  Total latency: {latency_ms:.1f}ms")
+
 
     def _audio_callback(
         self,
