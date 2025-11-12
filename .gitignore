@@ -12,3 +12,6 @@ wheels/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Samples
+test_samples/
