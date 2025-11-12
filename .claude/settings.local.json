@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv run pytest:*)"
+      "Bash(uv run pytest:*)",
+      "Bash(uv add:*)",
+      "Bash(uv run launchsampler --help:*)",
+      "Bash(uv run:*)",
+      "Bash(timeout 3 uv run:*)"
     ],
     "deny": [],
     "ask": []

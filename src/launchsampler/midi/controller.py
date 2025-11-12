@@ -245,6 +245,16 @@ class LaunchpadController:
             if self._on_pad_released:
                 self._on_pad_released(note)
 
+    @staticmethod
+    def list_ports():
+        """
+        List all available MIDI input ports.
+
+        Returns:
+            List of MIDI port names
+        """
+        return mido.get_input_names()
+
     def __enter__(self):
         """Context manager entry."""
         self.start()

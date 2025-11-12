@@ -456,6 +456,30 @@ class AudioManager:
         return sd.query_devices()
 
     @staticmethod
+    def list_output_devices():
+        """
+        List all available ASIO and WASAPI audio output devices.
+
+        Returns:
+            List of tuples: (device_id, device_name, host_api_name, device_info)
+        """
+        devices = sd.query_devices()
+        hostapis = sd.query_hostapis()
+
+        available_devices = []
+
+        for i, device in enumerate(devices):
+            if device['max_output_channels'] > 0:
+                hostapi = hostapis[device['hostapi']]
+                hostapi_name = hostapi['name']
+
+                # Only include ASIO or WASAPI devices
+                if 'ASIO' in hostapi_name or 'WASAPI' in hostapi_name:
+                    available_devices.append((i, device['name'], hostapi_name, device))
+
+        return available_devices
+
+    @staticmethod
     def print_devices() -> None:
         """
         Print all available ASIO and WASAPI audio output devices.
