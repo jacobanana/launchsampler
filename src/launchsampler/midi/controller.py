@@ -46,33 +46,30 @@ class LaunchpadController:
         self._on_pad_pressed: Optional[Callable[[int], None]] = None
         self._on_pad_released: Optional[Callable[[int], None]] = None
 
-        # Thread lock for callbacks and port access
-        self._callback_lock = threading.Lock()
+        # Thread lock for port access (shared between monitor thread and main thread)
         self._port_lock = threading.Lock()
 
     def on_pad_pressed(self, callback: Callable[[int], None]) -> None:
         """
         Register callback for pad press events.
 
-        Callback is executed in MIDI thread - keep it fast!
+        Callback is executed in mido's internal I/O thread - keep it fast!
 
         Args:
             callback: Function that takes pad_index (0-63) as argument
         """
-        with self._callback_lock:
-            self._on_pad_pressed = callback
+        self._on_pad_pressed = callback
 
     def on_pad_released(self, callback: Callable[[int], None]) -> None:
         """
         Register callback for pad release events.
 
-        Callback is executed in MIDI thread - keep it fast!
+        Callback is executed in mido's internal I/O thread - keep it fast!
 
         Args:
             callback: Function that takes pad_index (0-63) as argument
         """
-        with self._callback_lock:
-            self._on_pad_released = callback
+        self._on_pad_released = callback
 
     def start(self) -> None:
         """Start monitoring for Launchpad devices."""
@@ -208,10 +205,10 @@ class LaunchpadController:
 
     def _midi_callback(self, msg: mido.Message) -> None:
         """
-        MIDI message callback - called from mido's thread.
+        MIDI message callback - called from mido's internal I/O thread.
 
-        This is called immediately when MIDI messages arrive,
-        providing the lowest possible latency.
+        This is invoked by mido's own thread (not one we create) when MIDI
+        messages arrive, providing the lowest possible latency.
         """
         try:
             # Filter out clock messages
@@ -235,27 +232,25 @@ class LaunchpadController:
         """
         Handle note on (pad pressed) event.
 
-        Thread-safe: Called from MIDI callback thread.
+        Called from mido's internal I/O thread.
         """
         # Convert MIDI note to pad index (0-63)
         # Launchpad uses notes 0-63 for the 8x8 grid
         if 0 <= note < 64:
             logger.debug(f"Pad pressed: {note}")
-            with self._callback_lock:
-                if self._on_pad_pressed:
-                    self._on_pad_pressed(note)
+            if self._on_pad_pressed:
+                self._on_pad_pressed(note)
 
     def _handle_note_off(self, note: int) -> None:
         """
         Handle note off (pad released) event.
 
-        Thread-safe: Called from MIDI callback thread.
+        Called from mido's internal I/O thread.
         """
         if 0 <= note < 64:
             logger.debug(f"Pad released: {note}")
-            with self._callback_lock:
-                if self._on_pad_released:
-                    self._on_pad_released(note)
+            if self._on_pad_released:
+                self._on_pad_released(note)
 
     def __enter__(self):
         """Context manager entry."""
