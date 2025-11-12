@@ -2,16 +2,11 @@
 
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, field_serializer
+from pydantic import BaseModel, Field, field_validator, field_serializer
 
 
 class Sample(BaseModel):
     """Audio sample metadata (not the actual audio data)."""
-
-    model_config = ConfigDict(
-        # Allow Path objects to be serialized
-        arbitrary_types_allowed=False,
-    )
 
     name: str = Field(description="Sample name")
     path: Path = Field(description="Path to audio file")

@@ -3,15 +3,11 @@
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
-
-from .enums import LaunchpadModel
+from pydantic import BaseModel, Field, field_serializer
 
 
 class AppConfig(BaseModel):
     """Application configuration and settings."""
-
-    model_config = ConfigDict()
 
     # Paths
     sets_dir: Path = Field(
@@ -28,10 +24,6 @@ class AppConfig(BaseModel):
     buffer_size: int = Field(default=512, description="Audio buffer size")
 
     # MIDI settings
-    launchpad_model: LaunchpadModel = Field(
-        default=LaunchpadModel.LAUNCHPAD_X,
-        description="Connected Launchpad model"
-    )
     midi_input_device: Optional[str] = Field(
         default=None,
         description="MIDI input device name"

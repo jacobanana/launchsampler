@@ -39,40 +39,36 @@ class LaunchpadController:
         self.poll_interval = poll_interval
         self.running = False
         self.monitor_thread: Optional[threading.Thread] = None
-        self.current_port: Optional[str] = None
         self.inport: Optional[mido.ports.BaseInput] = None
 
         # Event callbacks
         self._on_pad_pressed: Optional[Callable[[int], None]] = None
         self._on_pad_released: Optional[Callable[[int], None]] = None
 
-        # Thread lock for callbacks and port access
-        self._callback_lock = threading.Lock()
+        # Thread lock for port access (shared between monitor thread and main thread)
         self._port_lock = threading.Lock()
 
     def on_pad_pressed(self, callback: Callable[[int], None]) -> None:
         """
         Register callback for pad press events.
 
-        Callback is executed in MIDI thread - keep it fast!
+        Callback is executed in mido's internal I/O thread - keep it fast!
 
         Args:
             callback: Function that takes pad_index (0-63) as argument
         """
-        with self._callback_lock:
-            self._on_pad_pressed = callback
+        self._on_pad_pressed = callback
 
     def on_pad_released(self, callback: Callable[[int], None]) -> None:
         """
         Register callback for pad release events.
 
-        Callback is executed in MIDI thread - keep it fast!
+        Callback is executed in mido's internal I/O thread - keep it fast!
 
         Args:
             callback: Function that takes pad_index (0-63) as argument
         """
-        with self._callback_lock:
-            self._on_pad_released = callback
+        self._on_pad_released = callback
 
     def start(self) -> None:
         """Start monitoring for Launchpad devices."""
@@ -100,7 +96,6 @@ class LaunchpadController:
                 except Exception as e:
                     logger.error(f"Error closing MIDI port: {e}")
                 self.inport = None
-            self.current_port = None
 
         # Wait for threads to finish
         if self.monitor_thread and self.monitor_thread.is_alive():
@@ -156,21 +151,19 @@ class LaunchpadController:
 
                 with self._port_lock:
                     # If we have a port but it's no longer available
-                    if self.current_port and self.current_port not in available_ports:
-                        logger.warning(f"Launchpad disconnected: {self.current_port}")
-                        if self.inport:
-                            try:
-                                self.inport.close()
-                            except Exception:
-                                pass
-                            self.inport = None
-                        self.current_port = None
+                    if self.inport and self.inport.name not in available_ports:
+                        logger.warning(f"Launchpad disconnected: {self.inport.name}")
+                        try:
+                            self.inport.close()
+                        except Exception:
+                            pass
+                        self.inport = None
                         # Reset warning flag so we can warn again
                         if hasattr(self, '_no_device_warned'):
                             delattr(self, '_no_device_warned')
 
                     # If we don't have a port, try to find one
-                    if not self.current_port:
+                    if not self.inport:
                         port = self._find_launchpad_port()
                         if port:
                             logger.info(f"Launchpad detected: {port}")
@@ -197,21 +190,18 @@ class LaunchpadController:
         try:
             # Open port with callback for immediate message processing
             self.inport = mido.open_input(port_name, callback=self._midi_callback)
-            self.current_port = port_name
-
             logger.info(f"Connected to {port_name}")
 
         except Exception as e:
             logger.error(f"Failed to connect to {port_name}: {e}")
             self.inport = None
-            self.current_port = None
 
     def _midi_callback(self, msg: mido.Message) -> None:
         """
-        MIDI message callback - called from mido's thread.
+        MIDI message callback - called from mido's internal I/O thread.
 
-        This is called immediately when MIDI messages arrive,
-        providing the lowest possible latency.
+        This is invoked by mido's own thread (not one we create) when MIDI
+        messages arrive, providing the lowest possible latency.
         """
         try:
             # Filter out clock messages
@@ -235,27 +225,25 @@ class LaunchpadController:
         """
         Handle note on (pad pressed) event.
 
-        Thread-safe: Called from MIDI callback thread.
+        Called from mido's internal I/O thread.
         """
         # Convert MIDI note to pad index (0-63)
         # Launchpad uses notes 0-63 for the 8x8 grid
         if 0 <= note < 64:
             logger.debug(f"Pad pressed: {note}")
-            with self._callback_lock:
-                if self._on_pad_pressed:
-                    self._on_pad_pressed(note)
+            if self._on_pad_pressed:
+                self._on_pad_pressed(note)
 
     def _handle_note_off(self, note: int) -> None:
         """
         Handle note off (pad released) event.
 
-        Thread-safe: Called from MIDI callback thread.
+        Called from mido's internal I/O thread.
         """
         if 0 <= note < 64:
             logger.debug(f"Pad released: {note}")
-            with self._callback_lock:
-                if self._on_pad_released:
-                    self._on_pad_released(note)
+            if self._on_pad_released:
+                self._on_pad_released(note)
 
     def __enter__(self):
         """Context manager entry."""

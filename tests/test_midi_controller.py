@@ -17,7 +17,6 @@ class TestLaunchpadController:
         controller = LaunchpadController(poll_interval=1.0)
         assert controller.poll_interval == 1.0
         assert not controller.running
-        assert controller.current_port is None
         assert controller.inport is None
 
     def test_callback_registration(self):
@@ -161,6 +160,7 @@ class TestLaunchpadController:
     def test_device_connection(self, mock_open, mock_get_names):
         """Test device connection when Launchpad is found."""
         mock_port = MagicMock()
+        mock_port.name = "Launchpad X"
         mock_port.iter_pending.return_value = []
         mock_open.return_value = mock_port
         mock_get_names.return_value = ["Launchpad X"]
@@ -173,7 +173,8 @@ class TestLaunchpadController:
 
         # Should have connected
         with controller._port_lock:
-            assert controller.current_port == "Launchpad X"
+            assert controller.inport is not None
+            assert controller.inport.name == "Launchpad X"
 
         controller.stop()
 
