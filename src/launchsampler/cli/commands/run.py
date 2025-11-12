@@ -1,6 +1,8 @@
 """Run command implementation."""
 
 import logging
+import queue
+import threading
 import time
 from pathlib import Path
 
@@ -136,6 +138,21 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
     # Create manager with device
     manager = LaunchpadManager(audio_device_obj)
 
+    # Create non-blocking output queue for console messages
+    output_queue = queue.Queue()
+
+    def output_worker():
+        """Background thread for console output (non-blocking I/O)."""
+        while True:
+            msg = output_queue.get()
+            if msg is None:  # Shutdown signal
+                break
+            click.echo(msg)
+
+    # Start output worker thread
+    output_thread = threading.Thread(target=output_worker, daemon=True)
+    output_thread.start()
+
     with manager:
         # Load all samples
         for i in range(64):
@@ -155,14 +172,16 @@ def run(audio_device: int, sample_rate: int, buffer_size: int, samples_dir: Path
                 pad = launchpad.pads[pad_index]
                 if pad.sample:
                     manager.trigger_pad(pad_index)
-                    click.echo(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
+                    # Non-blocking output - enqueue message
+                    output_queue.put_nowait(f"▶ Pad {pad_index}: {pad.sample.name} ({pad.mode.value})")
 
             def on_pad_released(pad_index: int):
                 """Handle pad release - stop if LOOP or HOLD mode."""
                 pad = launchpad.pads[pad_index]
                 if pad.sample and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
                     manager.release_pad(pad_index)
-                    click.echo(f"■ Pad {pad_index} stopped")
+                    # Non-blocking output - enqueue message
+                    output_queue.put_nowait(f"■ Pad {pad_index} stopped")
 
             # Register callbacks
             midi_controller.on_pad_pressed(on_pad_pressed)
