@@ -36,6 +36,7 @@ class DirectoryBrowserScreen(Screen):
 
     DirectoryBrowserScreen #instructions {
         height: auto;
+        width: 100%;
         background: $boost;
         border: solid $primary;
         margin: 1;
@@ -99,16 +100,16 @@ class DirectoryBrowserScreen(Screen):
         """Create the directory browser layout."""
         with Vertical():
             yield Label("[b]Open Directory[/b]", id="title")
-            yield Label(
-                "[b]Tree Navigation:[/b] ↑↓: navigate | →: expand | ←: collapse/up | Enter: select\n"
-                "[b]Path Input:[/b] Type/paste path below, then Tab or Enter to navigate",
-                id="instructions"
-            )
             yield DirectoryTree(str(self.start_dir), id="tree")
             yield Input(
                 value=str(self.start_dir),
                 placeholder="Enter or paste directory path...",
                 id="path-input"
+            )
+            yield Label(
+                "[b]Tree Navigation:[/b] ↑↓: navigate | →: expand | ←: collapse/up | Enter: select\n"
+                "[b]Path Input:[/b] Type/paste path above, then Tab or Enter to navigate",
+                id="instructions"
             )
             with Horizontal():
                 yield Button("Select", id="select-btn", variant="primary")
@@ -191,9 +192,10 @@ class DirectoryBrowserScreen(Screen):
         # Create and mount a new tree with the new path
         new_tree = DirectoryTree(str(new_path), id="tree")
 
-        # Find the vertical container and insert the tree at the right position
+        # Find the vertical container and insert the tree after the title
+        # (before path-input which comes after the tree in the layout)
         container = self.query_one(Vertical)
-        title = self.query_one("#title")
+        title = self.query_one("#title", Label)
         await container.mount(new_tree, after=title)
 
         # Update the path input
