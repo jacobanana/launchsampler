@@ -40,6 +40,18 @@ class PadDetailsPanel(Vertical):
         margin-top: 0;
     }
 
+    PadDetailsPanel .input-container {
+        height: auto;
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+
+    PadDetailsPanel #name-input {
+        height: 3;
+        padding: 0 1;
+        margin: 0;
+    }
+
     PadDetailsPanel .volume-container {
         height: auto;
         margin-top: 1;
@@ -69,6 +81,21 @@ class PadDetailsPanel(Vertical):
             self.pad_index = pad_index
             self.volume = volume
 
+    class NameChanged(Message):
+        """Message sent when sample name is changed."""
+
+        def __init__(self, pad_index: int, name: str) -> None:
+            """
+            Initialize message.
+
+            Args:
+                pad_index: Index of pad (0-63)
+                name: New sample name
+            """
+            super().__init__()
+            self.pad_index = pad_index
+            self.name = name
+
     def __init__(self) -> None:
         """Initialize details panel."""
         super().__init__()
@@ -79,6 +106,10 @@ class PadDetailsPanel(Vertical):
         """Create the details panel widgets."""
         yield Label("No pad selected", id="pad-info")
         yield Label("", id="sample-info")
+
+        with Horizontal(classes="input-container"):
+            yield Label("Name:", shrink=True)
+            yield Input(placeholder="Sample name", id="name-input", disabled=True)
 
         with Horizontal(classes="volume-container"):
             yield Label("Volume:", shrink=True)
@@ -116,12 +147,18 @@ class PadDetailsPanel(Vertical):
         sample_info = self.query_one("#sample-info", Label)
         if pad.is_assigned and pad.sample:
             sample_info.update(
-                f"Sample: [cyan]{pad.sample.name}[/cyan]\n"
                 f"Path: {pad.sample.path}\n"
                 f"Mode: {pad.mode.value}"
             )
         else:
             sample_info.update("[dim]No sample assigned[/dim]")
+
+        # Update name input
+        name_input = self.query_one("#name-input", Input)
+        if pad.is_assigned and pad.sample:
+            name_input.value = pad.sample.name
+        else:
+            name_input.value = ""
 
         # Update volume input
         volume_input = self.query_one("#volume-input", Input)
@@ -148,6 +185,7 @@ class PadDetailsPanel(Vertical):
             # Note: We'll need to get this from parent, but for now just update based on mode
             edit_enabled = (mode == "edit")
 
+            self.query_one("#name-input", Input).disabled = not edit_enabled
             self.query_one("#volume-input", Input).disabled = not edit_enabled
             self.query_one("#browse-btn", Button).disabled = not edit_enabled
             self.query_one("#clear-btn", Button).disabled = not edit_enabled
@@ -158,6 +196,10 @@ class PadDetailsPanel(Vertical):
     def _update_button_states(self, pad: Pad) -> None:
         """Update button states based on pad state and current mode."""
         edit_enabled = (self._current_mode == "edit")
+
+        # Name input - only enabled in edit mode and if pad has sample
+        name_input = self.query_one("#name-input", Input)
+        name_input.disabled = not (edit_enabled and pad.is_assigned)
 
         # Volume input - only enabled in edit mode and if pad has sample
         volume_input = self.query_one("#volume-input", Input)
@@ -186,8 +228,19 @@ class PadDetailsPanel(Vertical):
                     btn.variant = "default"
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle volume input submission."""
-        if event.input.id == "volume-input" and self.selected_pad_index is not None:
+        """Handle input submissions."""
+        if self.selected_pad_index is None:
+            return
+
+        if event.input.id == "name-input":
+            # Update sample name
+            name = event.value.strip()
+            if name:  # Only update if not empty
+                self.post_message(self.NameChanged(self.selected_pad_index, name))
+                # Blur the input to return focus to the app
+                event.input.blur()
+
+        elif event.input.id == "volume-input":
             try:
                 # Parse volume as percentage (0-100)
                 volume_percent = int(event.value)

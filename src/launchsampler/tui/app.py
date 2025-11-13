@@ -369,6 +369,30 @@ class LaunchpadSampler(App):
             logger.error(f"Error updating volume: {e}")
             self.notify(f"Error updating volume: {e}", severity="error")
 
+    def on_pad_details_panel_name_changed(self, event: PadDetailsPanel.NameChanged) -> None:
+        """Handle name change from details panel."""
+        if self._sampler_mode != "edit":
+            return
+
+        try:
+            # Update sample name in model
+            pad = self.launchpad.pads[event.pad_index]
+            if pad.is_assigned and pad.sample:
+                pad.sample.name = event.name
+
+                # Update UI - both details panel and grid
+                details = self.query_one(PadDetailsPanel)
+                details.update_for_pad(event.pad_index, pad)
+
+                grid = self.query_one(PadGrid)
+                grid.update_pad(event.pad_index, pad)
+
+                logger.info(f"Updated pad {event.pad_index} sample name to '{event.name}'")
+
+        except Exception as e:
+            logger.error(f"Error updating name: {e}")
+            self.notify(f"Error updating name: {e}", severity="error")
+
     # =================================================================
     # Actions
     # =================================================================
