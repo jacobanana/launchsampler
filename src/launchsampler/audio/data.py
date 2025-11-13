@@ -16,7 +16,7 @@ import numpy.typing as npt
 from ..models import PlaybackMode
 
 
-@dataclass
+@dataclass(slots=True)
 class AudioData:
     """
     Raw audio data storage.
@@ -102,7 +102,7 @@ class AudioData:
             self.data *= (target_level / peak)
 
 
-@dataclass
+@dataclass(slots=True)
 class PlaybackState:
     """
     Runtime playback state for a single pad.
