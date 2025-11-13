@@ -118,7 +118,6 @@ class PlaybackState:
     audio_data: Optional[AudioData] = None      # Reference to audio data
 
     # Internal state
-    _should_stop: bool = field(default=False, init=False)  # Flag to stop playback
     _loop_count: int = field(default=0, init=False)        # Number of loops completed
 
     def start(self) -> None:
@@ -128,19 +127,16 @@ class PlaybackState:
 
         self.is_playing = True
         self.position = 0.0
-        self._should_stop = False
         self._loop_count = 0
 
     def stop(self) -> None:
         """Stop playback."""
         self.is_playing = False
-        self._should_stop = True
 
     def reset(self) -> None:
         """Reset to initial state."""
         self.is_playing = False
         self.position = 0.0
-        self._should_stop = False
         self._loop_count = 0
 
     def advance(self, num_frames: int) -> None:
