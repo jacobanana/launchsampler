@@ -1,6 +1,7 @@
 """Device-agnostic audio playback engine for multi-pad samplers."""
 
 import logging
+from queue import Queue, Full
 from threading import Lock
 from typing import Dict, Optional
 
@@ -43,7 +44,11 @@ class SamplerEngine:
         self._master_volume = 1.0
 
         # Thread safety
-        self._lock = Lock()
+        self._lock = Lock()  # Only for sample loading/unloading, not for triggers
+        
+        # Lock-free trigger queue for low-latency pad triggering
+        # Sized generously to handle burst inputs without blocking
+        self._trigger_queue: Queue[tuple[str, int]] = Queue(maxsize=256)
 
         # Register audio callback
         self._device.set_callback(self._audio_callback)
@@ -113,17 +118,19 @@ class SamplerEngine:
     def trigger_pad(self, pad_index: int) -> None:
         """
         Trigger playback for a pad.
+        
+        Lock-free implementation using queue for minimal latency.
+        Safe to call from any thread (e.g., MIDI input thread).
 
         Args:
             pad_index: Pad index (0 to num_pads-1)
         """
-        with self._lock:
-            try:
-                state = self._playback_states[pad_index]
-                if state.audio_data is not None:
-                    state.start()
-            except KeyError:
-                pass
+        try:
+            # Non-blocking queue write - if queue is full, drop the trigger
+            # This should never happen with a 256-entry queue unless system is severely overloaded
+            self._trigger_queue.put_nowait(("trigger", pad_index))
+        except Full:
+            logger.warning(f"Trigger queue full, dropped pad {pad_index} trigger")
 
     def release_pad(self, pad_index: int) -> None:
         """
@@ -132,17 +139,18 @@ class SamplerEngine:
         For HOLD mode: Stops playback immediately
         For LOOP mode: Stops looping
         For ONE_SHOT mode: Does nothing (sample plays fully)
+        
+        Lock-free implementation using queue for minimal latency.
+        Safe to call from any thread (e.g., MIDI input thread).
 
         Args:
             pad_index: Pad index (0 to num_pads-1)
         """
-        with self._lock:
-            try:
-                state = self._playback_states[pad_index]
-                if state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
-                    state.stop()
-            except KeyError:
-                pass
+        try:
+            # Non-blocking queue write
+            self._trigger_queue.put_nowait(("release", pad_index))
+        except Full:
+            logger.warning(f"Trigger queue full, dropped pad {pad_index} release")
 
     def stop_pad(self, pad_index: int) -> None:
         """
@@ -239,18 +247,37 @@ class SamplerEngine:
         Audio callback for mixing and rendering.
 
         Called by AudioDevice for each audio block.
+        Processes trigger queue at the start for minimal latency.
 
         Args:
             outdata: Output buffer to fill
             frames: Number of frames requested
         """
         try:
-            # Get active playback states
-            with self._lock:
-                active_states = [
-                    state for state in self._playback_states.values()
-                    if state.is_playing
-                ]
+            # Process all pending triggers from the lock-free queue
+            # Do this FIRST before mixing to minimize trigger-to-sound latency
+            while not self._trigger_queue.empty():
+                try:
+                    action, pad_index = self._trigger_queue.get_nowait()
+                    
+                    # Direct state access without locking (audio thread is the only writer)
+                    if pad_index in self._playback_states:
+                        state = self._playback_states[pad_index]
+                        
+                        if action == "trigger" and state.audio_data is not None:
+                            state.start()
+                        elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
+                            state.stop()
+                            
+                except Exception as e:
+                    logger.error(f"Error processing trigger queue: {e}")
+                    continue
+
+            # Get active playback states (no lock needed - audio thread owns playback state)
+            active_states = [
+                state for state in self._playback_states.values()
+                if state.is_playing
+            ]
 
             # Mix all active sources
             mixed = self._mixer.mix(active_states, frames)
@@ -281,8 +308,8 @@ class SamplerEngine:
     @property
     def active_voices(self) -> int:
         """Get number of currently playing voices."""
-        with self._lock:
-            return sum(1 for state in self._playback_states.values() if state.is_playing)
+        # Lock-free read - safe since we're just counting boolean flags
+        return sum(1 for state in self._playback_states.values() if state.is_playing)
 
     @property
     def num_pads(self) -> int:
