@@ -64,6 +64,9 @@ class Set(BaseModel):
         Automatically detects the most specific common parent directory of all samples
         and uses it as samples_root. All sample paths are then stored relative to this root.
 
+        Edge case: If the common path is a child of the Set file's directory, we set
+        samples_root to None and make paths relative to the Set file instead, for portability.
+
         Args:
             path: Path where the Set JSON will be saved
         """
@@ -78,8 +81,19 @@ class Set(BaseModel):
         if sample_paths:
             common_path = find_common_path(sample_paths)
             if common_path:
-                self.samples_root = common_path
-                logger.info(f"Detected common path: {common_path}")
+                # Edge case: if common_path is a child of the Set file's directory,
+                # use None (relative to Set file) for better portability
+                set_dir = path.parent
+                try:
+                    # Check if common_path is under the set directory
+                    common_path.relative_to(set_dir)
+                    # It is a child, so use None and make paths relative to Set file
+                    self.samples_root = None
+                    logger.info(f"Common path {common_path} is under Set directory, using relative paths")
+                except ValueError:
+                    # Common path is not under set directory, use it as samples_root
+                    self.samples_root = common_path
+                    logger.info(f"Detected common path: {common_path}")
             else:
                 # Fallback: use the set file's directory
                 self.samples_root = path.parent
