@@ -354,3 +354,14 @@ class SamplerService:
             playback_info = self._app._engine.get_playback_info(pad_index)
             return playback_info.get('is_playing', False) if playback_info else False
         return False
+
+    def update_pad_volume(self, pad_index: int, volume: float) -> None:
+        """
+        Update the volume for a specific pad.
+
+        Args:
+            pad_index: Index of pad (0-63)
+            volume: New volume (0.0 - 1.0)
+        """
+        if self._app and self._app._engine:
+            self._app._engine.update_pad_volume(pad_index, volume)

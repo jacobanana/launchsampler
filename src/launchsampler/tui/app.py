@@ -346,6 +346,29 @@ class LaunchpadSampler(App):
             except ValueError:
                 logger.error(f"Invalid mode: {mode_name}")
 
+    def on_pad_details_panel_volume_changed(self, event: PadDetailsPanel.VolumeChanged) -> None:
+        """Handle volume change from details panel."""
+        if self._sampler_mode != "edit":
+            return
+
+        try:
+            # Update pad volume in model
+            pad = self.launchpad.pads[event.pad_index]
+            pad.volume = event.volume
+
+            # Update in sampler engine
+            self.sampler.update_pad_volume(event.pad_index, event.volume)
+
+            # Update UI
+            details = self.query_one(PadDetailsPanel)
+            details.update_for_pad(event.pad_index, pad)
+
+            logger.info(f"Updated pad {event.pad_index} volume to {event.volume:.0%}")
+
+        except Exception as e:
+            logger.error(f"Error updating volume: {e}")
+            self.notify(f"Error updating volume: {e}", severity="error")
+
     # =================================================================
     # Actions
     # =================================================================
