@@ -289,3 +289,18 @@ class SamplerService:
         if self._app:
             return self._app.active_voices
         return 0
+
+    def is_pad_playing(self, pad_index: int) -> bool:
+        """
+        Check if a pad is currently playing.
+
+        Args:
+            pad_index: Index of pad to check (0-63)
+
+        Returns:
+            True if pad is currently playing, False otherwise
+        """
+        if self._app and self._app._engine:
+            playback_info = self._app._engine.get_playback_info(pad_index)
+            return playback_info.get('is_playing', False) if playback_info else False
+        return False

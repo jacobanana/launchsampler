@@ -93,15 +93,16 @@ class PadGrid(Container):
         if pad_index in self.pad_widgets:
             self.pad_widgets[pad_index].add_class("selected")
 
-    def flash_pad(self, pad_index: int) -> None:
+    def set_pad_playing(self, pad_index: int, is_playing: bool) -> None:
         """
-        Flash a pad (visual feedback for MIDI trigger).
+        Set the playing state of a pad.
 
         Args:
-            pad_index: Index of pad to flash (0-63)
+            pad_index: Index of pad (0-63)
+            is_playing: Whether the pad is currently playing
         """
         if pad_index in self.pad_widgets:
-            self.pad_widgets[pad_index].flash()
+            self.pad_widgets[pad_index].set_playing(is_playing)
 
     def on_pad_widget_selected(self, message: PadWidget.Selected) -> None:
         """

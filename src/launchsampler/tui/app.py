@@ -66,7 +66,10 @@ class LaunchpadSampler(App):
         self.config = config
         self.set_name = set_name or "untitled"
         self._start_mode = start_mode
-        self._current_mode = "edit"
+        self._sampler_mode = "play"  # Don't use _current_mode (conflicts with Textual)
+
+        # Track which pads are shown as playing in UI
+        self._playing_pads: set[int] = set()
 
         # Load or create launchpad
         self.launchpad = self._load_initial_launchpad()
@@ -78,9 +81,6 @@ class LaunchpadSampler(App):
             config,
             on_pad_event=self._on_midi_pad_event
         )
-
-        # Update subtitle
-        self.sub_title = f"Edit: {self.set_name}"
 
     def compose(self) -> ComposeResult:
         """Create the main layout."""
@@ -95,11 +95,14 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
-        # Start in appropriate mode
-        if self._start_mode == "play":
-            self._enter_play_mode()
-        else:
+        # Set initial subtitle (must be done after mount)
+        self.sub_title = f"Play: {self.set_name}"
+
+        # Start in appropriate mode (default to play)
+        if self._start_mode == "edit":
             self._enter_edit_mode()
+        else:
+            self._enter_play_mode()
 
         # Select default pad
         try:
@@ -110,6 +113,9 @@ class LaunchpadSampler(App):
 
         # Start status bar updates
         self.set_interval(0.1, self._update_status_bar)
+
+        # Start playback state tracking (check for finished samples)
+        self.set_interval(0.05, self._update_playback_states)
 
     def _load_initial_launchpad(self) -> Launchpad:
         """Load initial launchpad configuration."""
@@ -150,17 +156,18 @@ class LaunchpadSampler(App):
         Args:
             mode: Target mode ("edit" or "play")
         """
-        if mode == "play" and self._current_mode == "edit":
+        if mode == "play" and self._sampler_mode == "edit":
             self._enter_play_mode()
-        elif mode == "edit" and self._current_mode == "play":
+        elif mode == "edit" and self._sampler_mode == "play":
             self._exit_play_mode()
 
     def _enter_edit_mode(self) -> None:
-        """Enter edit mode (audio preview only)."""
-        if self.sampler.start_edit_mode():
-            self._current_mode = "edit"
+        """Enter edit mode (audio + MIDI with editing enabled)."""
+        # Start with full audio + MIDI (same as play mode)
+        if self.sampler.start_play_mode():
+            self._sampler_mode = "edit"
             self.sub_title = f"Edit: {self.set_name}"
-            self.notify("✏ EDIT MODE - Press [P] for play mode", timeout=2)
+            self.notify("✏ EDIT MODE - Editing enabled", timeout=2)
 
             # Enable edit controls
             details = self.query_one(PadDetailsPanel)
@@ -174,11 +181,13 @@ class LaunchpadSampler(App):
             self.notify("Failed to start edit mode", severity="error")
 
     def _enter_play_mode(self) -> None:
-        """Enter play mode (full MIDI integration)."""
-        if self.sampler.start_play_mode():
-            self._current_mode = "play"
+        """Enter play mode (audio + MIDI with editing disabled)."""
+        # Already running from edit mode, just change UI state
+        if self._sampler_mode == "edit":
+            # Already have audio + MIDI, just update UI
+            self._sampler_mode = "play"
             self.sub_title = f"Play: {self.set_name}"
-            self.notify("▶ PLAY MODE - Physical Launchpad active", timeout=2)
+            self.notify("▶ PLAY MODE - Editing locked", timeout=2)
 
             # Disable edit controls
             details = self.query_one(PadDetailsPanel)
@@ -189,39 +198,78 @@ class LaunchpadSampler(App):
 
             logger.info("Entered play mode")
         else:
-            self.notify(
-                "Failed to start play mode - check MIDI connection",
-                severity="error"
-            )
+            # Cold start in play mode
+            if self.sampler.start_play_mode():
+                self._sampler_mode = "play"
+                self.sub_title = f"Play: {self.set_name}"
+                self.notify("▶ PLAY MODE - Editing locked", timeout=2)
+
+                # Disable edit controls
+                details = self.query_one(PadDetailsPanel)
+                details.set_mode("play")
+
+                # Update status bar
+                self._update_status_bar()
+
+                logger.info("Entered play mode")
+            else:
+                self.notify(
+                    "Failed to start play mode - check MIDI connection",
+                    severity="error"
+                )
 
     def _exit_play_mode(self) -> None:
         """Exit play mode (back to edit mode)."""
-        if self.sampler.stop_play_mode():
-            self._current_mode = "edit"
-            self.sub_title = f"Edit: {self.set_name}"
-            self.notify("■ EDIT MODE - MIDI disabled", timeout=2)
+        # Keep audio + MIDI running, just change UI state
+        self._sampler_mode = "edit"
+        self.sub_title = f"Edit: {self.set_name}"
+        self.notify("✏ EDIT MODE - Editing enabled", timeout=2)
 
-            # Enable edit controls
-            details = self.query_one(PadDetailsPanel)
-            details.set_mode("edit")
+        # Enable edit controls
+        details = self.query_one(PadDetailsPanel)
+        details.set_mode("edit")
 
-            # Update status bar
-            self._update_status_bar()
+        # Update status bar
+        self._update_status_bar()
 
-            logger.info("Exited play mode")
+        logger.info("Exited play mode")
 
     def _update_status_bar(self) -> None:
         """Update status bar with current state."""
         try:
             status = self.query_one(StatusBar)
             status.update_state(
-                mode=self._current_mode,
+                mode=self._sampler_mode,
                 connected=self.sampler.is_connected,
                 voices=self.sampler.active_voices
             )
         except Exception:
             # Status bar might not be mounted yet
             pass
+
+    def _update_playback_states(self) -> None:
+        """Check playback states and update UI for finished samples."""
+        if not self._playing_pads:
+            return
+
+        try:
+            grid = self.query_one(PadGrid)
+
+            # Check each pad that's currently marked as playing in UI
+            finished_pads = []
+            for pad_index in self._playing_pads:
+                # Query actual playback state from engine
+                if not self.sampler.is_pad_playing(pad_index):
+                    # Pad has finished playing
+                    grid.set_pad_playing(pad_index, False)
+                    finished_pads.append(pad_index)
+
+            # Remove finished pads from tracking set
+            for pad_index in finished_pads:
+                self._playing_pads.discard(pad_index)
+
+        except Exception as e:
+            logger.debug(f"Error updating playback states: {e}")
 
     # =================================================================
     # Event Handlers
@@ -236,16 +284,17 @@ class LaunchpadSampler(App):
             pad_index: Index of pad (0-63)
         """
         if event_type == "pressed":
-            # Flash pad in UI for visual feedback
+            # Mark pad as playing in UI for visual feedback
             try:
                 grid = self.query_one(PadGrid)
-                grid.flash_pad(pad_index)
+                grid.set_pad_playing(pad_index, True)
+                self._playing_pads.add(pad_index)
             except Exception as e:
-                logger.debug(f"Error flashing pad: {e}")
+                logger.debug(f"Error setting pad playing: {e}")
 
     def on_pad_grid_pad_selected(self, message: PadGrid.PadSelected) -> None:
         """Handle pad selection from grid."""
-        if self._current_mode == "edit":
+        if self._sampler_mode == "edit":
             try:
                 self.editor.select_pad(message.pad_index)
                 self._update_ui_for_selection(message.pad_index)
@@ -258,6 +307,9 @@ class LaunchpadSampler(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses from details panel."""
         button_id = event.button.id
+
+        if not button_id:
+            return
 
         if button_id == "browse-btn":
             self.action_browse_sample()
@@ -284,7 +336,7 @@ class LaunchpadSampler(App):
 
     def action_browse_sample(self) -> None:
         """Open file browser to assign a sample."""
-        if self._current_mode != "edit":
+        if self._sampler_mode != "edit":
             self.notify("Switch to edit mode first", severity="warning")
             return
 
@@ -292,21 +344,23 @@ class LaunchpadSampler(App):
             self.notify("Select a pad first", severity="warning")
             return
 
+        # Capture selected pad index (guaranteed not None here)
+        selected_pad = self.editor.selected_pad_index
+
         def handle_file(file_path: Optional[Path]) -> None:
             if file_path:
                 try:
-                    pad = self.editor.assign_sample(
-                        self.editor.selected_pad_index,
-                        file_path
-                    )
+                    pad = self.editor.assign_sample(selected_pad, file_path)
 
                     # Reload in engine
-                    self.sampler.reload_pad(self.editor.selected_pad_index)
+                    self.sampler.reload_pad(selected_pad)
 
                     # Update UI
-                    self._update_ui_for_pad(self.editor.selected_pad_index, pad)
+                    self._update_ui_for_pad(selected_pad, pad)
 
-                    self.notify(f"Assigned: {pad.sample.name}")
+                    # Safe to access sample.name after assign_sample
+                    if pad.sample:
+                        self.notify(f"Assigned: {pad.sample.name}")
                 except Exception as e:
                     logger.error(f"Error assigning sample: {e}")
                     self.notify(f"Error: {e}", severity="error")
@@ -318,22 +372,23 @@ class LaunchpadSampler(App):
 
     def action_clear_pad(self) -> None:
         """Clear the selected pad."""
-        if self._current_mode != "edit":
+        if self._sampler_mode != "edit":
             self.notify("Switch to edit mode first", severity="warning")
             return
 
-        if self.editor.selected_pad_index is None:
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
 
         try:
-            pad = self.editor.clear_pad(self.editor.selected_pad_index)
+            pad = self.editor.clear_pad(selected_pad)
 
             # Unload from engine
-            self.sampler.reload_pad(self.editor.selected_pad_index)
+            self.sampler.reload_pad(selected_pad)
 
             # Update UI
-            self._update_ui_for_pad(self.editor.selected_pad_index, pad)
+            self._update_ui_for_pad(selected_pad, pad)
 
             self.notify("Pad cleared")
         except Exception as e:
@@ -349,6 +404,14 @@ class LaunchpadSampler(App):
         if pad.is_assigned:
             self.sampler.trigger_pad(self.editor.selected_pad_index)
 
+            # Mark pad as playing in UI
+            try:
+                grid = self.query_one(PadGrid)
+                grid.set_pad_playing(self.editor.selected_pad_index, True)
+                self._playing_pads.add(self.editor.selected_pad_index)
+            except Exception as e:
+                logger.debug(f"Error setting pad playing: {e}")
+
     def action_stop_audio(self) -> None:
         """Stop all audio playback."""
         self.sampler.stop_all()
@@ -357,6 +420,15 @@ class LaunchpadSampler(App):
         if self.editor.selected_pad_index is not None:
             self.sampler.release_pad(self.editor.selected_pad_index)
 
+        # Clear all playing pad indicators in UI
+        try:
+            grid = self.query_one(PadGrid)
+            for pad_index in list(self._playing_pads):
+                grid.set_pad_playing(pad_index, False)
+            self._playing_pads.clear()
+        except Exception as e:
+            logger.debug(f"Error clearing pad indicators: {e}")
+
     def action_save(self) -> None:
         """Save the current set."""
         def handle_save(name: Optional[str]) -> None:
@@ -364,7 +436,7 @@ class LaunchpadSampler(App):
                 try:
                     self.editor.save_set(name)
                     self.set_name = name
-                    self.sub_title = f"{self._current_mode.title()}: {name}"
+                    self.sub_title = f"{self._sampler_mode.title()}: {name}"
                     self.notify(f"Saved set: {name}")
                 except Exception as e:
                     logger.error(f"Error saving set: {e}")
@@ -397,7 +469,7 @@ class LaunchpadSampler(App):
                         self._update_ui_for_selection(self.editor.selected_pad_index)
 
                     self.set_name = set_obj.name
-                    self.sub_title = f"{self._current_mode.title()}: {self.set_name}"
+                    self.sub_title = f"{self._sampler_mode.title()}: {self.set_name}"
                     self.notify(f"Loaded set: {set_obj.name}")
 
                 except Exception as e:
@@ -408,21 +480,22 @@ class LaunchpadSampler(App):
 
     def _set_pad_mode(self, mode: PlaybackMode) -> None:
         """Set the playback mode for selected pad."""
-        if self._current_mode != "edit":
+        if self._sampler_mode != "edit":
             self.notify("Switch to edit mode first", severity="warning")
             return
 
-        if self.editor.selected_pad_index is None:
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
             return
 
         try:
-            pad = self.editor.set_pad_mode(self.editor.selected_pad_index, mode)
+            pad = self.editor.set_pad_mode(selected_pad, mode)
 
             # Reload in engine
-            self.sampler.reload_pad(self.editor.selected_pad_index)
+            self.sampler.reload_pad(selected_pad)
 
             # Update UI
-            self._update_ui_for_pad(self.editor.selected_pad_index, pad)
+            self._update_ui_for_pad(selected_pad, pad)
 
             self.notify(f"Mode: {mode.value}")
         except Exception as e:
@@ -435,7 +508,7 @@ class LaunchpadSampler(App):
 
     def action_navigate_up(self) -> None:
         """Navigate to pad above current selection."""
-        if self._current_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
         x = self.editor.selected_pad_index % 8
@@ -451,7 +524,7 @@ class LaunchpadSampler(App):
 
     def action_navigate_down(self) -> None:
         """Navigate to pad below current selection."""
-        if self._current_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
         x = self.editor.selected_pad_index % 8
@@ -467,7 +540,7 @@ class LaunchpadSampler(App):
 
     def action_navigate_left(self) -> None:
         """Navigate to pad left of current selection."""
-        if self._current_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
         x = self.editor.selected_pad_index % 8
@@ -483,7 +556,7 @@ class LaunchpadSampler(App):
 
     def action_navigate_right(self) -> None:
         """Navigate to pad right of current selection."""
-        if self._current_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
         x = self.editor.selected_pad_index % 8

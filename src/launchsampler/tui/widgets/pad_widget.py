@@ -70,6 +70,7 @@ class PadWidget(Static):
         super().__init__()
         self.pad_index = pad_index
         self._pad = pad
+        self._is_playing = False
         self.update_display()
 
     def update(self, pad: Pad) -> None:
@@ -99,10 +100,20 @@ class PadWidget(Static):
             super().update(f"[dim]{self.pad_index}[/dim]\n—")
             self.add_class("empty")
 
-    def flash(self) -> None:
-        """Flash the pad (visual feedback for MIDI trigger)."""
-        self.add_class("active")
-        self.set_timer(0.1, lambda: self.remove_class("active"))
+    def set_playing(self, is_playing: bool) -> None:
+        """
+        Set the playing state of this pad.
+
+        Args:
+            is_playing: Whether the pad is currently playing audio
+        """
+        if is_playing != self._is_playing:
+            self._is_playing = is_playing
+            if is_playing:
+                self.add_class("active")
+            else:
+                self.remove_class("active")
+            self.refresh()
 
     def on_click(self) -> None:
         """Handle click event - post message for parent to handle."""

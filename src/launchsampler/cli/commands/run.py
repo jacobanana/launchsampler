@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
     '--mode',
     '-m',
     type=click.Choice(['edit', 'play'], case_sensitive=False),
-    default='edit',
-    help='Start in edit or play mode (default: edit)'
+    default='play',
+    help='Start in edit or play mode (default: play)'
 )
 @click.option(
     '--samples-dir',
@@ -39,18 +39,18 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
     The TUI provides two modes:
 
     \b
-    - Edit Mode (default): Build sets, assign samples, test with preview audio
-    - Play Mode: Full MIDI integration for live performance
+    - Play Mode (default): Full MIDI integration for live performance
+    - Edit Mode: Build sets, assign samples, change configurations
 
     You can switch modes anytime by pressing E (edit) or P (play).
 
     \b
     Examples:
-      # Start in edit mode (default)
+      # Start in play mode (default)
       launchsampler run --set my-drums
 
-      # Start in play mode with MIDI active
-      launchsampler run --set my-drums --mode play
+      # Start in edit mode
+      launchsampler run --set my-drums --mode edit
 
       # Load from samples directory
       launchsampler run --samples-dir ./samples
