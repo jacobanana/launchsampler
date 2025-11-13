@@ -191,6 +191,7 @@ class AudioDevice:
         """Return appropriate stream configuration for the platform/device."""
         hostapi_name = sd.query_hostapis(sd.query_devices(device_id)['hostapi'])['name']
         is_asio = 'ASIO' in hostapi_name
+        is_wasapi = 'WASAPI' in hostapi_name
 
         base_config = dict(
             samplerate=self.sample_rate,
@@ -206,8 +207,8 @@ class AudioDevice:
             logger.debug("Using ASIO configuration")
             return base_config
 
-        # WASAPI exclusive mode if available
-        if self.low_latency and hasattr(sd, 'WasapiSettings'):
+        # WASAPI exclusive mode if available (Windows only)
+        if is_wasapi and self.low_latency and hasattr(sd, 'WasapiSettings'):
             try:
                 base_config['extra_settings'] = sd.WasapiSettings(exclusive=True)
                 base_config['prime_output_buffers_using_stream_callback'] = False
@@ -221,6 +222,8 @@ class AudioDevice:
 
     def _start_stream(self, config: dict) -> None:
         """Create and start the stream with the given configuration."""
+
+        print(config)
         self._stream = sd.OutputStream(**config)
         self._stream.start()
         self._is_running = True
