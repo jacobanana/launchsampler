@@ -5,7 +5,7 @@ from pathlib import Path
 from textual.screen import Screen
 from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal
-from textual.widgets import Label, Button, DirectoryTree
+from textual.widgets import Label, Button, DirectoryTree, Input
 from textual.binding import Binding
 from textual import events
 
@@ -28,10 +28,18 @@ class DirectoryBrowserScreen(Screen):
     }
 
     DirectoryBrowserScreen > Vertical {
-        width: 80;
-        height: 40;
+        width: 100;
+        height: 45;
         background: $surface;
         border: thick $primary;
+    }
+
+    DirectoryBrowserScreen #instructions {
+        height: auto;
+        background: $boost;
+        border: solid $primary;
+        margin: 1;
+        padding: 1;
     }
 
     DirectoryBrowserScreen DirectoryTree {
@@ -40,13 +48,10 @@ class DirectoryBrowserScreen(Screen):
         margin: 1;
     }
 
-    DirectoryBrowserScreen #info-panel {
+    DirectoryBrowserScreen #path-input {
         height: 3;
         border: solid $primary;
         margin: 1;
-        padding: 0 1;
-        overflow-x: auto;
-        overflow-y: hidden;
     }
 
     DirectoryBrowserScreen Horizontal {
@@ -93,14 +98,17 @@ class DirectoryBrowserScreen(Screen):
     def compose(self) -> ComposeResult:
         """Create the directory browser layout."""
         with Vertical():
+            yield Label("[b]Open Directory[/b]", id="title")
             yield Label(
-                "[b]Open Directory[/b] - ↑↓: navigate | →: expand | ←: collapse/up | Enter: select",
-                id="title"
+                "[b]Tree Navigation:[/b] ↑↓: navigate | →: expand | ←: collapse/up | Enter: select\n"
+                "[b]Path Input:[/b] Type/paste path below, then Tab or Enter to navigate",
+                id="instructions"
             )
             yield DirectoryTree(str(self.start_dir), id="tree")
-            yield Label(
-                f"{self.start_dir}",
-                id="info-panel"
+            yield Input(
+                value=str(self.start_dir),
+                placeholder="Enter or paste directory path...",
+                id="path-input"
             )
             with Horizontal():
                 yield Button("Select", id="select-btn", variant="primary")
@@ -113,11 +121,38 @@ class DirectoryBrowserScreen(Screen):
         Handle directory highlighting in the tree.
 
         This fires when a directory node is clicked or navigated to,
-        but doesn't select it - just updates the info panel.
+        but doesn't select it - just updates the path input.
         """
         self.selected_path = Path(event.path)
-        info_panel = self.query_one("#info-panel", Label)
-        info_panel.update(f"{self.selected_path}")
+        path_input = self.query_one("#path-input", Input)
+        path_input.value = str(self.selected_path)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle path input submission (Enter key in input field)."""
+        if event.input.id == "path-input":
+            self._navigate_to_path(event.value)
+
+    def on_input_blurred(self, event: Input.Blurred) -> None:
+        """Handle input losing focus - navigate to the entered path."""
+        if event.input.id == "path-input":
+            self._navigate_to_path(event.input.value)
+
+    def _navigate_to_path(self, path_str: str) -> None:
+        """
+        Navigate to a path entered in the input field.
+
+        Args:
+            path_str: The path string from the input field
+        """
+        entered_path = Path(path_str.strip())
+        if entered_path.exists() and entered_path.is_dir():
+            # Valid directory - navigate to it
+            self.run_worker(self._navigate_to_directory(entered_path))
+        else:
+            # Invalid path - revert to current path and show error
+            path_input = self.query_one("#path-input", Input)
+            path_input.value = str(self.selected_path)
+            self.notify(f"Invalid directory: {entered_path}", severity="error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -161,9 +196,9 @@ class DirectoryBrowserScreen(Screen):
         title = self.query_one("#title")
         await container.mount(new_tree, after=title)
 
-        # Update the info panel
-        info_panel = self.query_one("#info-panel", Label)
-        info_panel.update(f"{new_path}")
+        # Update the path input
+        path_input = self.query_one("#path-input", Input)
+        path_input.value = str(new_path)
 
         # Update selected_path
         self.selected_path = new_path
