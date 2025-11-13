@@ -49,6 +49,24 @@ class EditorService:
         self.selected_pad_index = pad_index
         return self.launchpad.pads[pad_index]
 
+    def get_pad(self, pad_index: int) -> Pad:
+        """
+        Get a pad by index (read-only).
+
+        Args:
+            pad_index: Index of pad to get (0-63)
+
+        Returns:
+            The Pad
+
+        Raises:
+            IndexError: If pad_index is out of range
+        """
+        if not 0 <= pad_index < 64:
+            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+
+        return self.launchpad.pads[pad_index]
+
     def assign_sample(self, pad_index: int, sample_path: Path) -> Pad:
         """
         Assign a sample to a pad.
@@ -166,6 +184,37 @@ class EditorService:
         pad.volume = volume
 
         logger.info(f"Set pad {pad_index} volume to {volume:.0%}")
+        return pad
+
+    def set_sample_name(self, pad_index: int, name: str) -> Pad:
+        """
+        Set the name for a pad's sample.
+
+        Args:
+            pad_index: Index of pad to modify
+            name: New sample name
+
+        Returns:
+            The modified Pad
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If pad has no sample assigned or name is empty
+        """
+        if not 0 <= pad_index < 64:
+            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+
+        if not name or not name.strip():
+            raise ValueError("Sample name cannot be empty")
+
+        pad = self.launchpad.pads[pad_index]
+
+        if not pad.is_assigned or not pad.sample:
+            raise ValueError(f"Cannot set name on empty pad {pad_index}")
+
+        pad.sample.name = name.strip()
+
+        logger.info(f"Set pad {pad_index} sample name to '{name}'")
         return pad
 
     def save_set(self, name: str) -> Path:

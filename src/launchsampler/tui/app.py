@@ -9,7 +9,7 @@ from textual.containers import Horizontal
 from textual.widgets import Header, Footer, Button
 from textual.binding import Binding
 
-from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode
+from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 
 from .services import EditorService, SamplerService
 from .widgets import PadGrid, PadDetailsPanel, StatusBar
@@ -120,7 +120,7 @@ class LaunchpadSampler(App):
 
         # Update selected pad if one is selected
         if self.editor.selected_pad_index is not None:
-            self._update_ui_for_selection(self.editor.selected_pad_index)
+            self._sync_pad_ui(self.editor.selected_pad_index, select=True)
 
         # Update subtitle (only if mode is set)
         if self._sampler_mode:
@@ -147,7 +147,7 @@ class LaunchpadSampler(App):
         # Select default pad
         try:
             self.editor.select_pad(0)
-            self._update_ui_for_selection(0)
+            self._sync_pad_ui(0, select=True)
         except Exception as e:
             logger.error(f"Error selecting default pad: {e}")
 
@@ -313,7 +313,7 @@ class LaunchpadSampler(App):
         if self._sampler_mode == "edit":
             try:
                 self.editor.select_pad(message.pad_index)
-                self._update_ui_for_selection(message.pad_index)
+                self._sync_pad_ui(message.pad_index, select=True)
             except Exception as e:
                 logger.error(f"Error selecting pad: {e}")
                 self.notify(f"Error selecting pad: {e}", severity="error")
@@ -352,18 +352,14 @@ class LaunchpadSampler(App):
             return
 
         try:
-            # Update pad volume in model
-            pad = self.launchpad.pads[event.pad_index]
-            pad.volume = event.volume
+            # Update through editor service
+            pad = self.editor.set_pad_volume(event.pad_index, event.volume)
 
             # Update in sampler engine
             self.sampler.update_pad_volume(event.pad_index, event.volume)
 
-            # Update UI
-            details = self.query_one(PadDetailsPanel)
-            details.update_for_pad(event.pad_index, pad)
-
-            logger.info(f"Updated pad {event.pad_index} volume to {event.volume:.0%}")
+            # Refresh UI
+            self._refresh_pad_ui(event.pad_index, pad)
 
         except Exception as e:
             logger.error(f"Error updating volume: {e}")
@@ -375,23 +371,25 @@ class LaunchpadSampler(App):
             return
 
         try:
-            # Update sample name in model
-            pad = self.launchpad.pads[event.pad_index]
-            if pad.is_assigned and pad.sample:
-                pad.sample.name = event.name
+            # Update through editor service
+            pad = self.editor.set_sample_name(event.pad_index, event.name)
 
-                # Update UI - both details panel and grid
-                details = self.query_one(PadDetailsPanel)
-                details.update_for_pad(event.pad_index, pad)
-
-                grid = self.query_one(PadGrid)
-                grid.update_pad(event.pad_index, pad)
-
-                logger.info(f"Updated pad {event.pad_index} sample name to '{event.name}'")
+            # Refresh UI
+            self._refresh_pad_ui(event.pad_index, pad)
 
         except Exception as e:
             logger.error(f"Error updating name: {e}")
             self.notify(f"Error updating name: {e}", severity="error")
+
+    def _refresh_pad_ui(self, pad_index: int, pad: Pad) -> None:
+        """
+        Refresh UI elements for a specific pad.
+
+        Args:
+            pad_index: Index of pad to refresh
+            pad: Updated pad model
+        """
+        self._sync_pad_ui(pad_index, pad)
 
     # =================================================================
     # Actions
@@ -423,7 +421,7 @@ class LaunchpadSampler(App):
                     self.sampler.reload_pad(selected_pad)
 
                     # Update UI
-                    self._update_ui_for_pad(selected_pad, pad)
+                    self._sync_pad_ui(selected_pad, pad)
 
                     # Safe to access sample.name after assign_sample
                     if pad.sample:
@@ -457,7 +455,7 @@ class LaunchpadSampler(App):
             self.sampler.reload_pad(selected_pad)
 
             # Update UI
-            self._update_ui_for_pad(selected_pad, pad)
+            self._sync_pad_ui(selected_pad, pad)
 
             self.notify("Pad cleared")
         except Exception as e:
@@ -469,7 +467,7 @@ class LaunchpadSampler(App):
         if self.editor.selected_pad_index is None:
             return
 
-        pad = self.launchpad.pads[self.editor.selected_pad_index]
+        pad = self.editor.get_pad(self.editor.selected_pad_index)
         if pad.is_assigned:
             self.sampler.trigger_pad(self.editor.selected_pad_index)
 
@@ -611,7 +609,7 @@ class LaunchpadSampler(App):
             self.sampler.reload_pad(selected_pad)
 
             # Update UI
-            self._update_ui_for_pad(selected_pad, pad)
+            self._sync_pad_ui(selected_pad, pad)
 
             self.notify(f"Mode: {mode.value}")
         except Exception as e:
@@ -634,7 +632,7 @@ class LaunchpadSampler(App):
             new_index = (y + 1) * 8 + x
             try:
                 self.editor.select_pad(new_index)
-                self._update_ui_for_selection(new_index)
+                self._sync_pad_ui(new_index, select=True)
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -650,7 +648,7 @@ class LaunchpadSampler(App):
             new_index = (y - 1) * 8 + x
             try:
                 self.editor.select_pad(new_index)
-                self._update_ui_for_selection(new_index)
+                self._sync_pad_ui(new_index, select=True)
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -666,7 +664,7 @@ class LaunchpadSampler(App):
             new_index = y * 8 + (x - 1)
             try:
                 self.editor.select_pad(new_index)
-                self._update_ui_for_selection(new_index)
+                self._sync_pad_ui(new_index, select=True)
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -682,7 +680,7 @@ class LaunchpadSampler(App):
             new_index = y * 8 + (x + 1)
             try:
                 self.editor.select_pad(new_index)
-                self._update_ui_for_selection(new_index)
+                self._sync_pad_ui(new_index, select=True)
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -690,29 +688,29 @@ class LaunchpadSampler(App):
     # UI Updates
     # =================================================================
 
-    def _update_ui_for_selection(self, pad_index: int) -> None:
-        """Update UI after pad selection."""
+    def _sync_pad_ui(self, pad_index: int, pad: Optional[Pad] = None, *, select: bool = False) -> None:
+        """
+        Synchronize UI widgets with pad state.
+
+        Args:
+            pad_index: Index of pad to sync
+            pad: Pad model (fetched if None)
+            select: If True, update grid selection; if False, update grid content
+        """
         try:
-            pad = self.launchpad.pads[pad_index]
+            if pad is None:
+                pad = self.editor.get_pad(pad_index)
 
             grid = self.query_one(PadGrid)
-            grid.select_pad(pad_index)
+            if select:
+                grid.select_pad(pad_index)
+            else:
+                grid.update_pad(pad_index, pad)
 
             details = self.query_one(PadDetailsPanel)
             details.update_for_pad(pad_index, pad)
         except Exception as e:
-            logger.error(f"Error updating UI for selection: {e}")
-
-    def _update_ui_for_pad(self, pad_index: int, pad) -> None:
-        """Update UI after pad modification."""
-        try:
-            grid = self.query_one(PadGrid)
-            grid.update_pad(pad_index, pad)
-
-            details = self.query_one(PadDetailsPanel)
-            details.update_for_pad(pad_index, pad)
-        except Exception as e:
-            logger.error(f"Error updating UI for pad: {e}")
+            logger.error(f"Error syncing pad UI: {e}")
 
     # =================================================================
     # Lifecycle
