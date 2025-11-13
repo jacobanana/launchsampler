@@ -2,7 +2,7 @@
 
 import click
 
-from .commands import audio_group, midi_group, run, config
+from .commands import audio_group, midi_group, run, config, edit
 
 
 @click.group()
@@ -22,6 +22,7 @@ cli.add_command(audio_group)
 cli.add_command(midi_group)
 cli.add_command(run)
 cli.add_command(config)
+cli.add_command(edit)
 
 if __name__ == "__main__":
     cli()
