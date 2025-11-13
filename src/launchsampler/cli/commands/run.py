@@ -10,7 +10,7 @@ from typing import Optional
 import click
 
 from launchsampler.core import SamplerApplication
-from launchsampler.models import AppConfig
+from launchsampler.models import AppConfig, Set
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,12 @@ def setup_logging():
 
 
 @click.command()
+@click.option(
+    '--set',
+    type=str,
+    default=None,
+    help='Name of saved set to load (from config/sets/)'
+)
 @click.option(
     '--audio-device',
     '-a',
@@ -42,29 +48,29 @@ def setup_logging():
     '--samples-dir',
     '-s',
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=Path("test_samples"),
-    help='Directory containing WAV samples (default: test_samples/)'
+    default=None,
+    help='Directory containing WAV samples (ignored if --set is used)'
 )
-def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Path):
+def run(set: Optional[str], audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Optional[Path]):
     """
     Run MIDI-controlled Launchpad sampler.
 
     This starts the sampler with MIDI hot-plug support and low-latency audio playback.
-    Samples are loaded from the specified directory and mapped to Launchpad pads.
+    Load a saved set or samples from a directory.
 
     Examples:
 
-      # Run with default settings
-      launchsampler run
+      # Run with a saved set
+      launchsampler run --set my-drumkit
+
+      # Run with samples directory (auto-configure)
+      launchsampler run --samples-dir ./my_samples
 
       # Use specific audio device
-      launchsampler run --audio-device 13
+      launchsampler run --set my-drumkit --audio-device 13
 
       # Use larger buffer for stability (higher latency)
       launchsampler run --buffer-size 128
-
-      # Use custom samples directory
-      launchsampler run --samples-dir ./my_samples
     """
     setup_logging()
 
@@ -74,7 +80,8 @@ def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Pa
     config = AppConfig.load_or_default()
 
     # Update config with CLI arguments (only if explicitly provided)
-    config.samples_dir = samples_dir
+    if samples_dir is not None:
+        config.samples_dir = samples_dir
 
     if audio_device is not None:
         config.default_audio_device = audio_device
@@ -118,13 +125,33 @@ def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Pa
 
     app = SamplerApplication(config=config, on_pad_event=on_pad_event)
 
-    # Load samples (uses config.samples_dir)
+    # Load samples - either from set or from directory
     try:
-        launchpad = app.load_samples_from_directory()
-        click.echo(f"Found {len(launchpad.assigned_pads)} sample(s)")
+        if set:
+            # Load from saved set
+            set_path = config.sets_dir / f"{set}.json"
+            if not set_path.exists():
+                click.echo(f"Error: Set '{set}' not found at {set_path}", err=True)
+                click.echo("Use 'launchsampler edit' to create sets", err=True)
+                raise click.Abort()
+            
+            set_obj = app.load_set(set)
+            click.echo(f"Loaded set '{set_obj.name}' with {len(set_obj.launchpad.assigned_pads)} sample(s)")
+        else:
+            # Load from samples directory (auto-configure)
+            if samples_dir is None:
+                config.samples_dir = Path("test_samples")
+            
+            launchpad = app.load_samples_from_directory()
+            click.echo(f"Found {len(launchpad.assigned_pads)} sample(s) in {config.samples_dir}")
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
-        click.echo("Create the directory and add some WAV files", err=True)
+        if not set:
+            click.echo("Create the directory and add some WAV files, or use --set to load a saved set", err=True)
+        raise click.Abort()
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        click.echo("Use 'launchsampler edit' to create sets", err=True)
         raise click.Abort()
 
     # Start audio and MIDI (config defaults are used for None values)

@@ -524,14 +524,30 @@ class LaunchpadEditor(App):
     def compose(self) -> ComposeResult:
         """Create the main layout."""
         # Initialize launchpad before composing
-        try:
-            self.launchpad = Launchpad.from_sample_directory(
-                samples_dir=self.config.samples_dir,
-                auto_configure=True
-            )
-        except ValueError as e:
-            logger.error(f"Error loading samples: {e}")
-            self.launchpad = Launchpad.create_empty()
+        # Try to load from set file first, then fall back to samples directory
+        if self.set_name and self.set_name != "untitled":
+            set_path = self.config.sets_dir / f"{self.set_name}.json"
+            if set_path.exists():
+                try:
+                    set_obj = Set.load_from_file(set_path)
+                    self.launchpad = set_obj.launchpad
+                    logger.info(f"Loaded set: {self.set_name}")
+                except Exception as e:
+                    logger.error(f"Error loading set: {e}")
+                    self.launchpad = Launchpad.create_empty()
+            else:
+                # Set doesn't exist yet, create empty launchpad
+                self.launchpad = Launchpad.create_empty()
+        else:
+            # No set name provided, try loading from samples directory
+            try:
+                self.launchpad = Launchpad.from_sample_directory(
+                    samples_dir=self.config.samples_dir,
+                    auto_configure=True
+                )
+            except ValueError as e:
+                logger.error(f"Error loading samples: {e}")
+                self.launchpad = Launchpad.create_empty()
         
         yield Header(show_clock=True)
         
