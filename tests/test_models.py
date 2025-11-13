@@ -284,6 +284,124 @@ class TestSet:
         assert loaded.name == "test_set"
         assert len(loaded.launchpad.pads) == 64
 
+    @pytest.mark.unit
+    def test_save_detects_common_path(self, temp_dir):
+        """Test that save_to_file detects and uses common path as samples_root."""
+        # Create sample directory structure
+        samples_dir = temp_dir / "samples" / "drums"
+        samples_dir.mkdir(parents=True)
+
+        # Create test audio files
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+
+        kick_path = samples_dir / "kick.wav"
+        snare_path = samples_dir / "snare.wav"
+        sf.write(str(kick_path), audio_data, sample_rate)
+        sf.write(str(snare_path), audio_data, sample_rate)
+
+        # Create set with samples from common directory
+        my_set = Set.create_empty("test_set")
+        my_set.launchpad.pads[0].sample = Sample.from_file(kick_path)
+        my_set.launchpad.pads[1].sample = Sample.from_file(snare_path)
+
+        # Save to a different location
+        save_path = temp_dir / "sets" / "my_set.json"
+        save_path.parent.mkdir(parents=True)
+        my_set.save_to_file(save_path)
+
+        # Verify samples_root was set to common path
+        assert my_set.samples_root == samples_dir
+
+        # Verify paths are now relative
+        assert not my_set.launchpad.pads[0].sample.path.is_absolute()
+        assert not my_set.launchpad.pads[1].sample.path.is_absolute()
+        assert my_set.launchpad.pads[0].sample.path == Path("kick.wav")
+        assert my_set.launchpad.pads[1].sample.path == Path("snare.wav")
+
+    @pytest.mark.unit
+    def test_save_with_nested_samples(self, temp_dir):
+        """Test saving when samples are in nested subdirectories."""
+        # Create nested directory structure
+        samples_root = temp_dir / "samples"
+        drums_dir = samples_root / "drums"
+        bass_dir = samples_root / "bass"
+        drums_dir.mkdir(parents=True)
+        bass_dir.mkdir(parents=True)
+
+        # Create test audio files
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+
+        kick_path = drums_dir / "kick.wav"
+        bass_path = bass_dir / "bass.wav"
+        sf.write(str(kick_path), audio_data, sample_rate)
+        sf.write(str(bass_path), audio_data, sample_rate)
+
+        # Create set
+        my_set = Set.create_empty("test_set")
+        my_set.launchpad.pads[0].sample = Sample.from_file(kick_path)
+        my_set.launchpad.pads[1].sample = Sample.from_file(bass_path)
+
+        # Save
+        save_path = temp_dir / "my_set.json"
+        my_set.save_to_file(save_path)
+
+        # Verify common path is the samples root
+        assert my_set.samples_root == samples_root
+
+        # Verify paths are relative to samples root
+        assert my_set.launchpad.pads[0].sample.path == Path("drums/kick.wav")
+        assert my_set.launchpad.pads[1].sample.path == Path("bass/bass.wav")
+
+    @pytest.mark.unit
+    def test_load_resolves_relative_paths(self, temp_dir):
+        """Test that loading a set resolves relative paths correctly."""
+        # Create sample directory structure
+        samples_dir = temp_dir / "samples"
+        samples_dir.mkdir(parents=True)
+
+        # Create test audio files
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+
+        kick_path = samples_dir / "kick.wav"
+        sf.write(str(kick_path), audio_data, sample_rate)
+
+        # Create and save set
+        my_set = Set.create_empty("test_set")
+        my_set.launchpad.pads[0].sample = Sample.from_file(kick_path)
+        save_path = temp_dir / "my_set.json"
+        my_set.save_to_file(save_path)
+
+        # Load set
+        loaded = Set.load_from_file(save_path)
+
+        # Verify path was resolved to absolute
+        assert loaded.launchpad.pads[0].sample.path.is_absolute()
+        assert loaded.launchpad.pads[0].sample.path == kick_path
+
+    @pytest.mark.unit
+    def test_save_with_no_samples(self, temp_dir):
+        """Test saving an empty set (no samples assigned)."""
+        my_set = Set.create_empty("test_set")
+        save_path = temp_dir / "empty.json"
+        my_set.save_to_file(save_path)
+
+        # Verify it doesn't crash and samples_root is None
+        assert my_set.samples_root is None
+
+        # Load and verify
+        loaded = Set.load_from_file(save_path)
+        assert loaded.name == "test_set"
+        assert loaded.samples_root is None
+
 
 class TestAppConfig:
     """Test AppConfig model."""

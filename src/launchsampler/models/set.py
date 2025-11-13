@@ -7,6 +7,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_serializer
 
+from launchsampler.utils import find_common_path
+
 from .launchpad import Launchpad
 
 logger = logging.getLogger(__name__)
@@ -57,11 +59,36 @@ class Set(BaseModel):
             return set_file_path.parent
 
     def save_to_file(self, path: Path) -> None:
-        """Save set to JSON file, converting absolute paths to relative where possible.
+        """Save set to JSON file, detecting common path and converting to relative paths.
+
+        Automatically detects the most specific common parent directory of all samples
+        and uses it as samples_root. All sample paths are then stored relative to this root.
 
         Args:
             path: Path where the Set JSON will be saved
         """
+        # Collect all sample paths
+        sample_paths = [
+            pad.sample.path
+            for pad in self.launchpad.pads
+            if pad.is_assigned and pad.sample
+        ]
+
+        # Detect common path if we have samples
+        if sample_paths:
+            common_path = find_common_path(sample_paths)
+            if common_path:
+                self.samples_root = common_path
+                logger.info(f"Detected common path: {common_path}")
+            else:
+                # Fallback: use the set file's directory
+                self.samples_root = path.parent
+                logger.info(f"No common path found, using set directory: {path.parent}")
+        else:
+            # No samples, use set file's directory
+            self.samples_root = None
+
+        # Get the root for path conversion
         root = self.get_samples_root(path)
 
         # Convert absolute paths to relative (where possible)
