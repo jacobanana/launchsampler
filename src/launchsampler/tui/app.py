@@ -13,7 +13,7 @@ from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode
 
 from .services import EditorService, SamplerService
 from .widgets import PadGrid, PadDetailsPanel, StatusBar
-from .screens import FileBrowserScreen, DirectoryBrowserScreen, SaveSetScreen, LoadSetScreen
+from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
 
 logger = logging.getLogger(__name__)
 
@@ -490,18 +490,38 @@ class LaunchpadSampler(App):
         if len(self.screen_stack) > 1:
             return
 
-        def handle_save(name: Optional[str]) -> None:
-            if name:
+        def handle_save(result: Optional[tuple[Path, str]]) -> None:
+            if result:
+                directory, filename = result
                 try:
-                    self.editor.save_set(name)
-                    self.set_name = name
-                    self.sub_title = f"{self._sampler_mode.title()}: {name}"
-                    self.notify(f"Saved set: {name}")
+                    # Construct full path
+                    save_path = directory / f"{filename}.json"
+                    
+                    # Save set using editor service
+                    self.editor.save_set(filename)
+                    
+                    # Note: The editor service saves to config.sets_dir
+                    # If user chose a different directory, we need to also copy/move there
+                    if directory != self.config.sets_dir:
+                        import shutil
+                        src_path = self.config.sets_dir / f"{filename}.json"
+                        shutil.copy2(src_path, save_path)
+                        self.notify(f"Saved set to: {save_path}")
+                    else:
+                        self.notify(f"Saved set: {filename}")
+                    
+                    self.set_name = filename
+                    self.sub_title = f"{self._sampler_mode.title()}: {filename}"
+                    
                 except Exception as e:
                     logger.error(f"Error saving set: {e}")
                     self.notify(f"Error saving: {e}", severity="error")
 
-        self.push_screen(SaveSetScreen(self.set_name), handle_save)
+        # Start in the sets directory
+        self.push_screen(
+            SaveSetBrowserScreen(self.config.sets_dir, self.set_name),
+            handle_save
+        )
 
     def action_load(self) -> None:
         """Load a saved set."""
@@ -524,7 +544,8 @@ class LaunchpadSampler(App):
                     logger.error(f"Error loading set: {e}")
                     self.notify(f"Error loading: {e}", severity="error")
 
-        self.push_screen(LoadSetScreen(self.config.sets_dir), handle_load)
+        # Start in the sets directory
+        self.push_screen(SetFileBrowserScreen(self.config.sets_dir), handle_load)
 
     def action_open_directory(self) -> None:
         """Open a directory to load samples from."""
