@@ -1,4 +1,15 @@
-# Edit Command Restructure Proposal
+# TUI Application Restructure Proposal
+
+## Vision: Unified TUI as Main Application
+
+The TUI should become the **primary application interface**, replacing the split between `edit` and `run` commands. Users will have one unified app with two modes:
+
+- **Edit Mode** (default): Build and modify sets, assign samples, test with preview audio
+- **Play Mode** (toggle with `P`): Full MIDI integration, performance-ready with LED feedback
+
+This creates a seamless workflow: **Edit → Test → Play → Edit** without restarting.
+
+---
 
 ## Current Problems
 
@@ -16,6 +27,7 @@ The edit command **doesn't leverage** the well-designed architecture:
 - ❌ Directly manages `SamplerEngine` and `AudioDevice` (reimplements lifecycle)
 - ❌ Manual sample loading instead of using core layer methods
 - ❌ No separation between preview playback and editing state
+- ❌ Separate `run` and `edit` commands create fragmented user experience
 
 **Example of duplication** (lines 569-586):
 ```python
@@ -68,16 +80,22 @@ Event handlers combine:
 src/launchsampler/
 ├── tui/                          # New: All Textual UI components
 │   ├── __init__.py
-│   ├── app.py                    # Main LaunchpadEditor app
+│   ├── app.py                    # Main unified TUI application
+│   ├── modes/                    # Mode system (Edit/Play)
+│   │   ├── __init__.py
+│   │   ├── base.py               # Base mode interface
+│   │   ├── edit_mode.py          # Edit mode handler
+│   │   └── play_mode.py          # Play mode handler
 │   ├── services/                 # Business logic layer
 │   │   ├── __init__.py
 │   │   ├── editor_service.py     # Editing operations (assign, clear, etc.)
-│   │   └── preview_service.py    # Audio preview using SamplerApplication
+│   │   └── sampler_service.py    # Unified audio/MIDI using SamplerApplication
 │   ├── widgets/                  # Reusable widgets
 │   │   ├── __init__.py
-│   │   ├── pad_widget.py         # Single pad display
+│   │   ├── pad_widget.py         # Single pad display (with play state)
 │   │   ├── pad_grid.py           # 8x8 grid container
-│   │   └── pad_details.py        # Details panel
+│   │   ├── pad_details.py        # Details panel (mode-aware)
+│   │   └── status_bar.py         # Status bar (mode, MIDI, voices)
 │   ├── screens/                  # Modal screens
 │   │   ├── __init__.py
 │   │   ├── file_browser.py       # File selection
@@ -88,7 +106,8 @@ src/launchsampler/
 │       └── default.tcss          # Shared styles
 ├── cli/
 │   └── commands/
-│       └── edit.py               # Thin CLI command (orchestrates tui.app)
+│       ├── run.py                # Main command (launches TUI)
+│       └── edit.py               # Deprecated/alias to run
 └── ... (existing structure)
 ```
 
@@ -112,11 +131,13 @@ src/launchsampler/
 #### 4. **Single Responsibility**
 Each component has one job:
 - `EditorService`: Manages editing operations on Launchpad model
-- `PreviewService`: Wraps `SamplerApplication` for preview playback
-- `PadWidget`: Displays a single pad's state
+- `SamplerService`: Wraps `SamplerApplication` for both preview and play modes
+- `EditMode` / `PlayMode`: Handle mode-specific behaviors
+- `PadWidget`: Displays a single pad's state (visual + play state)
 - `PadGrid`: Arranges widgets in 8x8 layout
 - `PadDetailsPanel`: Shows details and controls for selected pad
-- `LaunchpadEditor`: Coordinates components and handles app lifecycle
+- `StatusBar`: Displays mode, MIDI connection, active voices
+- `LaunchpadSampler`: Coordinates components, modes, and lifecycle
 
 ---
 
@@ -180,42 +201,99 @@ class EditorService:
         return set_obj
 ```
 
-#### `PreviewService` - Audio Preview
+#### `SamplerService` - Unified Audio/MIDI Service
 ```python
-class PreviewService:
-    """Manages audio preview using SamplerApplication."""
+class SamplerService:
+    """Manages sampler application with Edit and Play modes."""
 
-    def __init__(self, launchpad: Launchpad, config: AppConfig):
+    def __init__(self, launchpad: Launchpad, config: AppConfig, on_pad_event=None):
         self.launchpad = launchpad
         self.config = config
+        self._on_pad_event = on_pad_event  # Callback for visual feedback
         self._app: Optional[SamplerApplication] = None
+        self._mode: Literal["stopped", "edit", "play"] = "stopped"
 
-    def start(self) -> bool:
-        """Start preview engine (reuses SamplerApplication!)."""
+    def start_edit_mode(self) -> bool:
+        """Start audio-only preview (edit mode - no MIDI)."""
         try:
             self._app = SamplerApplication(config=self.config)
             self._app.launchpad = self.launchpad
-            self._app.start(buffer_size=512)  # Low latency for preview
+
+            # Start only audio engine (not MIDI controller)
+            self._app._audio_device = AudioDevice(
+                device=self.config.default_audio_device,
+                buffer_size=512  # Low latency for preview
+            )
+            self._app._engine = SamplerEngine(self._app._audio_device, num_pads=64)
+
+            # Load all samples
+            for i, pad in enumerate(self.launchpad.pads):
+                if pad.is_assigned:
+                    self._app._engine.load_sample(i, pad)
+
+            self._app._engine.start()
+            self._app._is_running = True
+            self._mode = "edit"
             return True
         except Exception as e:
-            logger.error(f"Failed to start preview: {e}")
+            logger.error(f"Failed to start edit mode: {e}")
             return False
 
+    def start_play_mode(self) -> bool:
+        """Upgrade to play mode (add MIDI to running audio)."""
+        if self._mode == "edit" and self._app:
+            # Upgrade: add MIDI controller to running audio
+            try:
+                self._app._controller = LaunchpadController(
+                    poll_interval=self.config.midi_poll_interval
+                )
+                self._app._controller.on_pad_pressed(self._handle_pad_pressed)
+                self._app._controller.on_pad_released(self._handle_pad_released)
+                self._app._controller.start()
+
+                self._mode = "play"
+                return True
+            except Exception as e:
+                logger.error(f"Failed to start play mode: {e}")
+                return False
+        elif self._mode == "stopped":
+            # Cold start in play mode (full SamplerApplication)
+            try:
+                self._app = SamplerApplication(
+                    config=self.config,
+                    on_pad_event=self._on_pad_event
+                )
+                self._app.launchpad = self.launchpad
+                self._app.start()  # Full start with MIDI
+                self._mode = "play"
+                return True
+            except Exception as e:
+                logger.error(f"Failed to start play mode: {e}")
+                return False
+        return False
+
+    def stop_play_mode(self) -> bool:
+        """Downgrade to edit mode (remove MIDI, keep audio)."""
+        if self._mode == "play" and self._app and self._app._controller:
+            self._app._controller.stop()
+            self._app._controller = None
+            self._mode = "edit"
+            return True
+        return False
+
     def stop(self) -> None:
-        """Stop preview engine."""
+        """Stop everything."""
         if self._app:
             self._app.stop()
+            self._mode = "stopped"
 
     def trigger_pad(self, pad_index: int) -> None:
-        """Test a pad."""
-        if self._app and self._app.is_running:
-            # SamplerApplication handles trigger internally
-            pad = self.launchpad.pads[pad_index]
-            if pad.is_assigned:
-                self._app._engine.trigger_pad(pad_index)
+        """Trigger pad (works in both modes)."""
+        if self._app and self._app._engine:
+            self._app._engine.trigger_pad(pad_index)
 
     def reload_pad(self, pad_index: int) -> None:
-        """Reload a pad after changes."""
+        """Reload pad after editing."""
         if self._app and self._app._engine:
             pad = self.launchpad.pads[pad_index]
             if pad.is_assigned:
@@ -223,10 +301,40 @@ class PreviewService:
             else:
                 self._app._engine.unload_sample(pad_index)
 
+    def reload_all(self) -> None:
+        """Reload all pads (after loading a set)."""
+        if self._app and self._app._engine:
+            for i, pad in enumerate(self.launchpad.pads):
+                self.reload_pad(i)
+
     def stop_all(self) -> None:
         """Stop all playback."""
         if self._app and self._app._engine:
             self._app._engine.stop_all()
+
+    def _handle_pad_pressed(self, pad_index: int) -> None:
+        """Handle MIDI pad press (play mode only)."""
+        if self._on_pad_event:
+            self._on_pad_event("pressed", pad_index)
+
+    def _handle_pad_released(self, pad_index: int) -> None:
+        """Handle MIDI pad release (play mode only)."""
+        if self._on_pad_event:
+            self._on_pad_event("released", pad_index)
+
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    @property
+    def is_connected(self) -> bool:
+        """Check if MIDI is connected (play mode)."""
+        return self._app and self._app.is_connected if self._mode == "play" else False
+
+    @property
+    def active_voices(self) -> int:
+        """Get active voice count."""
+        return self._app.active_voices if self._app else 0
 ```
 
 ### 2. Widget Layer
@@ -319,89 +427,245 @@ class PadGrid(Container):
 
 ### 3. Application Coordinator
 
-#### `LaunchpadEditor` - Orchestration
+#### `LaunchpadSampler` - Unified Application
 ```python
-class LaunchpadEditor(App):
-    """Main TUI application (orchestrates services and UI)."""
+class LaunchpadSampler(App):
+    """Unified TUI application with Edit and Play modes."""
 
-    def __init__(self, config: AppConfig, set_name: Optional[str] = None):
+    TITLE = "Launchpad Sampler"
+
+    BINDINGS = [
+        Binding("e", "switch_mode('edit')", "Edit Mode"),
+        Binding("p", "switch_mode('play')", "Play Mode"),
+        Binding("s", "save", "Save"),
+        Binding("l", "load", "Load"),
+        Binding("b", "browse_sample", "Browse"),
+        Binding("t", "test_pad", "Test"),
+        Binding("escape", "stop_audio", "Stop"),
+        Binding("q", "quit", "Quit"),
+    ]
+
+    def __init__(self, config: AppConfig, set_name: Optional[str] = None,
+                 start_mode: str = "edit"):
         super().__init__()
         self.config = config
         self.set_name = set_name or "untitled"
+        self._current_mode = start_mode
 
-        # Initialize launchpad
-        self.launchpad = self._load_initial_launchpad()
+        # Load launchpad
+        self.launchpad = self._load_initial_launchpad(set_name)
 
-        # Services (business logic)
+        # Services
         self.editor = EditorService(self.launchpad, config)
-        self.preview = PreviewService(self.launchpad, config)
+        self.sampler = SamplerService(
+            self.launchpad,
+            config,
+            on_pad_event=self._on_pad_event
+        )
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Horizontal():
+            yield PadGrid(self.launchpad)
+            yield PadDetailsPanel()
+        yield StatusBar()  # Shows: mode, MIDI status, active voices
+        yield Footer()
 
     def on_mount(self) -> None:
-        """Start preview audio."""
-        if self.preview.start():
-            self.notify(f"Loaded {len(self.launchpad.assigned_pads)} samples")
-        else:
-            self.notify("Audio preview unavailable", severity="warning")
+        """Start in configured mode."""
+        if self._current_mode == "edit":
+            self._enter_edit_mode()
+        elif self._current_mode == "play":
+            self._enter_play_mode()
 
         # Select default pad
         self.editor.select_pad(0)
         self._update_ui_for_selection(0)
 
+    def action_switch_mode(self, mode: str) -> None:
+        """Switch between edit and play modes."""
+        if mode == "play" and self._current_mode == "edit":
+            self._enter_play_mode()
+        elif mode == "edit" and self._current_mode == "play":
+            self._exit_play_mode()
+
+    def _enter_edit_mode(self) -> None:
+        """Enter edit mode (audio preview only)."""
+        if self.sampler.start_edit_mode():
+            self._current_mode = "edit"
+            self.sub_title = "Edit Mode"
+            self.notify("✏ EDIT MODE - Press [P] for play mode")
+            self._enable_edit_controls()
+            self._update_status_bar()
+        else:
+            self.notify("Failed to start edit mode", severity="error")
+
+    def _enter_play_mode(self) -> None:
+        """Enter play mode (full MIDI integration)."""
+        if self.sampler.start_play_mode():
+            self._current_mode = "play"
+            self.sub_title = "Play Mode"
+            self.notify("▶ PLAY MODE - Physical Launchpad active")
+            self._disable_edit_controls()
+            self._update_status_bar()
+        else:
+            self.notify("Failed to start play mode", severity="error")
+
+    def _exit_play_mode(self) -> None:
+        """Exit play mode (back to edit mode)."""
+        if self.sampler.stop_play_mode():
+            self._current_mode = "edit"
+            self.sub_title = "Edit Mode"
+            self.notify("■ EDIT MODE - MIDI disabled")
+            self._enable_edit_controls()
+            self._update_status_bar()
+
+    def _on_pad_event(self, event_type: str, pad_index: int) -> None:
+        """Handle pad events from MIDI (for visual feedback)."""
+        # Animate pad in TUI when triggered via physical Launchpad
+        grid = self.query_one(PadGrid)
+        if event_type == "pressed":
+            grid.animate_pad_trigger(pad_index)
+
     def on_pad_grid_pad_selected(self, message: PadGrid.PadSelected) -> None:
-        """Handle pad selection (coordination)."""
-        pad_index = message.pad_index
-        pad = self.editor.select_pad(pad_index)  # Business logic
-        self._update_ui_for_selection(pad_index)  # UI update
+        """Handle pad selection (edit mode only)."""
+        if self._current_mode == "edit":
+            pad = self.editor.select_pad(message.pad_index)
+            self._update_ui_for_selection(message.pad_index)
+        else:
+            self.notify("Switch to edit mode to modify pads", severity="warning")
 
     def action_browse_sample(self) -> None:
-        """Open file browser."""
+        """Assign sample to pad (edit mode only)."""
+        if self._current_mode != "edit":
+            self.notify("Switch to edit mode first", severity="warning")
+            return
+
+        if self.editor.selected_pad_index is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
         def handle_file(file_path: Optional[Path]) -> None:
-            if file_path and self.editor.selected_pad_index is not None:
+            if file_path:
                 try:
-                    # Business logic
                     pad = self.editor.assign_sample(
                         self.editor.selected_pad_index,
                         file_path
                     )
-
-                    # Audio preview
-                    self.preview.reload_pad(self.editor.selected_pad_index)
-
-                    # UI update
+                    self.sampler.reload_pad(self.editor.selected_pad_index)
                     self._update_ui_for_pad(self.editor.selected_pad_index, pad)
-
                 except Exception as e:
                     self.notify(f"Error: {e}", severity="error")
 
         self.push_screen(FileBrowserScreen(self.config.samples_dir), handle_file)
 
+    def action_save(self) -> None:
+        """Save current set."""
+        def handle_save(name: Optional[str]) -> None:
+            if name:
+                try:
+                    self.editor.save_set(name)
+                    self.set_name = name
+                    self.notify(f"Saved set: {name}")
+                except Exception as e:
+                    self.notify(f"Error saving: {e}", severity="error")
+
+        self.push_screen(SaveSetScreen(self.set_name), handle_save)
+
+    def action_load(self) -> None:
+        """Load a saved set."""
+        def handle_load(set_path: Optional[Path]) -> None:
+            if set_path:
+                try:
+                    set_obj = self.editor.load_set(set_path)
+                    self.launchpad = set_obj.launchpad
+                    self.sampler.launchpad = self.launchpad
+                    self.sampler.reload_all()
+
+                    # Update UI
+                    grid = self.query_one(PadGrid)
+                    for i in range(64):
+                        grid.update_pad(i, self.launchpad.pads[i])
+
+                    self.set_name = set_obj.name
+                    self.notify(f"Loaded set: {set_obj.name}")
+                except Exception as e:
+                    self.notify(f"Error loading: {e}", severity="error")
+
+        self.push_screen(LoadSetScreen(self.config.sets_dir), handle_load)
+
+    def _enable_edit_controls(self) -> None:
+        """Enable edit mode controls."""
+        details = self.query_one(PadDetailsPanel)
+        details.set_mode("edit")
+
+    def _disable_edit_controls(self) -> None:
+        """Disable edit mode controls."""
+        details = self.query_one(PadDetailsPanel)
+        details.set_mode("play")
+
+    def _update_status_bar(self) -> None:
+        """Update status bar with current mode and state."""
+        status = self.query_one(StatusBar)
+        status.update(
+            mode=self._current_mode,
+            connected=self.sampler.is_connected,
+            voices=self.sampler.active_voices
+        )
+
     def _update_ui_for_selection(self, pad_index: int) -> None:
-        """Update UI components after selection."""
+        """Update UI after pad selection."""
         pad = self.launchpad.pads[pad_index]
         self.query_one(PadGrid).select_pad(pad_index)
         self.query_one(PadDetailsPanel).update_for_pad(pad_index, pad)
 
     def _update_ui_for_pad(self, pad_index: int, pad: Pad) -> None:
-        """Update UI components after pad change."""
+        """Update UI after pad modification."""
         self.query_one(PadGrid).update_pad(pad_index, pad)
         self.query_one(PadDetailsPanel).update_for_pad(pad_index, pad)
+
+    def on_unmount(self) -> None:
+        """Cleanup on exit."""
+        self.sampler.stop()
 ```
 
-### 4. CLI Command (Thin Orchestrator)
+### 4. CLI Commands
 
+#### Main Command: `run` (launches TUI)
 ```python
-# cli/commands/edit.py
+# cli/commands/run.py
 @click.command()
-@click.option('--set', '-s', type=str, default=None)
-@click.option('--samples-dir', type=click.Path(...), default=None)
-def edit(set: Optional[str], samples_dir: Optional[Path]):
-    """Edit sample sets with interactive TUI."""
+@click.option('--set', '-s', type=str, default=None,
+              help='Name of saved set to load')
+@click.option('--mode', '-m', type=click.Choice(['edit', 'play']), default='edit',
+              help='Start in edit or play mode')
+@click.option('--samples-dir', type=click.Path(...), default=None,
+              help='Samples directory (ignored if --set is used)')
+def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
+    """
+    Launch Launchpad Sampler TUI.
 
-    # Setup
+    The TUI has two modes:
+    - Edit Mode (default): Build sets, assign samples, test with preview audio
+    - Play Mode: Full MIDI integration for performance
+
+    Switch modes anytime with E (edit) or P (play).
+
+    Examples:
+        # Start in edit mode
+        launchsampler run --set my-drums
+
+        # Start in play mode
+        launchsampler run --set my-drums --mode play
+
+        # Load from samples directory
+        launchsampler run --samples-dir ./samples
+    """
+    # Setup logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(levelname)s - %(message)s',
-        filename='launchsampler-edit.log'
+        filename='launchsampler.log'
     )
 
     # Load config
@@ -409,32 +673,67 @@ def edit(set: Optional[str], samples_dir: Optional[Path]):
     if samples_dir:
         config.samples_dir = samples_dir
 
-    # Run app (delegates to tui layer)
-    from launchsampler.tui.app import LaunchpadEditor
-    app = LaunchpadEditor(config, set_name=set)
+    # Launch TUI
+    from launchsampler.tui.app import LaunchpadSampler
+    app = LaunchpadSampler(config, set_name=set, start_mode=mode)
     app.run()
+```
+
+#### Legacy Command: `edit` (alias/deprecated)
+```python
+# cli/commands/edit.py
+@click.command()
+@click.option('--set', '-s', type=str, default=None)
+@click.option('--samples-dir', type=click.Path(...), default=None)
+def edit(set: Optional[str], samples_dir: Optional[Path]):
+    """
+    DEPRECATED: Use 'launchsampler run' instead.
+
+    This command is now an alias for 'launchsampler run --mode edit'.
+    """
+    click.echo("Note: 'edit' command is deprecated. Use 'launchsampler run' instead.")
+
+    # Delegate to run command
+    from .run import run as run_cmd
+    ctx = click.get_current_context()
+    ctx.invoke(run_cmd, set=set, mode='edit', samples_dir=samples_dir)
 ```
 
 ---
 
 ## Benefits of This Restructure
 
-### 1. ✅ Reuses Existing Architecture
-- `PreviewService` wraps `SamplerApplication` (no duplication)
-- Core layer handles audio lifecycle
+### 1. ✅ Unified User Experience
+- **One app, two modes**: Edit → Test → Play → Edit (no restarts)
+- **Seamless workflow**: Build sets visually, test with MIDI instantly
+- **Single command**: `launchsampler run` for everything
+- **No confusion**: Clear mode indicators, easy switching
+
+### 2. ✅ Reuses Existing Architecture
+- `SamplerService` wraps `SamplerApplication` (no duplication)
+- Properly leverages core layer for both edit and play
 - Models remain single source of truth
+- Consistent with the rest of the codebase
 
-### 2. ✅ Clean Separation of Concerns
-- **Services**: Business logic (editing, preview)
-- **Widgets**: Pure presentation (display state)
-- **App**: Orchestration (coordinate services ↔ UI)
+### 3. ✅ Clean Separation of Concerns
+- **Services**: Business logic (editing, audio/MIDI management)
+- **Modes**: Mode-specific behaviors (edit vs play)
+- **Widgets**: Pure presentation (display state, visual feedback)
+- **App**: Orchestration (coordinate services ↔ UI ↔ modes)
 
-### 3. ✅ Highly Reusable
+### 4. ✅ Full MIDI Integration
+- **Edit mode**: Audio preview only, won't interfere with editing
+- **Play mode**: Physical Launchpad works, LED feedback, real-time response
+- **Visual + Physical**: TUI shows state while hardware plays
+- **Graceful degradation**: Works without MIDI device connected
+
+### 5. ✅ Highly Reusable
 - Widgets can be used in other TUI apps
 - Services can be tested independently
 - Screens are self-contained
+- Mode system can be extended (e.g., record mode, performance mode)
 
-### 4. ✅ Easier to Test
+### 6. ✅ Easier to Test
 ```python
 # Test business logic without UI
 def test_assign_sample():
@@ -445,56 +744,108 @@ def test_assign_sample():
 
     assert pad.is_assigned
     assert pad.sample.name == "kick"
+
+# Test mode transitions
+def test_mode_switching():
+    sampler = SamplerService(launchpad, config)
+
+    assert sampler.start_edit_mode()
+    assert sampler.mode == "edit"
+
+    assert sampler.start_play_mode()
+    assert sampler.mode == "play"
 ```
 
-### 5. ✅ Better Maintainability
+### 7. ✅ Better Maintainability
 - Each file has ~100-200 lines (not 897)
 - Clear component boundaries
 - Easy to locate and modify features
+- Mode-specific logic is isolated
 
-### 6. ✅ Scalability
-- Add new widgets easily (waveform display, volume slider)
+### 8. ✅ Scalability
+- Add new modes (record, performance, etc.)
+- Add new widgets (waveform display, volume slider, velocity editor)
 - Add new services (undo/redo, batch operations)
 - Extend screens without affecting core logic
+- Support multiple controller types (not just Launchpad)
 
 ---
 
 ## Migration Strategy
 
-### Phase 1: Extract Services (No UI changes)
-1. Create `tui/services/editor_service.py` and `preview_service.py`
-2. Move business logic from `LaunchpadEditor` to services
-3. `LaunchpadEditor` delegates to services
-4. **Result**: Same UI, cleaner separation
+### Phase 1: Create Service Layer
+1. Create `tui/services/editor_service.py`
+2. Create `tui/services/sampler_service.py` with mode support
+3. Move business logic from `LaunchpadEditor` to services
+4. **Result**: Same UI, but business logic is separated
 
-### Phase 2: Extract Widgets
+### Phase 2: Extract and Enhance Widgets
 1. Move widgets to `tui/widgets/` (one file each)
-2. Update imports in app
-3. **Result**: Same functionality, better organization
+2. Add `StatusBar` widget for mode/MIDI/voice display
+3. Enhance `PadWidget` with play state animations
+4. Update imports in app
+5. **Result**: Reusable, mode-aware components
 
 ### Phase 3: Extract Screens
 1. Move screens to `tui/screens/` (one file each)
 2. Extract shared styles to `styles/default.tcss`
-3. **Result**: Reusable components
+3. **Result**: Self-contained, reusable screens
 
-### Phase 4: Integrate PreviewService with SamplerApplication
-1. Replace direct `SamplerEngine` usage with `SamplerApplication`
-2. Remove duplicated audio setup code
-3. **Result**: Consistent architecture across CLI commands
+### Phase 4: Implement Mode System
+1. Create `tui/modes/base.py` (mode interface)
+2. Create `tui/modes/edit_mode.py` and `play_mode.py`
+3. Integrate mode switching into main app
+4. **Result**: Clean mode separation
+
+### Phase 5: Unify as Main Application
+1. Rename `LaunchpadEditor` → `LaunchpadSampler`
+2. Update `run.py` to launch TUI
+3. Deprecate old `edit.py` command (or make it alias)
+4. Add mode parameter to CLI
+5. **Result**: Unified TUI as main interface
+
+### Phase 6: Polish and Test
+1. Add mode transition animations
+2. Add MIDI connection indicators
+3. Add active voice monitoring in status bar
+4. Test mode switching edge cases
+5. **Result**: Production-ready unified TUI
 
 ---
 
 ## Conclusion
 
+### Current State Problems
 The current `edit.py` is a **monolithic mess** that:
+- 897 lines in one file with everything mixed together
 - Duplicates logic from the well-designed core layer
-- Mixes presentation, business logic, and state management
-- Is hard to test, maintain, and extend
+- Separate `run` and `edit` commands create fragmented UX
+- No MIDI integration in editor (missed opportunity)
+- Hard to test, maintain, and extend
 
-The proposed restructure:
-- **Respects** the existing architecture patterns
-- **Reuses** `SamplerApplication` instead of reimplementing
-- **Separates** concerns into services, widgets, and orchestration
-- **Enables** testing, reusability, and future features
+### Proposed Solution
+Transform the TUI into the **unified main application** that:
+- **Unifies** edit and runtime into one seamless experience
+- **Respects** the existing architecture patterns (uses `SamplerApplication`)
+- **Separates** concerns into services, widgets, modes, and orchestration
+- **Enables** both visual editing and physical performance in one app
+- **Provides** a clean, testable, and extensible foundation
 
-**This transforms `edit.py` from a 897-line monolith into a clean, maintainable, and extensible TUI application that integrates seamlessly with the existing architecture.**
+### The Vision
+```
+┌──────────────────────────────────────────────────────────┐
+│  One App, Two Modes, Complete Workflow                  │
+│                                                          │
+│  Edit Mode:  Build sets, assign samples, preview audio  │
+│       ↓                                                  │
+│  [Press P]   Switch to play mode                        │
+│       ↓                                                  │
+│  Play Mode:  Full MIDI, LED feedback, performance-ready │
+│       ↓                                                  │
+│  [Press E]   Back to editing                            │
+│                                                          │
+│  No restarts. No separate commands. Just flow.          │
+└──────────────────────────────────────────────────────────┘
+```
+
+**This transforms the TUI from a simple editor into the primary interface for Launchpad Sampler, providing a unified, professional, and extensible application that leverages your excellent core architecture.**
