@@ -509,63 +509,72 @@ class LaunchpadEditor(App):
         Binding("right", "navigate_right", "Right", show=False),
     ]
     
-    def __init__(self, config: AppConfig, set_name: Optional[str] = None):
+    def __init__(self, config: AppConfig, set_name: Optional[str] = None, samples_dir: Optional[Path] = None):
         super().__init__()
         self.config = config
         self.set_name = set_name or "untitled"
         self.sub_title = f"Editing: {self.set_name}"
-        self.launchpad: Optional[Launchpad] = None
+        self.samples_dir = samples_dir
+        self.current_set: Optional[Set] = None
         self.selected_pad_index: Optional[int] = None
-        
+
         # Audio preview engine (not started by default)
         self.preview_engine: Optional[SamplerEngine] = None
         self.audio_device: Optional[AudioDevice] = None
-    
+
     def compose(self) -> ComposeResult:
         """Create the main layout."""
-        # Initialize launchpad before composing
-        # Try to load from set file first, then fall back to samples directory
-        if self.set_name and self.set_name != "untitled":
+        # Initialize set before composing
+
+        if self.samples_dir:
+            # Load from directory - create a new Set
+            try:
+                self.current_set = Set.from_sample_directory(
+                    samples_dir=self.samples_dir,
+                    name=self.set_name,
+                    auto_configure=True
+                )
+                logger.info(f"Loaded {len(self.current_set.launchpad.assigned_pads)} samples from {self.samples_dir}")
+            except ValueError as e:
+                logger.error(f"Error loading samples: {e}")
+                self.current_set = Set.create_empty(self.set_name)
+        elif self.set_name and self.set_name != "untitled":
+            # Try to load from set file
             set_path = self.config.sets_dir / f"{self.set_name}.json"
             if set_path.exists():
                 try:
-                    set_obj = Set.load_from_file(set_path)
-                    self.launchpad = set_obj.launchpad
+                    self.current_set = Set.load_from_file(set_path)
+                    self.set_name = self.current_set.name  # Use name from file
                     logger.info(f"Loaded set: {self.set_name}")
                 except Exception as e:
                     logger.error(f"Error loading set: {e}")
-                    self.launchpad = Launchpad.create_empty()
+                    self.current_set = Set.create_empty(self.set_name)
             else:
-                # Set doesn't exist yet, create empty launchpad
-                self.launchpad = Launchpad.create_empty()
+                # Set doesn't exist yet, create empty
+                self.current_set = Set.create_empty(self.set_name)
         else:
-            # No set name provided, try loading from samples directory
-            try:
-                self.launchpad = Launchpad.from_sample_directory(
-                    samples_dir=self.config.samples_dir,
-                    auto_configure=True
-                )
-            except ValueError as e:
-                logger.error(f"Error loading samples: {e}")
-                self.launchpad = Launchpad.create_empty()
-        
+            # No set name or directory, create empty
+            self.current_set = Set.create_empty(self.set_name)
+
+        self.sub_title = f"Editing: {self.set_name}"
+
         yield Header(show_clock=True)
-        
+
         with Horizontal():
             # Left side: Pad grid
-            yield PadGrid(self.launchpad)
-            
+            yield PadGrid(self.current_set.launchpad)
+
             # Right side: Details panel
             yield PadDetailsPanel()
-        
+
         yield Footer()
-    
+
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
         # Notify about loaded samples
-        if self.launchpad:
-            self.notify(f"Loaded {len(self.launchpad.assigned_pads)} samples")
-        
+        if self.current_set:
+            self.notify(f"Loaded {len(self.current_set.launchpad.assigned_pads)} samples")
+
         # Initialize preview audio engine
         try:
             devices, _ = AudioDevice.list_output_devices()
@@ -573,32 +582,32 @@ class LaunchpadEditor(App):
                 device_id = self.config.default_audio_device or devices[0][0]
                 self.audio_device = AudioDevice(device=device_id, buffer_size=512)
                 self.preview_engine = SamplerEngine(self.audio_device, num_pads=64)
-                
+
                 # Load all samples into engine
-                for i, pad in enumerate(self.launchpad.pads):
+                for i, pad in enumerate(self.current_set.launchpad.pads):
                     if pad.is_assigned:
                         self.preview_engine.load_sample(i, pad)
-                
+
                 self.preview_engine.start()
                 logger.info("Preview audio engine started")
         except Exception as e:
             logger.error(f"Failed to initialize audio preview: {e}")
             self.notify("Audio preview unavailable", severity="warning")
-        
+
         # Select pad 0 (0,0) by default for immediate keyboard navigation
         self.select_pad(0)
-    
+
     def select_pad(self, pad_index: int) -> None:
         """Select a pad and update the details panel."""
         self.selected_pad_index = pad_index
-        
+
         # Update grid selection
         grid = self.query_one(PadGrid)
         grid.select_pad(pad_index)
-        
+
         # Update details panel
         details = self.query_one(PadDetailsPanel)
-        pad = self.launchpad.pads[pad_index]
+        pad = self.current_set.launchpad.pads[pad_index]
         details.update_for_pad(pad_index, pad)
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -631,36 +640,37 @@ class LaunchpadEditor(App):
                 try:
                     # Create sample and assign to pad
                     sample = Sample.from_file(file_path)
-                    pad = self.launchpad.pads[self.selected_pad_index]
+                    pad = self.current_set.launchpad.pads[self.selected_pad_index]
                     pad.sample = sample
                     pad.volume = 0.8  # Default volume
-                    
+
                     # Set default mode if not set
                     if not pad.is_assigned or pad.mode is None:
                         pad.mode = PlaybackMode.ONE_SHOT
                         pad.color = pad.mode.get_default_color()
-                    
+
                     # Load into preview engine
                     if self.preview_engine:
                         self.preview_engine.load_sample(self.selected_pad_index, pad)
-                    
+
                     # Update displays
                     grid = self.query_one(PadGrid)
                     grid.update_pad(self.selected_pad_index)
-                    
+
                     details = self.query_one(PadDetailsPanel)
                     details.update_for_pad(self.selected_pad_index, pad)
-                    
+
                 except Exception as e:
                     self.notify(f"Error loading sample: {e}", severity="error")
-        
-        # Push the file browser screen
-        self.push_screen(FileBrowserScreen(self.config.samples_dir), handle_file_selected)
-    
+
+        # Push the file browser screen - use samples_root if available, otherwise home directory
+        browse_dir = self.current_set.samples_root if self.current_set.samples_root else Path.home()
+        self.push_screen(FileBrowserScreen(browse_dir), handle_file_selected)
+
     def action_test_selected(self) -> None:
         """Test the selected pad by playing its sample."""
         if self.selected_pad_index is not None and self.preview_engine:
-            pad = self.launchpad.pads[self.selected_pad_index]
+            pad = self.current_set.launchpad.pads[self.selected_pad_index]
             if pad.is_assigned:
                 # Trigger the pad (respects mode: ONE_SHOT, LOOP, HOLD)
                 self.preview_engine.trigger_pad(self.selected_pad_index)
@@ -679,38 +689,38 @@ class LaunchpadEditor(App):
         """Clear the selected pad."""
         if self.selected_pad_index is not None:
             # Get the current pad position
-            old_pad = self.launchpad.pads[self.selected_pad_index]
-            
+            old_pad = self.current_set.launchpad.pads[self.selected_pad_index]
+
             # Replace with a fresh empty pad
-            self.launchpad.pads[self.selected_pad_index] = Pad.empty(old_pad.x, old_pad.y)
-            
+            self.current_set.launchpad.pads[self.selected_pad_index] = Pad.empty(old_pad.x, old_pad.y)
+
             # Remove from preview engine if loaded
             if self.preview_engine:
                 self.preview_engine.unload_sample(self.selected_pad_index)
-            
+
             # Update displays
             grid = self.query_one(PadGrid)
             grid.update_pad(self.selected_pad_index)
-            
+
             details = self.query_one(PadDetailsPanel)
-            details.update_for_pad(self.selected_pad_index, self.launchpad.pads[self.selected_pad_index])
-    
+            details.update_for_pad(self.selected_pad_index, self.current_set.launchpad.pads[self.selected_pad_index])
+
     def set_pad_mode(self, mode: PlaybackMode) -> None:
         """Set the playback mode for the selected pad."""
         if self.selected_pad_index is not None:
-            pad = self.launchpad.pads[self.selected_pad_index]
+            pad = self.current_set.launchpad.pads[self.selected_pad_index]
             if pad.is_assigned:
                 pad.mode = mode
                 pad.color = mode.get_default_color()
-                
+
                 # Reload the sample into the preview engine to update the mode
                 if self.preview_engine:
                     self.preview_engine.load_sample(self.selected_pad_index, pad)
-                
+
                 # Update displays
                 grid = self.query_one(PadGrid)
                 grid.update_pad(self.selected_pad_index)
-                
+
                 details = self.query_one(PadDetailsPanel)
                 details.update_for_pad(self.selected_pad_index, pad)
     
@@ -772,68 +782,62 @@ class LaunchpadEditor(App):
         def handle_save(name: Optional[str]) -> None:
             if name is None:
                 return  # User cancelled
-            
+
             try:
                 # Ensure sets directory exists
                 sets_dir = self.config.sets_dir
                 sets_dir.mkdir(parents=True, exist_ok=True)
-                
-                # Create Set object
-                set_obj = Set(
-                    name=name,
-                    launchpad=self.launchpad
-                )
-                
+
+                # Update set name
+                self.current_set.name = name
+
                 # Save to file
                 set_path = sets_dir / f"{name}.json"
-                set_obj.save_to_file(set_path)
-                
+                self.current_set.save_to_file(set_path)
+
                 # Update current set name
                 self.set_name = name
                 self.sub_title = f"Editing: {name}"
-                
+
                 self.notify(f"Saved set: {name}", severity="information")
             except Exception as e:
                 self.notify(f"Error saving set: {e}", severity="error")
                 logger.exception("Error saving set")
-        
+
         # Show save dialog
         self.push_screen(SaveSetScreen(self.set_name), handle_save)
-    
+
     def action_load(self) -> None:
         """Load a set."""
         def handle_load(set_path: Optional[Path]) -> None:
             if set_path is None:
                 return  # User cancelled
-            
+
             try:
                 # Load the set
-                set_obj = Set.load_from_file(set_path)
-                
-                # Update launchpad
-                self.launchpad = set_obj.launchpad
-                
+                self.current_set = Set.load_from_file(set_path)
+
                 # Reload into preview engine
                 if self.preview_engine:
-                    for i, pad in enumerate(self.launchpad.pads):
+                    for i, pad in enumerate(self.current_set.launchpad.pads):
                         if pad.is_assigned:
                             self.preview_engine.load_sample(i, pad)
-                
+
                 # Update grid
                 grid = self.query_one(PadGrid)
                 for i in range(64):
                     grid.update_pad(i)
-                
+
                 # Update selected pad details if one is selected
                 if self.selected_pad_index is not None:
                     details = self.query_one(PadDetailsPanel)
-                    details.update_pad(self.selected_pad_index, self.launchpad.pads[self.selected_pad_index])
-                
+                    details.update_for_pad(self.selected_pad_index, self.current_set.launchpad.pads[self.selected_pad_index])
+
                 # Update current set name
-                self.set_name = set_obj.name
+                self.set_name = self.current_set.name
                 self.sub_title = f"Editing: {self.set_name}"
-                
-                self.notify(f"Loaded set: {set_obj.name}", severity="information")
+
+                self.notify(f"Loaded set: {self.current_set.name}", severity="information")
             except Exception as e:
                 self.notify(f"Error loading set: {e}", severity="error")
                 logger.exception("Error loading set")
@@ -857,26 +861,30 @@ class LaunchpadEditor(App):
     default=None,
     help='Name of set to edit (creates new if doesn\'t exist)'
 )
-@click.option(
-    '--samples-dir',
+@click.argument(
+    'samples_dir',
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=None,
-    help='Directory containing samples (overrides config)'
+    required=False
 )
 def edit(set: Optional[str], samples_dir: Optional[Path]):
     """
     Edit sample sets with interactive TUI.
-    
+
     Opens a terminal UI for building and editing Launchpad sample sets.
     Click on pads to select, assign samples, change modes, and test playback.
-    
+
+    You can either load an existing set by name, or load samples from a directory.
+
     Examples:
-    
-      # Edit a new set
+
+      # Edit an existing set
       launchsampler edit --set my-drumkit
-      
-      # Edit with specific samples directory
-      launchsampler edit --samples-dir ./samples
+
+      # Load samples from a directory to create a new set
+      launchsampler edit ./my-samples
+
+      # Create empty set
+      launchsampler edit --set new-kit
     """
     # Setup logging to file (not console, since we're in TUI mode)
     logging.basicConfig(
@@ -884,13 +892,10 @@ def edit(set: Optional[str], samples_dir: Optional[Path]):
         format='%(levelname)s - %(message)s',
         filename='launchsampler-edit.log'
     )
-    
+
     # Load config
     config = AppConfig.load_or_default()
-    
-    if samples_dir:
-        config.samples_dir = samples_dir
-    
+
     # Run the TUI app
-    app = LaunchpadEditor(config, set_name=set)
+    app = LaunchpadEditor(config, set_name=set, samples_dir=samples_dir)
     app.run()

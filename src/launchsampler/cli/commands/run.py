@@ -26,11 +26,10 @@ logger = logging.getLogger(__name__)
     default='play',
     help='Start in edit or play mode (default: play)'
 )
-@click.option(
-    '--samples-dir',
+@click.argument(
+    'samples_dir',
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=None,
-    help='Directory containing samples (ignored if --set is used)'
+    required=False
 )
 def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
     """
@@ -44,18 +43,20 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
 
     You can switch modes anytime by pressing E (edit) or P (play).
 
+    You can either load an existing set by name, or load samples from a directory.
+
     \b
     Examples:
-      # Start in play mode (default)
+      # Start in play mode with saved set (default)
       launchsampler run --set my-drums
 
       # Start in edit mode
       launchsampler run --set my-drums --mode edit
 
       # Load from samples directory
-      launchsampler run --samples-dir ./samples
+      launchsampler run ./samples
 
-      # Create new set
+      # Create new empty set
       launchsampler run
     """
     # Setup logging to file (TUI uses stdout)
@@ -68,10 +69,6 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
     # Load configuration
     config = AppConfig.load_or_default()
 
-    # Update config with CLI arguments
-    if samples_dir is not None:
-        config.samples_dir = samples_dir
-
     # Save config
     config.save()
 
@@ -81,6 +78,7 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
     app = LaunchpadSampler(
         config=config,
         set_name=set,
+        samples_dir=samples_dir,
         start_mode=mode.lower()
     )
 

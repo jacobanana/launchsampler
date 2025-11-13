@@ -7,7 +7,7 @@ from launchsampler.core import SamplerApplication
 from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.devices.launchpad import LaunchpadController
-from launchsampler.models import Launchpad, AppConfig
+from launchsampler.models import Launchpad, AppConfig, PlaybackMode
 
 logger = logging.getLogger(__name__)
 
@@ -140,15 +140,56 @@ class SamplerService:
     def _cold_start_play_mode(self) -> bool:
         """Cold start in play mode (full SamplerApplication)."""
         try:
-            # Use full SamplerApplication lifecycle
-            self._app = SamplerApplication(
-                config=self.config,
-                on_pad_event=self._on_pad_event
-            )
+            # Create SamplerApplication instance (don't pass on_pad_event, we handle it ourselves)
+            self._app = SamplerApplication(config=self.config)
             self._app.launchpad = self.launchpad
 
-            # Full start (audio + MIDI)
-            self._app.start()
+            # Manually start components so we can wire our own handlers
+            # Use config defaults for unspecified parameters
+            device_id = self.config.default_audio_device
+            buffer = self.config.default_buffer_size
+
+            # Create audio device
+            from launchsampler.audio import AudioDevice
+            self._app._audio_device = AudioDevice(
+                device=device_id,
+                buffer_size=buffer,
+                low_latency=True
+            )
+
+            # Create engine
+            from launchsampler.devices.launchpad import LaunchpadDevice
+            self._app._engine = SamplerEngine(
+                audio_device=self._app._audio_device,
+                num_pads=LaunchpadDevice.NUM_PADS
+            )
+
+            # Load samples into audio engine
+            loaded_count = 0
+            for i, pad in enumerate(self.launchpad.pads):
+                if pad.is_assigned:
+                    success = self._app._engine.load_sample(i, pad)
+                    if success:
+                        loaded_count += 1
+                        logger.info(f"Loaded sample for pad {i}: {pad.sample.name if pad.sample else 'unknown'}")
+                    else:
+                        logger.error(f"Failed to load sample for pad {i}")
+
+            logger.info(f"Loaded {loaded_count}/{len(self.launchpad.assigned_pads)} samples into engine")
+
+            # Create controller
+            self._app._controller = LaunchpadController(
+                poll_interval=self.config.midi_poll_interval
+            )
+
+            # Wire up OUR event handlers (not SamplerApplication's)
+            self._app._controller.on_pad_pressed(self._handle_pad_pressed)
+            self._app._controller.on_pad_released(self._handle_pad_released)
+
+            # Start everything
+            self._app._engine.start()
+            self._app._controller.start()
+            self._app._is_running = True
 
             self._mode = "play"
             logger.info("Started play mode (audio + MIDI)")
@@ -240,27 +281,36 @@ class SamplerService:
         """
         Handle MIDI pad press event (play mode only).
 
-        This delegates to SamplerApplication's handler and also
-        notifies the callback for UI feedback.
+        This triggers audio and notifies the callback for UI feedback.
         """
-        # Let SamplerApplication handle the audio trigger
-        if self._app:
-            self._app._handle_pad_pressed(pad_index)
+        logger.debug(f"SamplerService received pad pressed: {pad_index}")
+
+        # Trigger the pad directly in the engine
+        if self._app and self._app._engine and self.launchpad:
+            pad = self.launchpad.pads[pad_index]
+            if pad.is_assigned:
+                self._app._engine.trigger_pad(pad_index)
+                logger.debug(f"Triggered pad {pad_index}: {pad.sample.name if pad.sample else 'no sample'}")
+            else:
+                logger.debug(f"Pad {pad_index} is not assigned")
 
         # Notify UI callback for visual feedback
         if self._on_pad_event:
             self._on_pad_event("pressed", pad_index)
+            logger.debug(f"Called on_pad_event callback for pad {pad_index}")
 
     def _handle_pad_released(self, pad_index: int) -> None:
         """
         Handle MIDI pad release event (play mode only).
 
-        This delegates to SamplerApplication's handler and also
-        notifies the callback for UI feedback.
+        This releases the pad in the engine and notifies the callback for UI feedback.
         """
-        # Let SamplerApplication handle the release
-        if self._app:
-            self._app._handle_pad_released(pad_index)
+        # Release the pad directly in the engine
+        if self._app and self._app._engine and self.launchpad:
+            pad = self.launchpad.pads[pad_index]
+            if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
+                self._app._engine.release_pad(pad_index)
+                logger.debug(f"Released pad {pad_index}")
 
         # Notify UI callback for visual feedback
         if self._on_pad_event:

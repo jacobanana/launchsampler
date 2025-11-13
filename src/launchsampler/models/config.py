@@ -14,10 +14,6 @@ class AppConfig(BaseModel):
         default_factory=lambda: Path.home() / ".launchsampler" / "sets",
         description="Directory for saved sets"
     )
-    samples_dir: Path = Field(
-        default_factory=lambda: Path.home() / ".launchsampler" / "samples",
-        description="Directory for audio samples"
-    )
 
     # Audio defaults (used if not overridden at runtime)
     default_audio_device: Optional[int] = Field(
@@ -42,7 +38,7 @@ class AppConfig(BaseModel):
     )
     auto_save: bool = Field(default=True, description="Auto-save on changes")
 
-    @field_serializer("sets_dir", "samples_dir")
+    @field_serializer("sets_dir")
     def serialize_path(self, path: Path) -> str:
         """Serialize Path to string."""
         return str(path)
@@ -50,7 +46,6 @@ class AppConfig(BaseModel):
     def ensure_directories(self) -> None:
         """Create config directories if they don't exist."""
         self.sets_dir.mkdir(parents=True, exist_ok=True)
-        self.samples_dir.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def load_or_default(cls, path: Optional[Path] = None) -> "AppConfig":
