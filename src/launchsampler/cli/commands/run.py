@@ -86,6 +86,9 @@ def run(audio_device: Optional[int], buffer_size: Optional[int], samples_dir: Pa
     config.save()
 
     # Create non-blocking output queue for console messages
+    # Terminal I/O can block 1-50ms on Windows, which would delay MIDI processing
+    # and create perceptible sluggishness. Using a queue + worker thread keeps
+    # the MIDI callback responsive while ensuring console output doesn't get lost.
     output_queue = queue.Queue()
 
     def output_worker():
