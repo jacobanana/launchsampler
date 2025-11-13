@@ -19,6 +19,9 @@ class DirectoryBrowserScreen(Screen):
     the "Select" button.
     """
 
+    # Make this a modal screen to prevent parent app shortcuts from interfering
+    MODAL = True
+
     DEFAULT_CSS = """
     DirectoryBrowserScreen {
         align: center middle;
@@ -58,9 +61,23 @@ class DirectoryBrowserScreen(Screen):
     """
 
     BINDINGS = [
-        Binding("escape", "cancel", "Cancel"),
-        Binding("enter", "select_current", "Select Directory"),
+        Binding("escape", "cancel", "Cancel", priority=True),
+        Binding("enter", "select_current", "Select Directory", priority=True),
+        # Disable parent app's shortcuts by binding them to nothing
+        Binding("e", "ignore", show=False, priority=True),
+        Binding("p", "ignore", show=False, priority=True),
+        Binding("s", "ignore", show=False, priority=True),
+        Binding("l", "ignore", show=False, priority=True),
+        Binding("o", "ignore", show=False, priority=True),
+        Binding("b", "ignore", show=False, priority=True),
+        Binding("c", "ignore", show=False, priority=True),
+        Binding("t", "ignore", show=False, priority=True),
+        Binding("q", "ignore", show=False, priority=True),
     ]
+
+    def action_ignore(self) -> None:
+        """No-op action to disable parent bindings."""
+        pass
 
     def __init__(self, start_dir: Path) -> None:
         """
