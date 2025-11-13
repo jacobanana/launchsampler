@@ -118,10 +118,12 @@ class SamplerEngine:
             pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
-            if pad_index in self._playback_states:
+            try:
                 state = self._playback_states[pad_index]
                 if state.audio_data is not None:
                     state.start()
+            except KeyError:
+                pass
 
     def release_pad(self, pad_index: int) -> None:
         """
@@ -135,10 +137,12 @@ class SamplerEngine:
             pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
-            if pad_index in self._playback_states:
+            try:
                 state = self._playback_states[pad_index]
                 if state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
                     state.stop()
+            except KeyError:
+                pass
 
     def stop_pad(self, pad_index: int) -> None:
         """
@@ -148,8 +152,10 @@ class SamplerEngine:
             pad_index: Pad index (0 to num_pads-1)
         """
         with self._lock:
-            if pad_index in self._playback_states:
+            try:
                 self._playback_states[pad_index].stop()
+            except KeyError:
+                pass
 
     def stop_all(self) -> None:
         """Stop all playing pads."""
