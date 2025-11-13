@@ -32,10 +32,12 @@ class SetFileBrowserScreen(BaseBrowserScreen):
         if path.suffix.lower() != '.json':
             return False
         
-        # Try to load it to verify it's a valid set file
+        # Try to validate the JSON structure (don't fail if samples don't exist)
         try:
-            Set.load_from_file(path)
-            return True
+            import json
+            data = json.loads(path.read_text())
+            # Check for required fields
+            return 'name' in data and 'launchpad' in data
         except Exception:
             return False
 

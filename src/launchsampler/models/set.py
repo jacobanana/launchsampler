@@ -137,13 +137,19 @@ class Set(BaseModel):
         # Get the root for path resolution
         root = set_obj.get_samples_root(path)
         logger.debug(f"Resolving paths relative to: {root}")
+        logger.debug(f"samples_root from file: {set_obj.samples_root}")
 
         # Resolve all relative paths to absolute
         for pad in set_obj.launchpad.pads:
             if pad.is_assigned and pad.sample:
+                original_path = pad.sample.path
+                logger.debug(f"Processing sample: {original_path} (is_absolute: {pad.sample.path.is_absolute()})")
+                
                 if not pad.sample.path.is_absolute():
                     pad.sample.path = root / pad.sample.path
-                    logger.debug(f"Resolved to absolute: {pad.sample.path}")
+                    logger.debug(f"Resolved {original_path} -> {pad.sample.path}")
+                else:
+                    logger.warning(f"Sample path already absolute, not resolving: {pad.sample.path}")
 
         logger.info(f"Loaded set from {path}")
         return set_obj

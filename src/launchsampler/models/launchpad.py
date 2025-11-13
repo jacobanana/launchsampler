@@ -95,8 +95,8 @@ class Launchpad(BaseModel):
         if not samples_dir.exists():
             raise ValueError(f"Samples directory not found: {samples_dir}")
 
-        # Discover audio files
-        extensions = ["*.wav", "*.mp3", "*.flac"]
+        # Discover audio files recursively
+        extensions = ["**/*.wav", "**/*.mp3", "**/*.flac", "**/*.ogg", "**/*.aiff"]
         sample_files = []
         for ext in extensions:
             sample_files.extend(samples_dir.glob(ext))
