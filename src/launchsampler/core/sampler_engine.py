@@ -261,13 +261,12 @@ class SamplerEngine:
                     action, pad_index = self._trigger_queue.get_nowait()
                     
                     # Direct state access without locking (audio thread is the only writer)
-                    if pad_index in self._playback_states:
-                        state = self._playback_states[pad_index]
-                        
-                        if action == "trigger" and state.audio_data is not None:
-                            state.start()
-                        elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
-                            state.stop()
+                    state = self._playback_states[pad_index]
+                    
+                    if action == "trigger" and state.audio_data is not None:
+                        state.start()
+                    elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
+                        state.stop()
                             
                 except Exception as e:
                     logger.error(f"Error processing trigger queue: {e}")
