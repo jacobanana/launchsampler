@@ -70,7 +70,7 @@ class LaunchpadSampler(App):
         self.set_name = set_name or "untitled"
         self.samples_dir = samples_dir
         self._start_mode = start_mode
-        self._sampler_mode = "play"  # Don't use _current_mode (conflicts with Textual)
+        self._sampler_mode = None  # Not started yet - will be set in on_mount
 
         # Track which pads are shown as playing in UI
         self._playing_pads: set[int] = set()
@@ -122,8 +122,9 @@ class LaunchpadSampler(App):
         if self.editor.selected_pad_index is not None:
             self._update_ui_for_selection(self.editor.selected_pad_index)
 
-        # Update subtitle
-        self.sub_title = f"{self._sampler_mode.title()}: {self.set_name}"
+        # Update subtitle (only if mode is set)
+        if self._sampler_mode:
+            self.sub_title = f"{self._sampler_mode.title()}: {self.set_name}"
 
         logger.info(f"Loaded set: {self.set_name} with {len(new_set.launchpad.assigned_pads)} samples")
 
@@ -140,14 +141,8 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
-        # Set initial subtitle (must be done after mount)
-        self.sub_title = f"Play: {self.set_name}"
-
         # Start in appropriate mode (default to play)
-        if self._start_mode == "edit":
-            self._enter_edit_mode()
-        else:
-            self._enter_play_mode()
+        self._set_mode(self._start_mode, notify=False)
 
         # Select default pad
         try:
@@ -205,83 +200,55 @@ class LaunchpadSampler(App):
         Args:
             mode: Target mode ("edit" or "play")
         """
-        if mode == "play" and self._sampler_mode == "edit":
-            self._enter_play_mode()
-        elif mode == "edit" and self._sampler_mode == "play":
-            self._exit_play_mode()
+        self._set_mode(mode)
 
-    def _enter_edit_mode(self) -> None:
-        """Enter edit mode (audio + MIDI with editing enabled)."""
-        # Start with full audio + MIDI (same as play mode)
-        if self.sampler.start_play_mode():
-            self._sampler_mode = "edit"
-            self.sub_title = f"Edit: {self.set_name}"
-            self.notify("✏ EDIT MODE - Editing enabled", timeout=2)
+    def _set_mode(self, mode: str, notify: bool = True) -> bool:
+        """
+        Set the mode to edit or play.
 
-            # Enable edit controls
-            details = self.query_one(PadDetailsPanel)
-            details.set_mode("edit")
+        Args:
+            mode: Target mode ("edit" or "play")
+            notify: Whether to show notification (default: True)
 
-            # Update status bar
-            self._update_status_bar()
+        Returns:
+            True if mode was set successfully
+        """
+        if mode not in ("edit", "play"):
+            logger.error(f"Invalid mode: {mode}")
+            return False
 
-            logger.info("Entered edit mode")
-        else:
-            self.notify("Failed to start edit mode", severity="error")
+        # Already in target mode, nothing to do
+        if self._sampler_mode == mode:
+            return True
 
-    def _enter_play_mode(self) -> None:
-        """Enter play mode (audio + MIDI with editing disabled)."""
-        # Already running from edit mode, just change UI state
-        if self._sampler_mode == "edit":
-            # Already have audio + MIDI, just update UI
-            self._sampler_mode = "play"
-            self.sub_title = f"Play: {self.set_name}"
-            self.notify("▶ PLAY MODE - Editing locked", timeout=2)
+        # If services not started yet, start them
+        if not self.sampler.is_running:
+            if not self.sampler.start_play_mode():
+                if notify:
+                    self.notify("Failed to start audio/MIDI services", severity="error")
+                return False
 
-            # Disable edit controls
-            details = self.query_one(PadDetailsPanel)
-            details.set_mode("play")
+        # Update mode
+        self._sampler_mode = mode
+        self.sub_title = f"{mode.title()}: {self.set_name}"
 
-            # Update status bar
-            self._update_status_bar()
-
-            logger.info("Entered play mode")
-        else:
-            # Cold start in play mode
-            if self.sampler.start_play_mode():
-                self._sampler_mode = "play"
-                self.sub_title = f"Play: {self.set_name}"
-                self.notify("▶ PLAY MODE - Editing locked", timeout=2)
-
-                # Disable edit controls
-                details = self.query_one(PadDetailsPanel)
-                details.set_mode("play")
-
-                # Update status bar
-                self._update_status_bar()
-
-                logger.info("Entered play mode")
-            else:
-                self.notify(
-                    "Failed to start play mode - check MIDI connection",
-                    severity="error"
-                )
-
-    def _exit_play_mode(self) -> None:
-        """Exit play mode (back to edit mode)."""
-        # Keep audio + MIDI running, just change UI state
-        self._sampler_mode = "edit"
-        self.sub_title = f"Edit: {self.set_name}"
-        self.notify("✏ EDIT MODE - Editing enabled", timeout=2)
-
-        # Enable edit controls
+        # Update UI based on mode
         details = self.query_one(PadDetailsPanel)
-        details.set_mode("edit")
+        details.set_mode(mode)
+        details.display = (mode == "edit")
 
         # Update status bar
         self._update_status_bar()
 
-        logger.info("Exited play mode")
+        # Show notification
+        if notify:
+            if mode == "edit":
+                self.notify("✏ EDIT MODE - Editing enabled", timeout=2)
+            else:
+                self.notify("▶ PLAY MODE - Editing locked", timeout=2)
+
+        logger.info(f"Switched to {mode} mode")
+        return True
 
     def _update_status_bar(self) -> None:
         """Update status bar with current state."""
@@ -511,7 +478,8 @@ class LaunchpadSampler(App):
                         self.notify(f"Saved set: {filename}")
                     
                     self.set_name = filename
-                    self.sub_title = f"{self._sampler_mode.title()}: {filename}"
+                    if self._sampler_mode:
+                        self.sub_title = f"{self._sampler_mode.title()}: {filename}"
                     
                 except Exception as e:
                     logger.error(f"Error saving set: {e}")
@@ -565,6 +533,9 @@ class LaunchpadSampler(App):
 
                     # Use single load method
                     self._load_set(new_set)
+
+                    # Switch to edit mode after loading directory
+                    self._set_mode("edit")
 
                     self.notify(f"Loaded {len(new_set.launchpad.assigned_pads)} samples from {dir_path.name}")
 
