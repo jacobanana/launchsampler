@@ -38,8 +38,6 @@ class LaunchpadSampler(App):
     TITLE = "Launchpad Sampler"
     CSS_PATH = None  # Using widget DEFAULT_CSS
 
-    # Disable command palette
-    ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
         Binding("e", "switch_mode('edit')", "Edit Mode", show=True),
@@ -48,7 +46,6 @@ class LaunchpadSampler(App):
         Binding("ctrl+o", "load", "Open Set", show=True),
         Binding("ctrl+l", "open_directory", "Load from Directory", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
-        Binding("?", "show_keys", "Show Keys", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
         Binding("c", "clear_pad", "Clear", show=False),
         Binding("t", "test_pad", "Test", show=False),
@@ -156,12 +153,13 @@ class LaunchpadSampler(App):
         # Set initial mode (UI state only)
         self._set_mode(self._start_mode, notify=False)
 
-        # Select default pad
-        try:
-            self.editor.select_pad(0)
-            self._sync_pad_ui(0, select=True)
-        except Exception as e:
-            logger.error(f"Error selecting default pad: {e}")
+        # Select default pad only in edit mode
+        if self._start_mode == "edit":
+            try:
+                self.editor.select_pad(0)
+                self._sync_pad_ui(0, select=True)
+            except Exception as e:
+                logger.error(f"Error selecting default pad: {e}")
 
         # Start status bar updates
         self.set_interval(0.1, self._update_status_bar)
@@ -242,6 +240,21 @@ class LaunchpadSampler(App):
         details = self.query_one(PadDetailsPanel)
         details.set_mode(mode)
         details.display = (mode == "edit")
+
+        # Update grid selection visibility
+        grid = self.query_one(PadGrid)
+        if mode == "play":
+            # Clear selection in play mode
+            grid.clear_selection()
+        else:
+            # Edit mode: ensure a pad is selected
+            if self.editor.selected_pad_index is not None:
+                # Restore existing selection
+                grid.select_pad(self.editor.selected_pad_index)
+            else:
+                # No pad selected yet, select pad 0 by default
+                self.editor.select_pad(0)
+                self._sync_pad_ui(0, select=True)
 
         # Update status bar
         self._update_status_bar()
@@ -679,10 +692,6 @@ class LaunchpadSampler(App):
                 self._sync_pad_ui(new_index, select=True)
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
-
-    def action_show_keys(self) -> None:
-        """Show key bindings screen."""
-        self.action_show_keys_panel()
 
     # =================================================================
     # UI Updates
