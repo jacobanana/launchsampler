@@ -13,6 +13,7 @@ from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
+from launchsampler.protocols import PlaybackEvent
 
 from .services import EditorService
 from .widgets import PadGrid, PadDetailsPanel, StatusBar
@@ -163,9 +164,6 @@ class LaunchpadSampler(App):
         # Start status bar updates
         self.set_interval(0.1, self._update_status_bar)
 
-        # Start playback state tracking (check for finished samples)
-        self.set_interval(0.05, self._update_playback_states)
-
     def _load_initial_set(self) -> Set:
         """Load initial set configuration."""
         # Priority 1: Load from samples directory if provided
@@ -255,6 +253,40 @@ class LaunchpadSampler(App):
         logger.info(f"Switched to {mode} mode")
         return True
 
+    def on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
+        """
+        Handle playback state events from the audio engine.
+
+        This implements the StateObserver protocol. Called from the audio thread,
+        so we use call_from_thread to safely update the UI.
+
+        Args:
+            event: The playback event that occurred
+            pad_index: Index of the pad (0-63)
+        """
+        # Update UI based on event type
+        if event == PlaybackEvent.PAD_PLAYING:
+            # Pad started playing - show as active
+            self.call_from_thread(self._set_pad_playing_ui, pad_index, True)
+        elif event in (PlaybackEvent.PAD_STOPPED, PlaybackEvent.PAD_FINISHED):
+            # Pad stopped or finished - show as inactive
+            self.call_from_thread(self._set_pad_playing_ui, pad_index, False)
+        # PAD_TRIGGERED events don't need UI updates (playing will follow immediately)
+
+    def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:
+        """
+        Update UI to reflect pad playing state.
+
+        Args:
+            pad_index: Index of pad (0-63)
+            is_playing: Whether pad is playing
+        """
+        try:
+            grid = self.query_one(PadGrid)
+            grid.set_pad_playing(pad_index, is_playing)
+        except Exception as e:
+            logger.debug(f"Error updating pad {pad_index} playing state: {e}")
+
     def _update_status_bar(self) -> None:
         """Update status bar with current state."""
         try:
@@ -290,6 +322,9 @@ class LaunchpadSampler(App):
                 audio_device=self._audio_device,
                 num_pads=LaunchpadDevice.NUM_PADS
             )
+
+            # Register as observer for playback events
+            self._engine.register_observer(self)
 
             # Load all assigned pads
             self._reload_all_pads()
@@ -393,27 +428,6 @@ class LaunchpadSampler(App):
         # Update UI
         self._on_midi_pad_event("released", pad_index)
 
-    def _update_playback_states(self) -> None:
-        """Check playback states and update UI for finished samples."""
-        if not self._engine:
-            return
-
-        try:
-            grid = self.query_one(PadGrid)
-
-            # Get all currently playing pads from engine (single source of truth)
-            playing_pads_set = set(self._engine.get_playing_pads())
-
-            # Get all pads currently shown as playing in the UI
-            # We only need to check these to see if they've finished
-            for pad_index in range(LaunchpadDevice.NUM_PADS):
-                # Only update if this pad's state might have changed
-                is_playing_in_engine = pad_index in playing_pads_set
-                # Let PadWidget handle the actual UI update (it checks for changes)
-                grid.set_pad_playing(pad_index, is_playing_in_engine)
-
-        except Exception as e:
-            logger.debug(f"Error updating playback states: {e}")
 
     # =================================================================
     # Event Handlers
@@ -421,20 +435,17 @@ class LaunchpadSampler(App):
 
     def _on_midi_pad_event(self, event_type: str, pad_index: int) -> None:
         """
-        Handle pad events from MIDI (for visual feedback).
+        Handle pad events from MIDI (placeholder for future enhancements).
 
         Args:
             event_type: "pressed" or "released"
             pad_index: Index of pad (0-63)
+
+        Note:
+            Visual feedback is now handled by the event system via on_playback_event.
+            This method is kept as a placeholder for any future MIDI-specific handling.
         """
-        if event_type == "pressed":
-            # Update UI immediately for visual feedback
-            # The periodic _update_playback_states will sync with engine state
-            try:
-                grid = self.query_one(PadGrid)
-                grid.set_pad_playing(pad_index, True)
-            except Exception as e:
-                logger.debug(f"Error setting pad playing: {e}")
+        pass
 
     def on_pad_grid_pad_selected(self, message: PadGrid.PadSelected) -> None:
         """Handle pad selection from grid."""

@@ -9,7 +9,9 @@ import numpy as np
 
 from launchsampler.audio import AudioDevice, AudioMixer, SampleLoader
 from launchsampler.audio.data import AudioData, PlaybackState
+from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.models import Pad, PlaybackMode
+from launchsampler.protocols import StateObserver
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +45,12 @@ class SamplerEngine:
         self._playback_states: Dict[int, PlaybackState] = {}  # pad_index -> PlaybackState
         self._master_volume = 1.0
 
+        # State machine for event dispatch
+        self._state_machine = SamplerStateMachine()
+
         # Thread safety
         self._lock = Lock()  # Only for sample loading/unloading, not for triggers
-        
+
         # Lock-free trigger queue for low-latency pad triggering
         # Sized generously to handle burst inputs without blocking
         self._trigger_queue: Queue[tuple[str, int]] = Queue(maxsize=256)
@@ -204,6 +209,24 @@ class SamplerEngine:
         """
         self._master_volume = max(0.0, min(1.0, volume))
 
+    def register_observer(self, observer: StateObserver) -> None:
+        """
+        Register an observer to receive playback state events.
+
+        Args:
+            observer: Object implementing StateObserver protocol
+        """
+        self._state_machine.register_observer(observer)
+
+    def unregister_observer(self, observer: StateObserver) -> None:
+        """
+        Unregister an observer.
+
+        Args:
+            observer: Previously registered observer
+        """
+        self._state_machine.unregister_observer(observer)
+
     def is_pad_playing(self, pad_index: int) -> bool:
         """
         Check if a pad is currently playing.
@@ -214,10 +237,7 @@ class SamplerEngine:
         Returns:
             True if pad is playing, False otherwise
         """
-        with self._lock:
-            if pad_index not in self._playback_states:
-                return False
-            return self._playback_states[pad_index].is_playing
+        return self._state_machine.is_pad_playing(pad_index)
 
     def get_playing_pads(self) -> list[int]:
         """
@@ -226,12 +246,7 @@ class SamplerEngine:
         Returns:
             List of pad indices that are currently playing
         """
-        with self._lock:
-            return [
-                pad_index
-                for pad_index, state in self._playback_states.items()
-                if state.is_playing
-            ]
+        return self._state_machine.get_playing_pads()
 
     def get_playback_info(self, pad_index: int) -> Optional[dict]:
         """
@@ -288,18 +303,33 @@ class SamplerEngine:
             while not self._trigger_queue.empty():
                 try:
                     action, pad_index = self._trigger_queue.get_nowait()
-                    
+
                     # Direct state access without locking (audio thread is the only writer)
                     state = self._playback_states[pad_index]
-                    
+
                     if action == "trigger" and state.audio_data is not None:
+                        was_playing = state.is_playing
                         state.start()
+
+                        # Publish event
+                        self._state_machine.on_pad_triggered(pad_index)
+                        if state.is_playing and not was_playing:
+                            self._state_machine.on_pad_playing(pad_index)
+
                     elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
-                        state.stop()
-                            
+                        if state.is_playing:
+                            state.stop()
+                            self._state_machine.on_pad_stopped(pad_index)
+
                 except Exception as e:
                     logger.error(f"Error processing trigger queue for pad {pad_index}: {e}", exc_info=True)
                     continue
+
+            # Track which pads were playing before mixing
+            was_playing_before = {
+                pad_index for pad_index, state in self._playback_states.items()
+                if state.is_playing
+            }
 
             # Get active playback states (no lock needed - audio thread owns playback state)
             active_states = [
@@ -309,6 +339,12 @@ class SamplerEngine:
 
             # Mix all active sources
             mixed = self._mixer.mix(active_states, frames)
+
+            # Detect pads that finished playing (natural completion)
+            for pad_index in was_playing_before:
+                state = self._playback_states[pad_index]
+                if not state.is_playing:
+                    self._state_machine.on_pad_finished(pad_index)
 
             # Apply master volume
             if self._master_volume != 1.0:
