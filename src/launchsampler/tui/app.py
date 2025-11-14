@@ -592,7 +592,6 @@ class LaunchpadSampler(App):
             # Update UI
             self._sync_pad_ui(selected_pad, pad)
 
-            self.notify(f"Mode: {mode.value}")
         except Exception as e:
             logger.error(f"Error setting mode: {e}")
             self.notify(f"Error: {e}", severity="error")
