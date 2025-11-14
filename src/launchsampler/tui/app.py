@@ -11,11 +11,13 @@ from textual.binding import Binding
 
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
+
 from launchsampler.protocols import PlaybackEvent
 
 from .services import EditorService
-from .widgets import PadGrid, PadDetailsPanel, StatusBar
+from .widgets import PadGrid, PadDetailsPanel, StatusBar, MoveConfirmationModal
 from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
+
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +397,110 @@ class LaunchpadSampler(App):
         except Exception as e:
             logger.error(f"Error updating name: {e}")
             self.notify(f"Error updating name: {e}", severity="error")
+
+    def on_pad_details_panel_move_pad_requested(self, event: PadDetailsPanel.MovePadRequested) -> None:
+        """Handle move pad request from details panel."""
+        if self._sampler_mode != "edit":
+            return
+
+        try:
+            source_index = event.source_index
+            target_index = event.target_index
+            logger.info(f"Move request received: {source_index} -> {target_index}")
+
+            # Check if target pad has a sample
+            target_pad = self.editor.get_pad(target_index)
+
+            if target_pad.is_assigned:
+                # Target has a sample - ask user what to do
+
+                logger.info(f"Target pad {target_index} has sample, showing modal")
+
+                # Show modal and handle result via callback
+                def handle_move_choice(result: str) -> None:
+                    """Handle the user's choice from the modal."""
+                    logger.info(f"Modal callback received result: {result}")
+                    if result == "cancel":
+                        logger.info("User cancelled move")
+                        return
+                    elif result == "swap":
+                        swap = True
+                    elif result == "overwrite":
+                        swap = False
+                    else:
+                        logger.warning(f"Unknown result: {result}")
+                        return
+
+                    # Perform the move with user's choice
+                    logger.info(f"Executing move with swap={swap}")
+                    self._execute_pad_move(source_index, target_index, swap)
+
+                self.push_screen(
+                    MoveConfirmationModal(
+                        source_index=source_index,
+                        target_index=target_index,
+                        target_sample_name=target_pad.sample.name if target_pad.sample else "Unknown"
+                    ),
+                    callback=handle_move_choice
+                )
+                logger.info("Modal pushed, waiting for user input")
+            else:
+                # Target is empty - just move
+                logger.info(f"Target pad {target_index} is empty, moving directly")
+                self._execute_pad_move(source_index, target_index, swap=False)
+
+        except Exception as e:
+            logger.error(f"Error moving pad: {e}")
+            self.notify(f"Error moving pad: {e}", severity="error")
+
+    def _execute_pad_move(self, source_index: int, target_index: int, swap: bool) -> None:
+        """
+        Execute the actual pad move operation.
+
+        Args:
+            source_index: Index of source pad
+            target_index: Index of target pad
+            swap: Whether to swap or overwrite
+        """
+        try:
+            logger.info(f"Executing pad move from {source_index} to {target_index} with swap={swap}")
+            # Perform the move
+            source_pad, target_pad = self.editor.move_pad(source_index, target_index, swap=swap)
+
+            # Reload samples in audio engine if running
+            if self.player._engine:
+                # Reload both pads
+                if source_pad.is_assigned:
+                    self.player._engine.load_sample(source_index, source_pad)
+                else:
+                    self.player._engine.unload_sample(source_index)
+
+                if target_pad.is_assigned:
+                    self.player._engine.load_sample(target_index, target_pad)
+
+            # Refresh UI for both pads
+            self._refresh_pad_ui(source_index, source_pad)
+            self._refresh_pad_ui(target_index, target_pad)
+
+            # Update selection based on operation type
+            if swap:
+                # For swap, keep selection on source pad (both pads still have samples)
+                new_selection = source_index
+            else:
+                # For move/overwrite, follow the sample to target pad
+                new_selection = target_index
+
+            # Update editor's selected pad and sync UI
+            self.editor.selected_pad_index = new_selection
+            self._sync_pad_ui(new_selection, select=True)
+
+            # Show success message
+            action = "Swapped" if swap else "Moved"
+            self.notify(f"{action} pad {source_index} to {target_index}", severity="information")
+
+        except Exception as e:
+            logger.error(f"Error executing pad move: {e}")
+            self.notify(f"Error moving pad: {e}", severity="error")
 
     def _refresh_pad_ui(self, pad_index: int, pad: Pad) -> None:
         """
