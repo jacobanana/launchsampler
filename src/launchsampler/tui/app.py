@@ -11,7 +11,7 @@ from textual.binding import Binding
 
 from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
-from launchsampler.devices.launchpad import LaunchpadController
+from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 
 from .services import EditorService
@@ -74,9 +74,6 @@ class LaunchpadSampler(App):
         self.samples_dir = samples_dir
         self._start_mode = start_mode
         self._sampler_mode = None  # Not started yet - will be set in on_mount
-
-        # Track which pads are shown as playing in UI
-        self._playing_pads: set[int] = set()
 
         # Load or create set
         self.current_set = self._load_initial_set()
@@ -262,10 +259,17 @@ class LaunchpadSampler(App):
         """Update status bar with current state."""
         try:
             status = self.query_one(StatusBar)
+
+            # Get device names
+            audio_device = self._audio_device.device_name if self._audio_device else "No Audio"
+            midi_device = self._midi.device_name if self._midi else "No MIDI"
+
             status.update_state(
                 mode=self._sampler_mode,
                 connected=self._midi.is_connected if self._midi else False,
-                voices=self._engine.active_voices if self._engine else 0
+                voices=self._engine.active_voices if self._engine else 0,
+                audio_device=audio_device,
+                midi_device=midi_device
             )
         except Exception:
             # Status bar might not be mounted yet
@@ -284,7 +288,7 @@ class LaunchpadSampler(App):
             # Create engine
             self._engine = SamplerEngine(
                 audio_device=self._audio_device,
-                num_pads=64
+                num_pads=LaunchpadDevice.NUM_PADS
             )
 
             # Load all assigned pads
@@ -391,24 +395,22 @@ class LaunchpadSampler(App):
 
     def _update_playback_states(self) -> None:
         """Check playback states and update UI for finished samples."""
-        if not self._playing_pads or not self._engine:
+        if not self._engine:
             return
 
         try:
             grid = self.query_one(PadGrid)
 
-            # Check each pad that's currently marked as playing in UI
-            finished_pads = []
-            for pad_index in self._playing_pads:
-                # Query actual playback state from engine
-                if not self._engine.is_pad_playing(pad_index):
-                    # Pad has finished playing
-                    grid.set_pad_playing(pad_index, False)
-                    finished_pads.append(pad_index)
+            # Get all currently playing pads from engine (single source of truth)
+            playing_pads_set = set(self._engine.get_playing_pads())
 
-            # Remove finished pads from tracking set
-            for pad_index in finished_pads:
-                self._playing_pads.discard(pad_index)
+            # Get all pads currently shown as playing in the UI
+            # We only need to check these to see if they've finished
+            for pad_index in range(LaunchpadDevice.NUM_PADS):
+                # Only update if this pad's state might have changed
+                is_playing_in_engine = pad_index in playing_pads_set
+                # Let PadWidget handle the actual UI update (it checks for changes)
+                grid.set_pad_playing(pad_index, is_playing_in_engine)
 
         except Exception as e:
             logger.debug(f"Error updating playback states: {e}")
@@ -426,11 +428,11 @@ class LaunchpadSampler(App):
             pad_index: Index of pad (0-63)
         """
         if event_type == "pressed":
-            # Mark pad as playing in UI for visual feedback
+            # Update UI immediately for visual feedback
+            # The periodic _update_playback_states will sync with engine state
             try:
                 grid = self.query_one(PadGrid)
                 grid.set_pad_playing(pad_index, True)
-                self._playing_pads.add(pad_index)
             except Exception as e:
                 logger.debug(f"Error setting pad playing: {e}")
 
@@ -598,11 +600,11 @@ class LaunchpadSampler(App):
         if pad.is_assigned and self._engine:
             self._engine.trigger_pad(self.editor.selected_pad_index)
 
-            # Mark pad as playing in UI
+            # Update UI immediately for visual feedback
+            # The periodic _update_playback_states will sync with engine state
             try:
                 grid = self.query_one(PadGrid)
                 grid.set_pad_playing(self.editor.selected_pad_index, True)
-                self._playing_pads.add(self.editor.selected_pad_index)
             except Exception as e:
                 logger.debug(f"Error setting pad playing: {e}")
 
@@ -616,11 +618,11 @@ class LaunchpadSampler(App):
                 self._engine.release_pad(self.editor.selected_pad_index)
 
         # Clear all playing pad indicators in UI
+        # The periodic _update_playback_states will sync with engine state
         try:
             grid = self.query_one(PadGrid)
-            for pad_index in list(self._playing_pads):
+            for pad_index in range(LaunchpadDevice.NUM_PADS):
                 grid.set_pad_playing(pad_index, False)
-            self._playing_pads.clear()
         except Exception as e:
             logger.debug(f"Error clearing pad indicators: {e}")
 

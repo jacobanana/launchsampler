@@ -219,6 +219,20 @@ class SamplerEngine:
                 return False
             return self._playback_states[pad_index].is_playing
 
+    def get_playing_pads(self) -> list[int]:
+        """
+        Get list of all currently playing pad indices.
+
+        Returns:
+            List of pad indices that are currently playing
+        """
+        with self._lock:
+            return [
+                pad_index
+                for pad_index, state in self._playback_states.items()
+                if state.is_playing
+            ]
+
     def get_playback_info(self, pad_index: int) -> Optional[dict]:
         """
         Get playback information for a pad.
@@ -284,7 +298,7 @@ class SamplerEngine:
                         state.stop()
                             
                 except Exception as e:
-                    logger.error(f"Error processing trigger queue: {e}")
+                    logger.error(f"Error processing trigger queue for pad {pad_index}: {e}", exc_info=True)
                     continue
 
             # Get active playback states (no lock needed - audio thread owns playback state)

@@ -115,6 +115,17 @@ class LaunchpadController:
         return self._midi.is_connected
 
     @property
+    def device_name(self) -> str:
+        """Get the name of the connected Launchpad device."""
+        if self._midi.is_connected and self._midi.current_input_port:
+            # Extract device name from port name (e.g., "Launchpad MK2:Launchpad MK2 MIDI 1 28:0")
+            port_name = self._midi.current_input_port
+            # Take the first part before the colon
+            device_name = port_name.split(':')[0] if ':' in port_name else port_name
+            return device_name
+        return "No Device"
+
+    @property
     def num_pads(self) -> int:
         """Get number of pads on this Launchpad device."""
         return LaunchpadDevice.NUM_PADS

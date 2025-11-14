@@ -185,6 +185,42 @@ class TestSamplerEngine:
                 # Should be playing now (briefly)
                 # Note: might finish very quickly, so this is timing-dependent
 
+    def test_get_playing_pads(self):
+        """Test get_playing_pads method."""
+        devices, _ = AudioDevice.list_output_devices()
+
+        if devices:
+            device_id = devices[0][0]
+            audio_device = AudioDevice(device=device_id)
+            manager = SamplerEngine(audio_device)
+
+            # No pads playing initially
+            assert manager.get_playing_pads() == []
+
+            # Load two pads
+            sample_path = Path("test_samples/kick.wav")
+            if sample_path.exists():
+                pad1 = Pad(x=0, y=0)
+                pad1.sample = Sample.from_file(sample_path)
+                manager.load_sample(0, pad1)
+
+                pad2 = Pad(x=1, y=0)
+                pad2.sample = Sample.from_file(sample_path)
+                manager.load_sample(5, pad2)
+
+                # Still not playing
+                assert manager.get_playing_pads() == []
+
+                # Trigger both pads
+                manager.trigger_pad(0)
+                manager.trigger_pad(5)
+
+                # Both might be playing (timing-dependent)
+                # At minimum, the list should be valid
+                playing = manager.get_playing_pads()
+                assert isinstance(playing, list)
+                assert all(isinstance(p, int) for p in playing)
+
     def test_unload_sample(self):
         """Test unloading sample."""
         devices, _ = AudioDevice.list_output_devices()
