@@ -42,7 +42,7 @@ class DirectoryBrowserScreen(BaseBrowserScreen):
         Returns:
             Title markup string
         """
-        return "[b]Open Directory[/b]"
+        return "[b]Load files from directory[/b]"
 
     def _get_instructions(self) -> str:
         """

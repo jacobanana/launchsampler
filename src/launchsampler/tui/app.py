@@ -38,12 +38,17 @@ class LaunchpadSampler(App):
     TITLE = "Launchpad Sampler"
     CSS_PATH = None  # Using widget DEFAULT_CSS
 
+    # Disable command palette
+    ENABLE_COMMAND_PALETTE = False
+
     BINDINGS = [
         Binding("e", "switch_mode('edit')", "Edit Mode", show=True),
         Binding("p", "switch_mode('play')", "Play Mode", show=True),
-        Binding("s", "save", "Save", show=True),
-        Binding("l", "load", "Load", show=True),
-        Binding("o", "open_directory", "Open Dir", show=True),
+        Binding("ctrl+s", "save", "Save", show=True),
+        Binding("ctrl+o", "load", "Open Set", show=True),
+        Binding("ctrl+l", "open_directory", "Load from Directory", show=True),
+        Binding("ctrl+q", "quit", "Quit", show=True),
+        Binding("?", "show_keys", "Show Keys", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
         Binding("c", "clear_pad", "Clear", show=False),
         Binding("t", "test_pad", "Test", show=False),
@@ -55,7 +60,6 @@ class LaunchpadSampler(App):
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
         Binding("right", "navigate_right", "Right", show=False),
-        Binding("q", "quit", "Quit", show=True),
     ]
 
     def __init__(
@@ -675,6 +679,10 @@ class LaunchpadSampler(App):
                 self._sync_pad_ui(new_index, select=True)
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
+
+    def action_show_keys(self) -> None:
+        """Show key bindings screen."""
+        self.action_show_keys_panel()
 
     # =================================================================
     # UI Updates
