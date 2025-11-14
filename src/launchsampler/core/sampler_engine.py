@@ -204,6 +204,21 @@ class SamplerEngine:
         """
         self._master_volume = max(0.0, min(1.0, volume))
 
+    def is_pad_playing(self, pad_index: int) -> bool:
+        """
+        Check if a pad is currently playing.
+
+        Args:
+            pad_index: Pad index (0 to num_pads-1)
+
+        Returns:
+            True if pad is playing, False otherwise
+        """
+        with self._lock:
+            if pad_index not in self._playback_states:
+                return False
+            return self._playback_states[pad_index].is_playing
+
     def get_playback_info(self, pad_index: int) -> Optional[dict]:
         """
         Get playback information for a pad.

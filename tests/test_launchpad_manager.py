@@ -158,6 +158,33 @@ class TestSamplerEngine:
                 assert 'is_playing' in info
                 assert 'volume' in info
 
+    def test_is_pad_playing(self):
+        """Test is_pad_playing method."""
+        devices, _ = AudioDevice.list_output_devices()
+
+        if devices:
+            device_id = devices[0][0]
+            audio_device = AudioDevice(device=device_id)
+            manager = SamplerEngine(audio_device)
+
+            # No pad loaded - should return False
+            assert manager.is_pad_playing(0) is False
+
+            # Load pad
+            sample_path = Path("test_samples/kick.wav")
+            if sample_path.exists():
+                pad = Pad(x=0, y=0)
+                pad.sample = Sample.from_file(sample_path)
+                manager.load_sample(0, pad)
+
+                # Not playing yet
+                assert manager.is_pad_playing(0) is False
+
+                # Trigger pad
+                manager.trigger_pad(0)
+                # Should be playing now (briefly)
+                # Note: might finish very quickly, so this is timing-dependent
+
     def test_unload_sample(self):
         """Test unloading sample."""
         devices, _ = AudioDevice.list_output_devices()

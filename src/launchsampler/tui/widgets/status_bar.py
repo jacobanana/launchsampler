@@ -19,7 +19,6 @@ class StatusBar(Static):
         background: $panel;
         color: $text;
         padding: 0 1;
-        dock: bottom;
     }
 
     StatusBar.edit_mode {
@@ -65,11 +64,8 @@ class StatusBar(Static):
             self.remove_class("edit_mode")
             self.add_class("play_mode")
 
-        # MIDI status
-        if self._mode == "play":
-            midi_text = "● MIDI Connected" if self._connected else "○ MIDI Disconnected"
-        else:
-            midi_text = "MIDI: Off"
+        # MIDI status (always show connection state)
+        midi_text = "● MIDI Connected" if self._connected else "○ MIDI Disconnected"
 
         # Voice count
         voice_text = f"♫ {self._voices} voices" if self._voices > 0 else ""

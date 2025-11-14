@@ -144,7 +144,16 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
-        # Start in appropriate mode (default to play)
+        # Start audio engine
+        if not self._start_audio():
+            self.notify("Failed to start audio - app may not function correctly", severity="error")
+
+        # Start MIDI controller (if available)
+        if not self._start_midi():
+            logger.warning("MIDI controller not available - using keyboard/mouse only")
+            # Don't show notification here, _start_midi already did
+
+        # Set initial mode (UI state only, not hardware)
         self._set_mode(self._start_mode, notify=False)
 
         # Select default pad
@@ -209,6 +218,9 @@ class LaunchpadSampler(App):
         """
         Set the mode to edit or play.
 
+        This only affects UI state (what controls are enabled), not hardware.
+        MIDI and audio continue running in both modes.
+
         Args:
             mode: Target mode ("edit" or "play")
             notify: Whether to show notification (default: True)
@@ -223,26 +235,6 @@ class LaunchpadSampler(App):
         # Already in target mode, nothing to do
         if self._sampler_mode == mode:
             return True
-
-        # Start audio if not running
-        if not self._engine or not self._engine.is_running:
-            if not self._start_audio():
-                if notify:
-                    self.notify("Failed to start audio", severity="error")
-                return False
-
-        # Handle MIDI based on mode
-        if mode == "edit":
-            # Edit mode: stop MIDI if running
-            if self._midi:
-                self._stop_midi()
-        else:
-            # Play mode: start MIDI if not running
-            if not self._midi or not self._midi.is_connected:
-                if not self._start_midi():
-                    if notify:
-                        self.notify("Failed to start MIDI controller", severity="error")
-                    return False
 
         # Update mode
         self._sampler_mode = mode
@@ -305,6 +297,7 @@ class LaunchpadSampler(App):
 
         except Exception as e:
             logger.error(f"Failed to start audio: {e}", exc_info=True)
+            self.notify(f"Audio error: {e}", severity="error", timeout=5)
             self._audio_device = None
             self._engine = None
             return False
@@ -335,6 +328,7 @@ class LaunchpadSampler(App):
 
         except Exception as e:
             logger.error(f"Failed to start MIDI: {e}", exc_info=True)
+            self.notify(f"MIDI warning: {e}", severity="warning", timeout=5)
             self._midi = None
             return False
 
@@ -407,8 +401,7 @@ class LaunchpadSampler(App):
             finished_pads = []
             for pad_index in self._playing_pads:
                 # Query actual playback state from engine
-                playback_info = self._engine.get_playback_info(pad_index)
-                if not playback_info or not playback_info.get('is_playing', False):
+                if not self._engine.is_pad_playing(pad_index):
                     # Pad has finished playing
                     grid.set_pad_playing(pad_index, False)
                     finished_pads.append(pad_index)
