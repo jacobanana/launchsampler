@@ -54,6 +54,7 @@ class LaunchpadSampler(App):
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
         Binding("2", "set_mode_loop", "Loop", show=False),
         Binding("3", "set_mode_hold", "Hold", show=False),
+        Binding("4", "set_mode_loop_toggle", "Loop Toggle", show=False),
         Binding("escape", "stop_audio", "Stop", show=False),
         Binding("up", "navigate_up", "Up", show=False),
         Binding("down", "navigate_down", "Down", show=False),
@@ -356,6 +357,8 @@ class LaunchpadSampler(App):
             mode_name = button_id.replace("mode-", "").upper()
             if mode_name == "ONESHOT":
                 mode_name = "ONE_SHOT"
+            elif mode_name == "LOOPTOGGLE":
+                mode_name = "LOOP_TOGGLE"
             try:
                 mode = PlaybackMode(mode_name.lower())
                 self._set_pad_mode(mode)
@@ -467,16 +470,9 @@ class LaunchpadSampler(App):
             # Perform the move
             source_pad, target_pad = self.editor.move_pad(source_index, target_index, swap=swap)
 
-            # Reload samples in audio engine if running
-            if self.player._engine:
-                # Reload both pads
-                if source_pad.is_assigned:
-                    self.player._engine.load_sample(source_index, source_pad)
-                else:
-                    self.player._engine.unload_sample(source_index)
-
-                if target_pad.is_assigned:
-                    self.player._engine.load_sample(target_index, target_pad)
+            # Reload both pads in audio engine (if running)
+            self._reload_pad(source_index)
+            self._reload_pad(target_index)
 
             # Refresh UI for both pads
             self._refresh_pad_ui(source_index, source_pad)
@@ -730,6 +726,10 @@ class LaunchpadSampler(App):
     def action_set_mode_hold(self) -> None:
         """Set selected pad to hold mode."""
         self._set_pad_mode(PlaybackMode.HOLD)
+
+    def action_set_mode_loop_toggle(self) -> None:
+        """Set selected pad to loop toggle mode."""
+        self._set_pad_mode(PlaybackMode.LOOP_TOGGLE)
 
     # =================================================================
     # Navigation

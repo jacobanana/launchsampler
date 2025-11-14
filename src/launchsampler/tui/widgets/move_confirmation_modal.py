@@ -92,8 +92,8 @@ class MoveConfirmationModal(ModalScreen[str]):
                 id="action-prompt"
             )
             with Horizontal(id="button-container"):
-                yield Button("Overwrite", variant="error", id="overwrite-btn")
                 yield Button("Swap", variant="success", id="swap-btn")
+                yield Button("Overwrite", variant="error", id="overwrite-btn")
                 yield Button("Cancel", variant="default", id="cancel-btn")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

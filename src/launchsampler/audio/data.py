@@ -119,6 +119,7 @@ class PlaybackState:
 
     # Internal state
     _loop_count: int = field(default=0, init=False)        # Number of loops completed
+    _loop_toggle_state: bool = field(default=False, init=False)  # Toggle state for LOOP_TOGGLE mode
 
     def start(self) -> None:
         """Start playback from the beginning."""
@@ -132,12 +133,16 @@ class PlaybackState:
     def stop(self) -> None:
         """Stop playback."""
         self.is_playing = False
+        # Reset toggle state when stopping
+        if self.mode == PlaybackMode.LOOP_TOGGLE:
+            self._loop_toggle_state = False
 
     def reset(self) -> None:
         """Reset to initial state."""
         self.is_playing = False
         self.position = 0.0
         self._loop_count = 0
+        self._loop_toggle_state = False
 
     def advance(self, num_frames: int) -> None:
         """
@@ -155,7 +160,7 @@ class PlaybackState:
 
         # Check if we've reached the end
         if self.position >= self.audio_data.num_frames:
-            if self.mode == PlaybackMode.LOOP:
+            if self.mode == PlaybackMode.LOOP or self.mode == PlaybackMode.LOOP_TOGGLE:
                 # Loop back to start
                 self.position = self.position % self.audio_data.num_frames
                 self._loop_count += 1
@@ -190,7 +195,7 @@ class PlaybackState:
 
         # Check if we need to wrap around (for LOOP mode)
         if end_pos > total_frames:
-            if self.mode == PlaybackMode.LOOP:
+            if self.mode == PlaybackMode.LOOP or self.mode == PlaybackMode.LOOP_TOGGLE:
                 # Seamlessly wrap around for looping
                 # Get frames from current position to end
                 if self.audio_data.num_channels == 1:

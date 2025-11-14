@@ -190,7 +190,10 @@ class PadDetailsPanel(Vertical, can_focus=True):
         with Horizontal(classes="button-row"):
             yield Button("ONE_SHOT", id="mode-oneshot", variant="default", disabled=True)
             yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
+
+        with Horizontal(classes="button-row"):
             yield Button("HOLD", id="mode-hold", variant="default", disabled=True)
+            yield Button("LOOP_TOGGLE", id="mode-looptoggle", variant="default", disabled=True)
 
         with Horizontal(classes="button-row"):
             yield Button("Test Pad", id="test-btn", variant="success", disabled=True)
@@ -264,6 +267,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
             self.query_one("#mode-oneshot", Button).disabled = not edit_enabled
             self.query_one("#mode-loop", Button).disabled = not edit_enabled
             self.query_one("#mode-hold", Button).disabled = not edit_enabled
+            self.query_one("#mode-looptoggle", Button).disabled = not edit_enabled
 
     def _update_button_states(self, pad: Pad) -> None:
         """Update button states based on pad state and current mode."""
@@ -287,6 +291,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
         self.query_one("#mode-oneshot", Button).disabled = not edit_enabled
         self.query_one("#mode-loop", Button).disabled = not edit_enabled
         self.query_one("#mode-hold", Button).disabled = not edit_enabled
+        self.query_one("#mode-looptoggle", Button).disabled = not edit_enabled
 
         # Test controls - available in both modes
         self.query_one("#test-btn", Button).disabled = not pad.is_assigned
@@ -294,9 +299,9 @@ class PadDetailsPanel(Vertical, can_focus=True):
 
         # Highlight current mode button
         if pad.is_assigned:
-            for mode in ["oneshot", "loop", "hold"]:
+            for mode in ["oneshot", "loop", "hold", "looptoggle"]:
                 btn = self.query_one(f"#mode-{mode}", Button)
-                btn_mode = mode.upper() if mode != "oneshot" else "ONE_SHOT"
+                btn_mode = mode.upper() if mode not in ["oneshot", "looptoggle"] else ("ONE_SHOT" if mode == "oneshot" else "LOOP_TOGGLE")
 
                 if pad.mode.value == btn_mode.lower():
                     btn.variant = "success"

@@ -312,15 +312,31 @@ class SamplerEngine:
                     state = self._playback_states[pad_index]
 
                     if action == "trigger" and state.audio_data is not None:
-                        was_playing = state.is_playing
-                        state.start()
+                        # Handle LOOP_TOGGLE mode: toggle playback on each trigger
+                        if state.mode == PlaybackMode.LOOP_TOGGLE:
+                            if state.is_playing:
+                                # Second note on - stop playback
+                                state.stop()
+                                self._state_machine.on_pad_stopped(pad_index)
+                            else:
+                                # First note on - start playback
+                                was_playing = False
+                                state.start()
+                                self._state_machine.on_pad_triggered(pad_index)
+                                if state.is_playing:
+                                    self._state_machine.on_pad_playing(pad_index)
+                        else:
+                            # Normal behavior for other modes
+                            was_playing = state.is_playing
+                            state.start()
 
-                        # Publish event
-                        self._state_machine.on_pad_triggered(pad_index)
-                        if state.is_playing and not was_playing:
-                            self._state_machine.on_pad_playing(pad_index)
+                            # Publish event
+                            self._state_machine.on_pad_triggered(pad_index)
+                            if state.is_playing and not was_playing:
+                                self._state_machine.on_pad_playing(pad_index)
 
                     elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
+                        # Note: LOOP_TOGGLE ignores note off messages
                         if state.is_playing:
                             state.stop()
                             self._state_machine.on_pad_stopped(pad_index)

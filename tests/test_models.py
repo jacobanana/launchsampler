@@ -260,6 +260,9 @@ class TestPlaybackMode:
         # HOLD should be blue
         assert PlaybackMode.HOLD.get_default_color() == Color(r=0, g=0, b=127)
 
+        # LOOP_TOGGLE should be magenta
+        assert PlaybackMode.LOOP_TOGGLE.get_default_color() == Color(r=127, g=0, b=127)
+
 
 class TestSet:
     """Test Set model."""
