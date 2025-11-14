@@ -189,10 +189,10 @@ class PadDetailsPanel(Vertical, can_focus=True):
 
         with Horizontal(classes="button-row"):
             yield Button("ONE_SHOT", id="mode-oneshot", variant="default", disabled=True)
-            yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
+            yield Button("HOLD", id="mode-hold", variant="default", disabled=True)
 
         with Horizontal(classes="button-row"):
-            yield Button("HOLD", id="mode-hold", variant="default", disabled=True)
+            yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
             yield Button("LOOP_TOGGLE", id="mode-looptoggle", variant="default", disabled=True)
 
         with Horizontal(classes="button-row"):
