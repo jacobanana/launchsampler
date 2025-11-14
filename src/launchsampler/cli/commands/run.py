@@ -50,7 +50,7 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
       # Start in play mode with saved set (default)
       launchsampler run --set my-drums
 
-      # Start in edit mode
+      # Start in edit mode to configure
       launchsampler run --set my-drums --mode edit
 
       # Load from samples directory

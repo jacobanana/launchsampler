@@ -10,7 +10,42 @@ from textual.message import Message
 from launchsampler.models import Pad
 
 
-class PadDetailsPanel(Vertical):
+class NoTabInput(Input):
+    """Input that doesn't move focus to next field on Enter."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize with submit tracking."""
+        super().__init__(*args, **kwargs)
+        self._just_submitted = False
+
+    def action_submit(self) -> None:
+        """Override submit action to prevent focus moving to next field."""
+        # Run validators and post submitted message
+        self.validate(self.value)
+        self.post_message(self.Submitted(self, self.value))
+        # Set flag to prevent duplicate submission on blur
+        self._just_submitted = True
+        # Focus the grandparent (PadDetailsPanel) to remove focus from input
+        # Structure: PadDetailsPanel > Horizontal > NoTabInput
+        if self.parent and self.parent.parent:
+            self.parent.parent.focus()
+
+    def _on_blur(self, event) -> None:
+        """Submit when losing focus (e.g., via Tab)."""
+        # Don't submit again if we just submitted via action_submit
+        if self._just_submitted:
+            self._just_submitted = False
+            super()._on_blur(event)
+            return
+
+        # Validate and submit when blurring
+        self.validate(self.value)
+        self.post_message(self.Submitted(self, self.value))
+        # Call parent handler
+        super()._on_blur(event)
+
+
+class PadDetailsPanel(Vertical, can_focus=True):
     """
     Panel showing details and controls for the selected pad.
 
@@ -64,6 +99,19 @@ class PadDetailsPanel(Vertical):
         padding: 0 1;
         margin: 0;
     }
+
+    PadDetailsPanel .move-container {
+        height: auto;
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+
+    PadDetailsPanel #move-input {
+        width: 15;
+        height: 3;
+        padding: 0 1;
+        margin: 0;
+    }
     """
 
     class VolumeChanged(Message):
@@ -96,6 +144,21 @@ class PadDetailsPanel(Vertical):
             self.pad_index = pad_index
             self.name = name
 
+    class MovePadRequested(Message):
+        """Message sent when user requests to move pad to another location."""
+
+        def __init__(self, source_index: int, target_index: int) -> None:
+            """
+            Initialize message.
+
+            Args:
+                source_index: Index of source pad (0-63)
+                target_index: Index of target pad (0-63)
+            """
+            super().__init__()
+            self.source_index = source_index
+            self.target_index = target_index
+
     def __init__(self) -> None:
         """Initialize details panel."""
         super().__init__()
@@ -109,12 +172,16 @@ class PadDetailsPanel(Vertical):
 
         with Horizontal(classes="input-container"):
             yield Label("Name:", shrink=True)
-            yield Input(placeholder="Sample name", id="name-input", disabled=True)
+            yield NoTabInput(placeholder="Sample name", id="name-input", disabled=True)
 
         with Horizontal(classes="volume-container"):
             yield Label("Volume:", shrink=True)
-            yield Input(placeholder="0-100", id="volume-input", disabled=True)
+            yield NoTabInput(placeholder="0-100", id="volume-input", disabled=True)
             yield Label("%", shrink=True)
+
+        with Horizontal(classes="move-container"):
+            yield Label("Move to:", shrink=True)
+            yield NoTabInput(placeholder="0-63", id="move-input", disabled=True)
 
         with Horizontal(classes="button-row"):
             yield Button("Browse", id="browse-btn", variant="primary", disabled=True)
@@ -122,8 +189,11 @@ class PadDetailsPanel(Vertical):
 
         with Horizontal(classes="button-row"):
             yield Button("ONE_SHOT", id="mode-oneshot", variant="default", disabled=True)
-            yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
             yield Button("HOLD", id="mode-hold", variant="default", disabled=True)
+
+        with Horizontal(classes="button-row"):
+            yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
+            yield Button("LOOP_TOGGLE", id="mode-looptoggle", variant="default", disabled=True)
 
         with Horizontal(classes="button-row"):
             yield Button("Test Pad", id="test-btn", variant="success", disabled=True)
@@ -167,6 +237,10 @@ class PadDetailsPanel(Vertical):
         else:
             volume_input.value = ""
 
+        # Clear move input
+        move_input = self.query_one("#move-input", Input)
+        move_input.value = ""
+
         # Update button states based on pad and mode
         self._update_button_states(pad)
 
@@ -187,11 +261,13 @@ class PadDetailsPanel(Vertical):
 
             self.query_one("#name-input", Input).disabled = not edit_enabled
             self.query_one("#volume-input", Input).disabled = not edit_enabled
+            self.query_one("#move-input", Input).disabled = not edit_enabled
             self.query_one("#browse-btn", Button).disabled = not edit_enabled
             self.query_one("#clear-btn", Button).disabled = not edit_enabled
             self.query_one("#mode-oneshot", Button).disabled = not edit_enabled
             self.query_one("#mode-loop", Button).disabled = not edit_enabled
             self.query_one("#mode-hold", Button).disabled = not edit_enabled
+            self.query_one("#mode-looptoggle", Button).disabled = not edit_enabled
 
     def _update_button_states(self, pad: Pad) -> None:
         """Update button states based on pad state and current mode."""
@@ -205,12 +281,17 @@ class PadDetailsPanel(Vertical):
         volume_input = self.query_one("#volume-input", Input)
         volume_input.disabled = not (edit_enabled and pad.is_assigned)
 
+        # Move input - only enabled in edit mode and if pad has sample
+        move_input = self.query_one("#move-input", Input)
+        move_input.disabled = not (edit_enabled and pad.is_assigned)
+
         # Edit controls - only enabled in edit mode
         self.query_one("#browse-btn", Button).disabled = not edit_enabled
         self.query_one("#clear-btn", Button).disabled = not edit_enabled or not pad.is_assigned
         self.query_one("#mode-oneshot", Button).disabled = not edit_enabled
         self.query_one("#mode-loop", Button).disabled = not edit_enabled
         self.query_one("#mode-hold", Button).disabled = not edit_enabled
+        self.query_one("#mode-looptoggle", Button).disabled = not edit_enabled
 
         # Test controls - available in both modes
         self.query_one("#test-btn", Button).disabled = not pad.is_assigned
@@ -218,9 +299,9 @@ class PadDetailsPanel(Vertical):
 
         # Highlight current mode button
         if pad.is_assigned:
-            for mode in ["oneshot", "loop", "hold"]:
+            for mode in ["oneshot", "loop", "hold", "looptoggle"]:
                 btn = self.query_one(f"#mode-{mode}", Button)
-                btn_mode = mode.upper() if mode != "oneshot" else "ONE_SHOT"
+                btn_mode = mode.upper() if mode not in ["oneshot", "looptoggle"] else ("ONE_SHOT" if mode == "oneshot" else "LOOP_TOGGLE")
 
                 if pad.mode.value == btn_mode.lower():
                     btn.variant = "success"
@@ -237,8 +318,6 @@ class PadDetailsPanel(Vertical):
             name = event.value.strip()
             if name:  # Only update if not empty
                 self.post_message(self.NameChanged(self.selected_pad_index, name))
-                # Blur the input to return focus to the app
-                event.input.blur()
 
         elif event.input.id == "volume-input":
             try:
@@ -248,11 +327,22 @@ class PadDetailsPanel(Vertical):
                     volume = volume_percent / 100.0
                     # Post message for parent to handle
                     self.post_message(self.VolumeChanged(self.selected_pad_index, volume))
-                    # Blur the input to return focus to the app
-                    event.input.blur()
-                else:
-                    # Invalid range, reset to current value
-                    event.input.value = event.input.value
             except ValueError:
-                # Invalid input, reset
+                # Invalid input, keep current value
                 pass
+
+        elif event.input.id == "move-input":
+            try:
+                # Parse target pad index (0-63)
+                target_index = int(event.value)
+                if 0 <= target_index <= 63:
+                    # Post message for parent to handle
+                    self.post_message(self.MovePadRequested(self.selected_pad_index, target_index))
+                    # Clear the input after submission
+                    event.input.value = ""
+                else:
+                    # Out of range, clear it
+                    event.input.value = ""
+            except ValueError:
+                # Invalid input, clear it
+                event.input.value = ""

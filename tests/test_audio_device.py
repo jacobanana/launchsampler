@@ -153,6 +153,26 @@ class TestAudioDevice:
             with pytest.raises(RuntimeError, match="No audio callback set"):
                 device.start()
 
+    def test_device_name(self):
+        """Test getting device name."""
+        devices, _ = AudioDevice.list_output_devices()
+
+        if devices:
+            device_id = devices[0][0]
+            device = AudioDevice(device=device_id)
+
+            # Should return a non-empty string
+            name = device.device_name
+            assert isinstance(name, str)
+            assert len(name) > 0
+            assert name != "Unknown Device"
+
+        # Test with default device (None)
+        default_device = AudioDevice(device=None)
+        name = default_device.device_name
+        assert isinstance(name, str)
+        assert len(name) > 0
+
     def test_context_manager(self):
         """Test using AudioDevice as context manager."""
         devices, _ = AudioDevice.list_output_devices()

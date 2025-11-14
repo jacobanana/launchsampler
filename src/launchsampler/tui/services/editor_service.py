@@ -269,3 +269,73 @@ class EditorService:
 
         logger.info(f"Loaded set '{set_obj.name}' from {set_path}")
         return set_obj
+
+    def move_pad(self, source_index: int, target_index: int, swap: bool = False) -> tuple[Pad, Pad]:
+        """
+        Move a sample from source pad to target pad.
+
+        Args:
+            source_index: Index of source pad (0-63)
+            target_index: Index of target pad (0-63)
+            swap: If True, swap samples between pads. If False, overwrite target.
+
+        Returns:
+            Tuple of (new source pad, new target pad)
+
+        Raises:
+            IndexError: If pad indices are out of range
+            ValueError: If source pad is empty
+        """
+        if not 0 <= source_index < 64:
+            raise IndexError(f"Source pad index {source_index} out of range (0-63)")
+
+        if not 0 <= target_index < 64:
+            raise IndexError(f"Target pad index {target_index} out of range (0-63)")
+
+        if source_index == target_index:
+            raise ValueError("Source and target pads must be different")
+
+        source_pad = self.launchpad.pads[source_index]
+        target_pad = self.launchpad.pads[target_index]
+        logger.info(f"Moving sample from pad {source_index} to pad {target_index} (swap={swap})")
+
+        if not source_pad.is_assigned:
+            raise ValueError(f"Source pad {source_index} has no sample to move")
+
+        if swap and target_pad.is_assigned:
+            # Swap samples between pads
+            # Store target pad data
+            target_sample = target_pad.sample
+            target_mode = target_pad.mode
+            target_volume = target_pad.volume
+            target_color = target_pad.color
+
+            # Move source to target
+            target_pad.sample = source_pad.sample
+            target_pad.mode = source_pad.mode
+            target_pad.volume = source_pad.volume
+            target_pad.color = source_pad.color
+
+            # Move target to source
+            source_pad.sample = target_sample
+            source_pad.mode = target_mode
+            source_pad.volume = target_volume
+            source_pad.color = target_color
+
+            logger.info(f"Swapped pads {source_index} and {target_index}")
+        else:
+            # Move/overwrite: copy source to target and clear source
+            target_pad.sample = source_pad.sample
+            target_pad.mode = source_pad.mode
+            target_pad.volume = source_pad.volume
+            target_pad.color = source_pad.color
+
+            # Clear source pad
+            source_pos = (source_pad.x, source_pad.y)
+            new_source = Pad.empty(source_pos[0], source_pos[1])
+            self.launchpad.pads[source_index] = new_source
+            source_pad = new_source
+
+            logger.info(f"Moved sample from pad {source_index} to {target_index}")
+
+        return (source_pad, target_pad)

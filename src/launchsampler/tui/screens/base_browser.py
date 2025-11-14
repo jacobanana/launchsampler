@@ -2,7 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from textual.screen import Screen
 from textual.app import ComposeResult
@@ -17,6 +17,22 @@ from textual import events
 class _BrowserScreenMeta(type(Screen), ABCMeta):
     """Metaclass that combines Textual's Screen metaclass with ABC's metaclass."""
     pass
+
+
+class FilteredDirectoryTree(DirectoryTree):
+    """DirectoryTree that filters out hidden files and directories."""
+
+    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
+        """
+        Filter out hidden files and directories (those starting with a dot).
+
+        Args:
+            paths: Iterable of Path objects to filter
+
+        Returns:
+            Filtered iterable of Path objects
+        """
+        return [path for path in paths if not path.name.startswith(".")]
 
 
 class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
@@ -258,7 +274,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
         """Create the browser layout."""
         with Vertical():
             yield Label(self._get_title(), id="title")
-            yield DirectoryTree(str(self.start_dir), id="tree")
+            yield FilteredDirectoryTree(str(self.start_dir), id="tree")
             yield Input(
                 value=str(self.start_dir),
                 placeholder="Enter or paste directory path...",
@@ -359,7 +375,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
         await old_tree.remove()
 
         # Create and mount a new tree with the new path
-        new_tree = DirectoryTree(str(new_path), id="tree")
+        new_tree = FilteredDirectoryTree(str(new_path), id="tree")
 
         # Find the vertical container and insert the tree after the title
         container = self.query_one(Vertical)

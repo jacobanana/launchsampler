@@ -260,6 +260,9 @@ class TestPlaybackMode:
         # HOLD should be blue
         assert PlaybackMode.HOLD.get_default_color() == Color(r=0, g=0, b=127)
 
+        # LOOP_TOGGLE should be magenta
+        assert PlaybackMode.LOOP_TOGGLE.get_default_color() == Color(r=127, g=0, b=127)
+
 
 class TestSet:
     """Test Set model."""
@@ -315,11 +318,17 @@ class TestSet:
         # Verify samples_root was set to common path
         assert my_set.samples_root == samples_dir
 
-        # Verify paths are now relative
-        assert not my_set.launchpad.pads[0].sample.path.is_absolute()
-        assert not my_set.launchpad.pads[1].sample.path.is_absolute()
-        assert my_set.launchpad.pads[0].sample.path == Path("kick.wav")
-        assert my_set.launchpad.pads[1].sample.path == Path("snare.wav")
+        # Verify paths remain absolute in memory (bug fix - paths should not be mutated)
+        assert my_set.launchpad.pads[0].sample.path.is_absolute()
+        assert my_set.launchpad.pads[1].sample.path.is_absolute()
+        assert my_set.launchpad.pads[0].sample.path == kick_path
+        assert my_set.launchpad.pads[1].sample.path == snare_path
+        
+        # Verify that the saved file contains relative paths
+        import json
+        saved_data = json.loads(save_path.read_text())
+        assert saved_data['launchpad']['pads'][0]['sample']['path'] == "kick.wav"
+        assert saved_data['launchpad']['pads'][1]['sample']['path'] == "snare.wav"
 
     @pytest.mark.unit
     def test_save_with_nested_samples(self, temp_dir):
@@ -358,9 +367,18 @@ class TestSet:
         # Verify samples_root is None (because samples are under Set directory)
         assert my_set.samples_root is None
 
-        # Verify paths are relative to Set file location
-        assert my_set.launchpad.pads[0].sample.path == Path("samples/drums/kick.wav")
-        assert my_set.launchpad.pads[1].sample.path == Path("samples/bass/bass.wav")
+        # Verify paths remain absolute in memory (bug fix - paths should not be mutated)
+        assert my_set.launchpad.pads[0].sample.path.is_absolute()
+        assert my_set.launchpad.pads[1].sample.path.is_absolute()
+        assert my_set.launchpad.pads[0].sample.path == kick_path
+        assert my_set.launchpad.pads[1].sample.path == bass_path
+        
+        # Verify that the saved file contains relative paths
+        import json
+        saved_data = json.loads(save_path.read_text())
+        # Normalize path separators for cross-platform comparison
+        assert Path(saved_data['launchpad']['pads'][0]['sample']['path']) == Path("samples/drums/kick.wav")
+        assert Path(saved_data['launchpad']['pads'][1]['sample']['path']) == Path("samples/bass/bass.wav")
 
     @pytest.mark.unit
     def test_load_resolves_relative_paths(self, temp_dir):
@@ -438,8 +456,15 @@ class TestSet:
         # Verify samples_root is None (relative to Set file)
         assert my_set.samples_root is None
 
-        # Verify path is relative to Set file location
-        assert my_set.launchpad.pads[0].sample.path == Path("samples/kick.wav")
+        # Verify path remains absolute in memory (bug fix - paths should not be mutated)
+        assert my_set.launchpad.pads[0].sample.path.is_absolute()
+        assert my_set.launchpad.pads[0].sample.path == kick_path
+        
+        # Verify that the saved file contains relative path
+        import json
+        saved_data = json.loads(save_path.read_text())
+        # Normalize path separators for cross-platform comparison
+        assert Path(saved_data['launchpad']['pads'][0]['sample']['path']) == Path("samples/kick.wav")
 
         # Load and verify it resolves correctly
         loaded = Set.load_from_file(save_path)
@@ -474,8 +499,14 @@ class TestSet:
         # Verify samples_root is set to the samples directory
         assert my_set.samples_root == samples_dir
 
-        # Verify path is relative to samples_root
-        assert my_set.launchpad.pads[0].sample.path == Path("kick.wav")
+        # Verify path remains absolute in memory (bug fix - paths should not be mutated)
+        assert my_set.launchpad.pads[0].sample.path.is_absolute()
+        assert my_set.launchpad.pads[0].sample.path == kick_path
+        
+        # Verify that the saved file contains relative path to samples_root
+        import json
+        saved_data = json.loads(save_path.read_text())
+        assert saved_data['launchpad']['pads'][0]['sample']['path'] == "kick.wav"
 
         # Load and verify
         loaded = Set.load_from_file(save_path)

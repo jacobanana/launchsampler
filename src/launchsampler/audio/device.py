@@ -273,6 +273,23 @@ class AudioDevice:
         """Get current sample rate."""
         return sd.query_devices(self.device)['default_samplerate'] if self.device is not None else sd.default.samplerate
 
+    @property
+    def device_name(self) -> str:
+        """Get the name of the current audio device."""
+        try:
+            if self.device is not None:
+                device_info = sd.query_devices(self.device)
+                return device_info['name']
+            else:
+                # Using default device
+                default_device = sd.default.device[1]  # [input, output]
+                if default_device is not None:
+                    device_info = sd.query_devices(default_device)
+                    return f"{device_info['name']} (default)"
+                return "Default Device"
+        except Exception:
+            return "Unknown Device"
+
     @staticmethod
     def list_output_devices():
         """

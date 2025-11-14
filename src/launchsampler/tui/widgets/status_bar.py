@@ -19,7 +19,6 @@ class StatusBar(Static):
         background: $panel;
         color: $text;
         padding: 0 1;
-        dock: bottom;
     }
 
     StatusBar.edit_mode {
@@ -37,9 +36,18 @@ class StatusBar(Static):
         self._mode = "edit"
         self._connected = False
         self._voices = 0
+        self._audio_device = "No Audio"
+        self._midi_device = "No MIDI"
         self._update_display()
 
-    def update_state(self, mode: str, connected: bool, voices: int) -> None:
+    def update_state(
+        self,
+        mode: str,
+        connected: bool,
+        voices: int,
+        audio_device: str = "Unknown",
+        midi_device: str = "No Device"
+    ) -> None:
         """
         Update all status information.
 
@@ -47,35 +55,42 @@ class StatusBar(Static):
             mode: Current mode ("edit" or "play")
             connected: Whether MIDI is connected
             voices: Number of active voices
+            audio_device: Name of the audio device
+            midi_device: Name of the MIDI device
         """
         self._mode = mode
         self._connected = connected
         self._voices = voices
+        self._audio_device = audio_device
+        self._midi_device = midi_device
         self._update_display()
 
     def _update_display(self) -> None:
         """Update the status bar display."""
         # Mode indicator
         if self._mode == "edit":
-            mode_text = "✏ EDIT MODE"
+            mode_text = "✏ EDIT"
             self.remove_class("play_mode")
             self.add_class("edit_mode")
         else:
-            mode_text = "▶ PLAY MODE"
+            mode_text = "▶ PLAY"
             self.remove_class("edit_mode")
             self.add_class("play_mode")
 
-        # MIDI status
-        if self._mode == "play":
-            midi_text = "● MIDI Connected" if self._connected else "○ MIDI Disconnected"
+        # Audio device
+        audio_text = f"🔊 {self._audio_device}"
+
+        # MIDI device with connection status
+        if self._connected:
+            midi_text = f"🎹 {self._midi_device}"
         else:
-            midi_text = "MIDI: Off"
+            midi_text = "🎹 No MIDI"
 
         # Voice count
-        voice_text = f"♫ {self._voices} voices" if self._voices > 0 else ""
+        voice_text = f"♫ {self._voices}" if self._voices > 0 else ""
 
         # Compose status line
-        parts = [mode_text, midi_text]
+        parts = [mode_text, audio_text, midi_text]
         if voice_text:
             parts.append(voice_text)
 

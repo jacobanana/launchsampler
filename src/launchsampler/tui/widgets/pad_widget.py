@@ -38,6 +38,11 @@ class PadWidget(Static):
         border: solid $accent;
     }
 
+    PadWidget.loop_toggle {
+        background: magenta 20%;
+        border: solid magenta;
+    }
+
     PadWidget.empty {
         background: $surface 10%;
         border: solid $surface;
@@ -86,7 +91,7 @@ class PadWidget(Static):
     def update_display(self) -> None:
         """Render current pad state."""
         # Clear mode classes
-        self.remove_class("one_shot", "loop", "hold", "empty")
+        self.remove_class("one_shot", "loop", "hold", "loop_toggle", "empty")
 
         if self._pad.is_assigned:
             # Show pad index and truncated sample name

@@ -93,6 +93,11 @@ class PadGrid(Container):
         if pad_index in self.pad_widgets:
             self.pad_widgets[pad_index].add_class("selected")
 
+    def clear_selection(self) -> None:
+        """Clear selection from all pads."""
+        for widget in self.pad_widgets.values():
+            widget.remove_class("selected")
+
     def set_pad_playing(self, pad_index: int, is_playing: bool) -> None:
         """
         Set the playing state of a pad.
