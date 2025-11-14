@@ -2,14 +2,13 @@
 
 __version__ = "0.1.0"
 
-# Core application
-from .core import SamplerApplication, SamplerEngine
+# Core engine
+from .core import SamplerEngine
 
 # Device controllers
 from .devices import LaunchpadController, LaunchpadDevice
 
 __all__ = [
-    "SamplerApplication",
     "SamplerEngine",
     "LaunchpadController",
     "LaunchpadDevice",

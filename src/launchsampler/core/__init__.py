@@ -1,6 +1,5 @@
-"""Core sampler engine and application facade."""
+"""Core sampler engine."""
 
-from .application import SamplerApplication
 from .sampler_engine import SamplerEngine
 
-__all__ = ["SamplerApplication", "SamplerEngine"]
+__all__ = ["SamplerEngine"]
