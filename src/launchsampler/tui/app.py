@@ -9,9 +9,7 @@ from textual.containers import Horizontal
 from textual.widgets import Header, Footer, Button
 from textual.binding import Binding
 
-from launchsampler.audio import AudioDevice
-from launchsampler.core.sampler_engine import SamplerEngine
-from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
+from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 from launchsampler.protocols import PlaybackEvent
 
@@ -24,7 +22,11 @@ logger = logging.getLogger(__name__)
 
 class LaunchpadSampler(App):
     """
-    Unified TUI application for editing and playing Launchpad sets.
+    TUI for Launchpad Sampler.
+
+    This is a THIN UI layer that delegates to:
+    - Player: Audio/MIDI/playback logic
+    - EditorService: Editing operations
 
     Provides two modes:
     - Edit Mode: Build sets, assign samples, test with preview audio
@@ -72,20 +74,15 @@ class LaunchpadSampler(App):
         super().__init__()
         self.config = config
         self.set_name = set_name or "untitled"
-        self.samples_dir = samples_dir
         self._start_mode = start_mode
-        self._sampler_mode = None  # Not started yet - will be set in on_mount
+        self._sampler_mode = None  # UI mode state (edit/play display)
 
         # Load or create set
-        self.current_set = self._load_initial_set()
+        self.current_set = self._load_initial_set(set_name, samples_dir)
 
-        # Create editor service
+        # Core services (UI-agnostic)
+        self.player = Player(config)
         self.editor = EditorService(self.current_set.launchpad, config)
-
-        # Create audio/MIDI components (direct composition!)
-        self._audio_device: Optional[AudioDevice] = None
-        self._engine: Optional[SamplerEngine] = None
-        self._midi: Optional[LaunchpadController] = None
 
     @property
     def launchpad(self) -> Launchpad:
@@ -109,9 +106,9 @@ class LaunchpadSampler(App):
         # Update editor reference
         self.editor.launchpad = new_set.launchpad
 
-        # Reload all samples in audio engine if running
-        if self._engine:
-            self._reload_all_pads()
+        # Load into player if running
+        if self.player.is_running:
+            self.player.load_set(new_set)
 
         # Update grid UI
         grid = self.query_one(PadGrid)
@@ -142,16 +139,14 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
-        # Start audio engine
-        if not self._start_audio():
-            self.notify("Failed to start audio - app may not function correctly", severity="error")
+        # Start player with initial set
+        if not self.player.start(initial_set=self.current_set):
+            self.notify("Failed to start player - app may not function correctly", severity="error")
 
-        # Start MIDI controller (if available)
-        if not self._start_midi():
-            logger.warning("MIDI controller not available - using keyboard/mouse only")
-            # Don't show notification here, _start_midi already did
+        # Register for playback events
+        self.player.set_playback_callback(self._on_playback_event)
 
-        # Set initial mode (UI state only, not hardware)
+        # Set initial mode (UI state only)
         self._set_mode(self._start_mode, notify=False)
 
         # Select default pad
@@ -164,37 +159,38 @@ class LaunchpadSampler(App):
         # Start status bar updates
         self.set_interval(0.1, self._update_status_bar)
 
-    def _load_initial_set(self) -> Set:
+    def _load_initial_set(self, set_name: Optional[str], samples_dir: Optional[Path]) -> Set:
         """Load initial set configuration."""
+        name = set_name or "untitled"
+
         # Priority 1: Load from samples directory if provided
-        if self.samples_dir:
+        if samples_dir:
             try:
                 set_obj = Set.from_sample_directory(
-                    samples_dir=self.samples_dir,
-                    name=self.set_name,
+                    samples_dir=samples_dir,
+                    name=name,
                     auto_configure=True
                 )
-                logger.info(f"Loaded {len(set_obj.launchpad.assigned_pads)} samples from {self.samples_dir}")
+                logger.info(f"Loaded {len(set_obj.launchpad.assigned_pads)} samples from {samples_dir}")
                 return set_obj
             except ValueError as e:
                 logger.error(f"Error loading samples: {e}")
-                return Set.create_empty(self.set_name)
+                return Set.create_empty(name)
 
         # Priority 2: Load from saved set file
-        if self.set_name and self.set_name != "untitled":
-            set_path = self.config.sets_dir / f"{self.set_name}.json"
+        if name and name != "untitled":
+            set_path = self.config.sets_dir / f"{name}.json"
             if set_path.exists():
                 try:
                     set_obj = Set.load_from_file(set_path)
-                    self.set_name = set_obj.name  # Use name from file
-                    logger.info(f"Loaded set: {self.set_name}")
+                    logger.info(f"Loaded set: {set_obj.name}")
                     return set_obj
                 except Exception as e:
                     logger.error(f"Error loading set: {e}")
 
         # Fall back to empty set
         logger.info("Created empty set")
-        return Set.create_empty(self.set_name)
+        return Set.create_empty(name)
 
     # =================================================================
     # Mode Switching
@@ -253,12 +249,11 @@ class LaunchpadSampler(App):
         logger.info(f"Switched to {mode} mode")
         return True
 
-    def on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
+    def _on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
         """
-        Handle playback state events from the audio engine.
+        Handle playback events from player.
 
-        This implements the StateObserver protocol. Called from the audio thread,
-        so we use call_from_thread to safely update the UI.
+        Called from audio thread via callback, so use call_from_thread.
 
         Args:
             event: The playback event that occurred
@@ -292,160 +287,20 @@ class LaunchpadSampler(App):
         try:
             status = self.query_one(StatusBar)
 
-            # Get device names
-            audio_device = self._audio_device.device_name if self._audio_device else "No Audio"
-            midi_device = self._midi.device_name if self._midi else "No MIDI"
-
             status.update_state(
                 mode=self._sampler_mode,
-                connected=self._midi.is_connected if self._midi else False,
-                voices=self._engine.active_voices if self._engine else 0,
-                audio_device=audio_device,
-                midi_device=midi_device
+                connected=self.player.is_midi_connected,
+                voices=self.player.active_voices,
+                audio_device=self.player.audio_device_name,
+                midi_device=self.player.midi_device_name
             )
         except Exception:
             # Status bar might not be mounted yet
             pass
 
-    def _start_audio(self) -> bool:
-        """Start audio device and engine."""
-        try:
-            # Create audio device
-            self._audio_device = AudioDevice(
-                device=self.config.default_audio_device,
-                buffer_size=self.config.default_buffer_size,
-                low_latency=True
-            )
-
-            # Create engine
-            self._engine = SamplerEngine(
-                audio_device=self._audio_device,
-                num_pads=LaunchpadDevice.NUM_PADS
-            )
-
-            # Register as observer for playback events
-            self._engine.register_observer(self)
-
-            # Load all assigned pads
-            self._reload_all_pads()
-
-            # Start audio
-            self._engine.start()
-            logger.info("Audio engine started")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to start audio: {e}", exc_info=True)
-            self.notify(f"Audio error: {e}", severity="error", timeout=5)
-            self._audio_device = None
-            self._engine = None
-            return False
-
-    def _stop_audio(self) -> None:
-        """Stop audio engine and device."""
-        if self._engine:
-            self._engine.stop()
-            self._engine = None
-        self._audio_device = None
-        logger.info("Audio engine stopped")
-
-    def _start_midi(self) -> bool:
-        """Start MIDI controller."""
-        try:
-            self._midi = LaunchpadController(
-                poll_interval=self.config.midi_poll_interval
-            )
-
-            # Wire up event handlers
-            self._midi.on_pad_pressed(self._handle_midi_pad_pressed)
-            self._midi.on_pad_released(self._handle_midi_pad_released)
-
-            # Start controller
-            self._midi.start()
-            logger.info("MIDI controller started")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to start MIDI: {e}", exc_info=True)
-            self.notify(f"MIDI warning: {e}", severity="warning", timeout=5)
-            self._midi = None
-            return False
-
-    def _stop_midi(self) -> None:
-        """Stop MIDI controller."""
-        if self._midi:
-            self._midi.stop()
-            self._midi = None
-            logger.info("MIDI controller stopped")
-
-    def _reload_all_pads(self) -> None:
-        """Reload all pads into audio engine."""
-        if not self._engine:
-            return
-
-        loaded_count = 0
-        for i, pad in enumerate(self.current_set.launchpad.pads):
-            if pad.is_assigned:
-                if self._engine.load_sample(i, pad):
-                    loaded_count += 1
-
-        logger.info(f"Loaded {loaded_count} samples into engine")
-
-    def _reload_pad(self, pad_index: int) -> None:
-        """Reload a specific pad into audio engine."""
-        if not self._engine:
-            return
-
-        pad = self.current_set.launchpad.pads[pad_index]
-        if pad.is_assigned:
-            self._engine.load_sample(pad_index, pad)
-        else:
-            self._engine.unload_sample(pad_index)
-
-    def _handle_midi_pad_pressed(self, pad_index: int) -> None:
-        """Handle MIDI pad press event."""
-        if not self._engine:
-            return
-
-        # Trigger audio
-        pad = self.current_set.launchpad.pads[pad_index]
-        if pad.is_assigned:
-            self._engine.trigger_pad(pad_index)
-
-        # Update UI
-        self._on_midi_pad_event("pressed", pad_index)
-
-    def _handle_midi_pad_released(self, pad_index: int) -> None:
-        """Handle MIDI pad release event."""
-        if not self._engine:
-            return
-
-        # Release audio (for HOLD/LOOP modes)
-        pad = self.current_set.launchpad.pads[pad_index]
-        if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
-            self._engine.release_pad(pad_index)
-
-        # Update UI
-        self._on_midi_pad_event("released", pad_index)
-
-
     # =================================================================
     # Event Handlers
     # =================================================================
-
-    def _on_midi_pad_event(self, event_type: str, pad_index: int) -> None:
-        """
-        Handle pad events from MIDI (placeholder for future enhancements).
-
-        Args:
-            event_type: "pressed" or "released"
-            pad_index: Index of pad (0-63)
-
-        Note:
-            Visual feedback is now handled by the event system via on_playback_event.
-            This method is kept as a placeholder for any future MIDI-specific handling.
-        """
-        pass
 
     def on_pad_grid_pad_selected(self, message: PadGrid.PadSelected) -> None:
         """Handle pad selection from grid."""
@@ -494,9 +349,9 @@ class LaunchpadSampler(App):
             # Update through editor service
             pad = self.editor.set_pad_volume(event.pad_index, event.volume)
 
-            # Update in audio engine
-            if self._engine:
-                self._engine.update_pad_volume(event.pad_index, event.volume)
+            # Update in audio engine via player
+            if self.player._engine:
+                self.player._engine.update_pad_volume(event.pad_index, event.volume)
 
             # Refresh UI
             self._refresh_pad_ui(event.pad_index, pad)
@@ -608,34 +463,16 @@ class LaunchpadSampler(App):
             return
 
         pad = self.editor.get_pad(self.editor.selected_pad_index)
-        if pad.is_assigned and self._engine:
-            self._engine.trigger_pad(self.editor.selected_pad_index)
-
-            # Update UI immediately for visual feedback
-            # The periodic _update_playback_states will sync with engine state
-            try:
-                grid = self.query_one(PadGrid)
-                grid.set_pad_playing(self.editor.selected_pad_index, True)
-            except Exception as e:
-                logger.debug(f"Error setting pad playing: {e}")
+        if pad.is_assigned:
+            self.player.trigger_pad(self.editor.selected_pad_index)
 
     def action_stop_audio(self) -> None:
         """Stop all audio playback."""
-        if self._engine:
-            self._engine.stop_all()
+        self.player.stop_all()
 
-            # Also release selected pad if in HOLD mode
-            if self.editor.selected_pad_index is not None:
-                self._engine.release_pad(self.editor.selected_pad_index)
-
-        # Clear all playing pad indicators in UI
-        # The periodic _update_playback_states will sync with engine state
-        try:
-            grid = self.query_one(PadGrid)
-            for pad_index in range(LaunchpadDevice.NUM_PADS):
-                grid.set_pad_playing(pad_index, False)
-        except Exception as e:
-            logger.debug(f"Error clearing pad indicators: {e}")
+        # Also release selected pad if in HOLD mode
+        if self.editor.selected_pad_index is not None:
+            self.player.release_pad(self.editor.selected_pad_index)
 
     def action_save(self) -> None:
         """Save the current set."""
@@ -860,5 +697,4 @@ class LaunchpadSampler(App):
     def on_unmount(self) -> None:
         """Cleanup when app closes."""
         logger.info("Shutting down application")
-        self._stop_midi()
-        self._stop_audio()
+        self.player.stop()
