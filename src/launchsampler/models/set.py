@@ -70,12 +70,18 @@ class Set(BaseModel):
         Args:
             path: Path where the Set JSON will be saved
         """
-        # Collect all sample paths
-        sample_paths = [
-            pad.sample.path
-            for pad in self.launchpad.pads
-            if pad.is_assigned and pad.sample
-        ]
+        # Get the current root for resolving any existing relative paths
+        current_root = self.get_samples_root(path)
+
+        # Collect all sample paths, ensuring they're absolute
+        sample_paths = []
+        for pad in self.launchpad.pads:
+            if pad.is_assigned and pad.sample:
+                sample_path = pad.sample.path
+                # If path is relative, make it absolute using current root
+                if not sample_path.is_absolute():
+                    sample_path = (current_root / sample_path).resolve()
+                sample_paths.append(sample_path)
 
         # Detect common path if we have samples
         if sample_paths:
@@ -105,16 +111,23 @@ class Set(BaseModel):
         # Get the root for path conversion
         root = self.get_samples_root(path)
 
-        # Convert absolute paths to relative (where possible)
+        # Convert all paths to be relative to the new root
         for pad in self.launchpad.pads:
             if pad.is_assigned and pad.sample:
-                if pad.sample.path.is_absolute():
-                    try:
-                        pad.sample.path = pad.sample.path.relative_to(root)
-                        logger.debug(f"Converted to relative: {pad.sample.path}")
-                    except ValueError:
-                        # Path is outside root, keep absolute
-                        logger.warning(f"Sample outside root, keeping absolute: {pad.sample.path}")
+                sample_path = pad.sample.path
+
+                # First ensure path is absolute
+                if not sample_path.is_absolute():
+                    sample_path = (current_root / sample_path).resolve()
+
+                # Then convert to relative (where possible)
+                try:
+                    pad.sample.path = sample_path.relative_to(root)
+                    logger.debug(f"Converted to relative: {pad.sample.path}")
+                except ValueError:
+                    # Path is outside root, keep absolute
+                    pad.sample.path = sample_path
+                    logger.warning(f"Sample outside root, keeping absolute: {pad.sample.path}")
 
         # Update modified timestamp
         self.modified_at = datetime.now()

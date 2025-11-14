@@ -47,6 +47,9 @@ class LaunchpadSampler(App):
         Binding("b", "browse_sample", "Browse", show=False),
         Binding("c", "clear_pad", "Clear", show=False),
         Binding("t", "test_pad", "Test", show=False),
+        Binding("1", "set_mode_one_shot", "One-Shot", show=False),
+        Binding("2", "set_mode_loop", "Loop", show=False),
+        Binding("3", "set_mode_hold", "Hold", show=False),
         Binding("escape", "stop_audio", "Stop", show=False),
         Binding("up", "navigate_up", "Up", show=False),
         Binding("down", "navigate_down", "Down", show=False),
@@ -594,6 +597,18 @@ class LaunchpadSampler(App):
             logger.error(f"Error setting mode: {e}")
             self.notify(f"Error: {e}", severity="error")
 
+    def action_set_mode_one_shot(self) -> None:
+        """Set selected pad to one-shot mode."""
+        self._set_pad_mode(PlaybackMode.ONE_SHOT)
+
+    def action_set_mode_loop(self) -> None:
+        """Set selected pad to loop mode."""
+        self._set_pad_mode(PlaybackMode.LOOP)
+
+    def action_set_mode_hold(self) -> None:
+        """Set selected pad to hold mode."""
+        self._set_pad_mode(PlaybackMode.HOLD)
+
     # =================================================================
     # Navigation
     # =================================================================
@@ -665,6 +680,27 @@ class LaunchpadSampler(App):
     # =================================================================
     # UI Updates
     # =================================================================
+
+    def _reload_pad(self, pad_index: int) -> None:
+        """
+        Reload a pad in the audio engine after it has been modified.
+
+        This is called after assigning/clearing samples or changing pad modes.
+
+        Args:
+            pad_index: Index of pad to reload
+        """
+        if not self.player._engine:
+            return
+
+        pad = self.editor.get_pad(pad_index)
+
+        if pad.is_assigned:
+            # Reload the sample into the engine
+            self.player._engine.load_sample(pad_index, pad)
+        else:
+            # Unload the sample from the engine
+            self.player._engine.unload_sample(pad_index)
 
     def _sync_pad_ui(self, pad_index: int, pad: Optional[Pad] = None, *, select: bool = False) -> None:
         """

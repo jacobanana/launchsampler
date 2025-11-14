@@ -304,6 +304,10 @@ class SamplerEngine:
                 try:
                     action, pad_index = self._trigger_queue.get_nowait()
 
+                    # Check if pad exists in playback states (skip if not loaded)
+                    if pad_index not in self._playback_states:
+                        continue
+
                     # Direct state access without locking (audio thread is the only writer)
                     state = self._playback_states[pad_index]
 

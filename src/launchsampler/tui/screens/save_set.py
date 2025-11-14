@@ -7,6 +7,26 @@ from textual.widgets import Label, Button, Input
 from textual.binding import Binding
 
 
+class NoTabInput(Input):
+    """Input that doesn't move focus to next field on Enter."""
+
+    def action_submit(self) -> None:
+        """Override submit action to prevent focus moving to next field."""
+        # Run validators and post submitted message
+        self.validate(self.value)
+        self.post_message(self.Submitted(self, self.value))
+        # Focus the screen instead of moving to next field
+        self.screen.focus()
+
+    def _on_blur(self, event) -> None:
+        """Submit when losing focus (e.g., via Tab)."""
+        # Validate and submit when blurring
+        self.validate(self.value)
+        self.post_message(self.Submitted(self, self.value))
+        # Call parent handler
+        super()._on_blur(event)
+
+
 class SaveSetScreen(Screen):
     """
     Screen for saving a set with a name.
@@ -65,7 +85,7 @@ class SaveSetScreen(Screen):
         with Vertical():
             yield Label("[b]Save Set[/b]")
             yield Label("Enter a name for this set:")
-            yield Input(
+            yield NoTabInput(
                 placeholder="my-drums",
                 value=self.current_name if self.current_name != "untitled" else "",
                 id="name-input"
@@ -80,7 +100,7 @@ class SaveSetScreen(Screen):
 
     def on_mount(self) -> None:
         """Focus the input when mounted."""
-        self.query_one(Input).focus()
+        self.query_one(NoTabInput).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter key in input."""

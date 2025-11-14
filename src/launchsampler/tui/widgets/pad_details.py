@@ -10,7 +10,29 @@ from textual.message import Message
 from launchsampler.models import Pad
 
 
-class PadDetailsPanel(Vertical):
+class NoTabInput(Input):
+    """Input that doesn't move focus to next field on Enter."""
+
+    def action_submit(self) -> None:
+        """Override submit action to prevent focus moving to next field."""
+        # Run validators and post submitted message
+        self.validate(self.value)
+        self.post_message(self.Submitted(self, self.value))
+        # Focus the grandparent (PadDetailsPanel) to remove focus from input
+        # Structure: PadDetailsPanel > Horizontal > NoTabInput
+        if self.parent and self.parent.parent:
+            self.parent.parent.focus()
+
+    def _on_blur(self, event) -> None:
+        """Submit when losing focus (e.g., via Tab)."""
+        # Validate and submit when blurring
+        self.validate(self.value)
+        self.post_message(self.Submitted(self, self.value))
+        # Call parent handler
+        super()._on_blur(event)
+
+
+class PadDetailsPanel(Vertical, can_focus=True):
     """
     Panel showing details and controls for the selected pad.
 
@@ -109,11 +131,11 @@ class PadDetailsPanel(Vertical):
 
         with Horizontal(classes="input-container"):
             yield Label("Name:", shrink=True)
-            yield Input(placeholder="Sample name", id="name-input", disabled=True)
+            yield NoTabInput(placeholder="Sample name", id="name-input", disabled=True)
 
         with Horizontal(classes="volume-container"):
             yield Label("Volume:", shrink=True)
-            yield Input(placeholder="0-100", id="volume-input", disabled=True)
+            yield NoTabInput(placeholder="0-100", id="volume-input", disabled=True)
             yield Label("%", shrink=True)
 
         with Horizontal(classes="button-row"):
@@ -237,8 +259,6 @@ class PadDetailsPanel(Vertical):
             name = event.value.strip()
             if name:  # Only update if not empty
                 self.post_message(self.NameChanged(self.selected_pad_index, name))
-                # Blur the input to return focus to the app
-                event.input.blur()
 
         elif event.input.id == "volume-input":
             try:
@@ -248,11 +268,6 @@ class PadDetailsPanel(Vertical):
                     volume = volume_percent / 100.0
                     # Post message for parent to handle
                     self.post_message(self.VolumeChanged(self.selected_pad_index, volume))
-                    # Blur the input to return focus to the app
-                    event.input.blur()
-                else:
-                    # Invalid range, reset to current value
-                    event.input.value = event.input.value
             except ValueError:
-                # Invalid input, reset
+                # Invalid input, keep current value
                 pass
