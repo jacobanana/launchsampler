@@ -21,8 +21,8 @@ class Sample(BaseModel):
 
     @field_serializer("path")
     def serialize_path(self, path: Path) -> str:
-        """Serialize Path to string."""
-        return str(path)
+        """Serialize Path to string using forward slashes for portability."""
+        return path.as_posix()
 
     @classmethod
     def from_file(cls, path: Path) -> "Sample":

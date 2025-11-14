@@ -40,8 +40,8 @@ class Set(BaseModel):
 
     @field_serializer("samples_root")
     def serialize_samples_root(self, samples_root: Optional[Path]) -> Optional[str]:
-        """Serialize samples_root Path to string."""
-        return str(samples_root) if samples_root else None
+        """Serialize samples_root Path to string using forward slashes for portability."""
+        return samples_root.as_posix() if samples_root else None
 
     def get_samples_root(self, set_file_path: Path) -> Path:
         """Get the root directory for resolving relative sample paths.
@@ -67,6 +67,8 @@ class Set(BaseModel):
         Edge case: If the common path is a child of the Set file's directory, we set
         samples_root to None and make paths relative to the Set file instead, for portability.
 
+        This method does NOT mutate the in-memory paths - they remain absolute for continued use.
+
         Args:
             path: Path where the Set JSON will be saved
         """
@@ -74,18 +76,20 @@ class Set(BaseModel):
         current_root = self.get_samples_root(path)
 
         # Collect all sample paths, ensuring they're absolute
-        sample_paths = []
-        for pad in self.launchpad.pads:
+        # Map: pad_index -> absolute_path
+        absolute_paths_map = {}
+        for idx, pad in enumerate(self.launchpad.pads):
             if pad.is_assigned and pad.sample:
                 sample_path = pad.sample.path
                 # If path is relative, make it absolute using current root
                 if not sample_path.is_absolute():
                     sample_path = (current_root / sample_path).resolve()
-                sample_paths.append(sample_path)
+                absolute_paths_map[idx] = sample_path
 
-        # Detect common path if we have samples
-        if sample_paths:
-            common_path = find_common_path(sample_paths)
+        # Determine the samples_root to use for saving
+        new_samples_root = None
+        if absolute_paths_map:
+            common_path = find_common_path(list(absolute_paths_map.values()))
             if common_path:
                 # Edge case: if common_path is a child of the Set file's directory,
                 # use None (relative to Set file) for better portability
@@ -94,33 +98,33 @@ class Set(BaseModel):
                     # Check if common_path is under the set directory
                     common_path.relative_to(set_dir)
                     # It is a child, so use None and make paths relative to Set file
-                    self.samples_root = None
+                    new_samples_root = None
                     logger.info(f"Common path {common_path} is under Set directory, using relative paths")
                 except ValueError:
                     # Common path is not under set directory, use it as samples_root
-                    self.samples_root = common_path
+                    new_samples_root = common_path
                     logger.info(f"Detected common path: {common_path}")
             else:
                 # Fallback: use the set file's directory
-                self.samples_root = path.parent
+                new_samples_root = path.parent
                 logger.info(f"No common path found, using set directory: {path.parent}")
-        else:
-            # No samples, use set file's directory
-            self.samples_root = None
 
-        # Get the root for path conversion
-        root = self.get_samples_root(path)
+        # Create a deep copy for serialization to avoid mutating the in-memory object
+        import copy
+        set_copy = copy.deepcopy(self)
+        
+        # Update samples_root in the copy
+        set_copy.samples_root = new_samples_root
+        
+        # Get the root for path conversion from the copy
+        root = set_copy.get_samples_root(path)
 
-        # Convert all paths to be relative to the new root
-        for pad in self.launchpad.pads:
-            if pad.is_assigned and pad.sample:
-                sample_path = pad.sample.path
+        # Convert all paths to be relative to the new root in the COPY
+        for idx, pad in enumerate(set_copy.launchpad.pads):
+            if idx in absolute_paths_map:
+                sample_path = absolute_paths_map[idx]
 
-                # First ensure path is absolute
-                if not sample_path.is_absolute():
-                    sample_path = (current_root / sample_path).resolve()
-
-                # Then convert to relative (where possible)
+                # Convert to relative (where possible)
                 try:
                     pad.sample.path = sample_path.relative_to(root)
                     logger.debug(f"Converted to relative: {pad.sample.path}")
@@ -129,11 +133,16 @@ class Set(BaseModel):
                     pad.sample.path = sample_path
                     logger.warning(f"Sample outside root, keeping absolute: {pad.sample.path}")
 
-        # Update modified timestamp
-        self.modified_at = datetime.now()
+        # Update modified timestamp in the copy
+        set_copy.modified_at = datetime.now()
 
-        path.write_text(self.model_dump_json(indent=2))
+        # Save the copy, not the original
+        path.write_text(set_copy.model_dump_json(indent=2))
         logger.info(f"Saved set to {path}")
+        
+        # Update only the timestamp and samples_root in the original object for consistency
+        self.modified_at = set_copy.modified_at
+        self.samples_root = new_samples_root
 
     @classmethod
     def load_from_file(cls, path: Path) -> "Set":
