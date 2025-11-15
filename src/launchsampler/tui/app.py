@@ -681,6 +681,11 @@ class LaunchpadSampler(App):
             return
 
         try:
+            # Stop playback if pad is playing
+            if self.player.is_pad_playing(selected_pad):
+                self.player.stop_pad(selected_pad)
+                self._set_pad_playing_ui(selected_pad, False)
+
             pad = self.editor.cut_pad(selected_pad)
 
             # Update audio engine - pad is now empty
@@ -901,11 +906,26 @@ class LaunchpadSampler(App):
             def handle_move_confirm(swap: bool) -> None:
                 if swap:
                     try:
+                        # Check if pads are playing and stop them
+                        source_was_playing = self.player.is_pad_playing(selected_pad)
+                        target_was_playing = self.player.is_pad_playing(target_index)
+
+                        if source_was_playing:
+                            self.player.stop_pad(selected_pad)
+                        if target_was_playing:
+                            self.player.stop_pad(target_index)
+
                         source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=True)
 
-                        # Update both pads in audio and UI
+                        # Update both pads in audio engine
                         self._reload_pad(selected_pad)
                         self._reload_pad(target_index)
+
+                        # Update UI to clear playing indicators
+                        if source_was_playing:
+                            self._set_pad_playing_ui(selected_pad, False)
+                        if target_was_playing:
+                            self._set_pad_playing_ui(target_index, False)
                         self._sync_pad_ui(selected_pad, source_pad)
                         self._sync_pad_ui(target_index, target_pad)
 
@@ -926,11 +946,22 @@ class LaunchpadSampler(App):
         else:
             # Move to empty target
             try:
+                # Stop playback if source pad is playing
+                was_playing = self.player.is_pad_playing(selected_pad)
+                logger.info(f"Move operation: source={selected_pad}, target={target_index}, was_playing={was_playing}")
+                if was_playing:
+                    self.player.stop_pad(selected_pad)
+                    logger.info(f"Stopped playback on pad {selected_pad}")
+
                 source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=False)
 
-                # Update both pads in audio and UI
-                self._reload_pad(selected_pad)
-                self._reload_pad(target_index)
+                # Update both pads in audio engine
+                self._reload_pad(selected_pad)  # Now empty - will unload
+                self._reload_pad(target_index)  # Now has the sample - will load
+
+                # Update UI to clear playing indicator if it was playing
+                if was_playing:
+                    self._set_pad_playing_ui(selected_pad, False)
                 self._sync_pad_ui(selected_pad, source_pad)
                 self._sync_pad_ui(target_index, target_pad)
 
@@ -1197,9 +1228,12 @@ class LaunchpadSampler(App):
 
         if pad.is_assigned:
             # Reload the sample into the engine
-            self.player._engine.load_sample(pad_index, pad)
+            logger.info(f"_reload_pad: Loading sample '{pad.sample.name}' into pad {pad_index}")
+            result = self.player._engine.load_sample(pad_index, pad)
+            logger.info(f"_reload_pad: Load result for pad {pad_index}: {result}")
         else:
             # Unload the sample from the engine
+            logger.info(f"_reload_pad: Unloading pad {pad_index}")
             self.player._engine.unload_sample(pad_index)
 
     def _sync_pad_ui(self, pad_index: int, pad: Optional[Pad] = None, *, select: bool = False) -> None:
