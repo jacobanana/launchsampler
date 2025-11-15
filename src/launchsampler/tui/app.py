@@ -385,14 +385,14 @@ class LaunchpadSampler(App):
         logger.debug(f"App received edit event: {event.value} for pads {pad_indices}")
         
         if event == EditEvent.PAD_SELECTED:
-            # Handle selection separately - update selection and details panel
+            # Handle selection - update grid selection state and details panel
             pad_index = pad_indices[0]
             pad = pads[0]
-            self._refresh_pad_selection(pad_index, pad)
+            self._refresh_selected_pad_ui(pad_index, pad)
         else:
-            # Update UI for each affected pad
+            # Update content - refresh grid and details if currently selected
             for pad_index, pad in zip(pad_indices, pads):
-                self._refresh_pad_content(pad_index, pad)
+                self._refresh_pad_ui(pad_index, pad)
 
     # =================================================================
     # UI Update Helpers
@@ -442,31 +442,63 @@ class LaunchpadSampler(App):
             # Status bar might not be mounted yet
             pass
 
-    def _refresh_pad_content(self, pad_index: int, pad: Pad) -> None:
+    def _update_details_panel(self, pad_index: int, pad: Pad) -> None:
         """
-        Update UI to reflect changes to a pad's content.
+        Update the details panel for a pad.
         
-        Updates the grid display and details panel if this pad is currently selected.
+        Fetches audio data from the engine if available and updates the panel.
         
         Args:
+            pad_index: Index of pad
+            pad: Pad model
+        """
+        audio_data = None
+        if self.player._engine and pad.is_assigned:
+            audio_data = self.player._engine.get_audio_data(pad_index)
+
+        details = self.query_one(PadDetailsPanel)
+        details.update_for_pad(pad_index, pad, audio_data=audio_data)
+
+    def _refresh_selected_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
+        """
+        Update UI pad details for the selected pad.
+
+        Args:
             pad_index: Index of pad to update
-            pad: Updated pad model
+            pad: Pad model (fetched if None)
         """
         try:
-            # Update grid
+            if pad is None:
+                pad = self.editor.get_pad(pad_index)
+
+            grid = self.query_one(PadGrid)
+            grid.select_pad(pad_index)
+            self._update_details_panel(pad_index, pad)
+
+        except Exception as e:
+            logger.error(f"Error refreshing selected pad {pad_index} UI: {e}")
+
+    def _refresh_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
+        """
+        Update UI pad on the grid for the given pad.
+
+        Args:
+            pad_index: Index of pad to update
+            pad: Pad model (fetched if None)
+        """
+        try:
+            if pad is None:
+                pad = self.editor.get_pad(pad_index)
+
             grid = self.query_one(PadGrid)
             grid.update_pad(pad_index, pad)
-            
-            # Update details panel if this pad is selected
+
+            # Update details panel if this pad is currently selected
             if pad_index == self.editor.selected_pad_index:
-                audio_data = None
-                if self.player._engine and pad.is_assigned:
-                    audio_data = self.player._engine.get_audio_data(pad_index)
-                
-                details = self.query_one(PadDetailsPanel)
-                details.update_for_pad(pad_index, pad, audio_data=audio_data)
+                self._update_details_panel(pad_index, pad)
+
         except Exception as e:
-            logger.error(f"Error refreshing pad {pad_index} content UI: {e}")
+            logger.error(f"Error refreshing pad {pad_index} UI: {e}")
 
     # =================================================================
     # Message Handlers
@@ -686,7 +718,7 @@ class LaunchpadSampler(App):
 
             try:
                 # Clear pad (events handle audio/UI sync automatically)
-                pad = self.editor.clear_pad(selected_pad)
+                _ = self.editor.clear_pad(selected_pad)
 
                 self.notify("Pad deleted")
             except Exception as e:
@@ -979,8 +1011,6 @@ class LaunchpadSampler(App):
 
                 # Move selection to target
                 self.editor.select_pad(target_index)  # Event system handles UI sync
-
-                self.notify(f"Moved {direction}", severity="information")
             except Exception as e:
                 logger.error(f"Error moving: {e}")
                 self.notify(f"Error: {e}", severity="error")
@@ -1209,37 +1239,6 @@ class LaunchpadSampler(App):
                 self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
-
-    # =================================================================
-    # UI Updates
-    # =================================================================
-
-    def _refresh_pad_selection(self, pad_index: int, pad: Optional[Pad] = None) -> None:
-        """
-        Update UI to reflect a new pad selection.
-
-        Updates both the grid's visual selection state and the details panel.
-
-        Args:
-            pad_index: Index of pad to select
-            pad: Pad model (fetched if None)
-        """
-        try:
-            if pad is None:
-                pad = self.editor.get_pad(pad_index)
-
-            grid = self.query_one(PadGrid)
-            grid.select_pad(pad_index)
-
-            # Get audio data from engine if available
-            audio_data = None
-            if self.player._engine and pad.is_assigned:
-                audio_data = self.player._engine.get_audio_data(pad_index)
-
-            details = self.query_one(PadDetailsPanel)
-            details.update_for_pad(pad_index, pad, audio_data=audio_data)
-        except Exception as e:
-            logger.error(f"Error refreshing pad selection UI: {e}")
 
     # =================================================================
     # Lifecycle
