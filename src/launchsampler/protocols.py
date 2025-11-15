@@ -7,11 +7,18 @@ if TYPE_CHECKING:
     from launchsampler.models import Pad
 
 
-class PlaybackEvent(Enum):
-    """Events that can occur during sample playback."""
+class MidiEvent(Enum):
+    """Events from MIDI controller input."""
+    
+    NOTE_ON = "note_on"                          # MIDI note on received
+    NOTE_OFF = "note_off"                        # MIDI note off received
+    CONTROLLER_CONNECTED = "controller_connected"    # MIDI controller connected
+    CONTROLLER_DISCONNECTED = "controller_disconnected"  # MIDI controller disconnected
 
-    NOTE_ON = "note_on"              # MIDI note on received (always fired)
-    NOTE_OFF = "note_off"            # MIDI note off received (always fired)
+
+class PlaybackEvent(Enum):
+    """Events from audio playback engine."""
+
     PAD_TRIGGERED = "pad_triggered"  # Pad was just triggered (note on)
     PAD_PLAYING = "pad_playing"      # Pad started playing audio
     PAD_STOPPED = "pad_stopped"      # Pad was stopped (note off or interrupt)
@@ -33,9 +40,33 @@ class EditEvent(Enum):
 
 
 @runtime_checkable
+class MidiObserver(Protocol):
+    """
+    Observer that receives MIDI controller events.
+    
+    This protocol allows loose coupling between the MIDI controller
+    and components that need to react to MIDI input (e.g., UI feedback).
+    """
+
+    def on_midi_event(self, event: "MidiEvent", pad_index: int) -> None:
+        """
+        Handle MIDI controller events.
+        
+        Args:
+            event: The type of MIDI event
+            pad_index: Index of the pad (0-63), or -1 for connection events
+            
+        Note:
+            This is called from the MIDI polling thread, so implementations
+            should be thread-safe and avoid blocking operations.
+        """
+        ...
+
+
+@runtime_checkable
 class StateObserver(Protocol):
     """
-    Observer that receives state change events.
+    Observer that receives audio playback state change events.
 
     This protocol allows loose coupling between the audio engine
     and UI components. Any object implementing this protocol can

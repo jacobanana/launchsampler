@@ -17,7 +17,7 @@ from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Set, PlaybackMode
-from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver
+from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ class Player(StateObserver, EditObserver):
 
         # Callbacks for external notification
         self._on_playback_change: Optional[Callable[[PlaybackEvent, int], None]] = None
+        self._on_midi_change: Optional[Callable[[MidiEvent, int], None]] = None
 
         # State
         self._is_running = False
@@ -278,9 +279,9 @@ class Player(StateObserver, EditObserver):
 
         pad = self.current_set.launchpad.pads[pad_index]
         
-        # Always fire NOTE_ON for MIDI input feedback
-        if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.NOTE_ON, pad_index)
+        # Fire MIDI NOTE_ON event for input feedback
+        if self._on_midi_change:
+            self._on_midi_change(MidiEvent.NOTE_ON, pad_index)
         
         # Only trigger audio if sample is assigned
         if pad.is_assigned:
@@ -293,9 +294,9 @@ class Player(StateObserver, EditObserver):
 
         pad = self.current_set.launchpad.pads[pad_index]
         
-        # Always fire NOTE_OFF for MIDI input feedback
-        if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.NOTE_OFF, pad_index)
+        # Fire MIDI NOTE_OFF event for input feedback
+        if self._on_midi_change:
+            self._on_midi_change(MidiEvent.NOTE_OFF, pad_index)
         
         # Only release audio if sample is assigned and mode supports it
         if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
@@ -303,10 +304,10 @@ class Player(StateObserver, EditObserver):
 
     def _on_midi_connection_changed(self, is_connected: bool, port_name: Optional[str]) -> None:
         """Handle MIDI connection state changes."""
-        # Fire a dummy playback event to trigger status bar update
-        # Using NOTE_OFF with invalid pad index as a signal
-        if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.NOTE_OFF, -1)
+        # Fire appropriate MIDI event
+        if self._on_midi_change:
+            event = MidiEvent.CONTROLLER_CONNECTED if is_connected else MidiEvent.CONTROLLER_DISCONNECTED
+            self._on_midi_change(event, -1)  # -1 indicates no specific pad
 
     # =================================================================
     # StateObserver Protocol
@@ -397,9 +398,18 @@ class Player(StateObserver, EditObserver):
         Register callback for playback events.
 
         Args:
-            callback: Function to call on playback events
+            callback: Function to call on playback events (from audio engine)
         """
         self._on_playback_change = callback
+
+    def set_midi_callback(self, callback: Callable[[MidiEvent, int], None]) -> None:
+        """
+        Register callback for MIDI events.
+
+        Args:
+            callback: Function to call on MIDI events (from controller)
+        """
+        self._on_midi_change = callback
 
     # =================================================================
     # Query Methods

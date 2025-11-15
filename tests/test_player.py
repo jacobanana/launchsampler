@@ -6,7 +6,7 @@ import pytest
 
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Set, Launchpad, Pad, Sample, PlaybackMode, Color
-from launchsampler.protocols import PlaybackEvent
+from launchsampler.protocols import PlaybackEvent, MidiEvent
 
 
 @pytest.fixture
@@ -415,13 +415,13 @@ class TestPlayerMIDIHandling:
         player.load_set(test_set)
         
         callback = Mock()
-        player.set_playback_callback(callback)
+        player.set_midi_callback(callback)
         
         # Simulate MIDI pad press
         player._on_pad_pressed(0)
         
         # Should fire NOTE_ON event
-        callback.assert_called_with(PlaybackEvent.NOTE_ON, 0)
+        callback.assert_called_with(MidiEvent.NOTE_ON, 0)
     
     @patch('launchsampler.core.player.AudioDevice')
     @patch('launchsampler.core.player.SamplerEngine')
@@ -436,13 +436,13 @@ class TestPlayerMIDIHandling:
         player.load_set(test_set)
         
         callback = Mock()
-        player.set_playback_callback(callback)
+        player.set_midi_callback(callback)
         
         # Press empty pad (pad 1 has no sample)
         player._on_pad_pressed(1)
         
         # Should fire NOTE_ON
-        callback.assert_called_with(PlaybackEvent.NOTE_ON, 1)
+        callback.assert_called_with(MidiEvent.NOTE_ON, 1)
         
         # Should NOT trigger audio
         mock_engine.trigger_pad.assert_not_called()
@@ -460,13 +460,13 @@ class TestPlayerMIDIHandling:
         player.load_set(test_set)
         
         callback = Mock()
-        player.set_playback_callback(callback)
+        player.set_midi_callback(callback)
         
         # Simulate MIDI pad release
         player._on_pad_released(0)
         
         # Should fire NOTE_OFF event
-        callback.assert_called_with(PlaybackEvent.NOTE_OFF, 0)
+        callback.assert_called_with(MidiEvent.NOTE_OFF, 0)
     
     @patch('launchsampler.core.player.AudioDevice')
     @patch('launchsampler.core.player.SamplerEngine')
@@ -526,7 +526,7 @@ class TestPlayerMIDIHandling:
     @patch('launchsampler.core.player.SamplerEngine')
     @patch('launchsampler.core.player.LaunchpadController')
     def test_midi_connection_callback_fires_signal(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config):
-        """Test MIDI connection change fires signal event."""
+        """Test MIDI connection change fires CONTROLLER_CONNECTED/DISCONNECTED event."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
         
@@ -534,13 +534,15 @@ class TestPlayerMIDIHandling:
         player.start()
         
         callback = Mock()
-        player.set_playback_callback(callback)
+        player.set_midi_callback(callback)
         
-        # Simulate MIDI connection change
+        # Simulate MIDI connection
         player._on_midi_connection_changed(True, "Launchpad X")
+        callback.assert_called_with(MidiEvent.CONTROLLER_CONNECTED, -1)
         
-        # Should fire NOTE_OFF with -1 as signal
-        callback.assert_called_with(PlaybackEvent.NOTE_OFF, -1)
+        # Simulate MIDI disconnection
+        player._on_midi_connection_changed(False, "Launchpad X")
+        callback.assert_called_with(MidiEvent.CONTROLLER_DISCONNECTED, -1)
 
 
 # =================================================================
@@ -805,13 +807,19 @@ class TestPlayerIntegration:
         mock_midi = Mock()
         mock_midi_cls.return_value = mock_midi
         
-        # Track events
-        events = []
-        def track_events(event, pad_index):
-            events.append((event, pad_index))
+        # Track MIDI and playback events separately
+        midi_events = []
+        playback_events = []
+        
+        def track_midi_events(event, pad_index):
+            midi_events.append((event, pad_index))
+        
+        def track_playback_events(event, pad_index):
+            playback_events.append((event, pad_index))
         
         player = Player(mock_config)
-        player.set_playback_callback(track_events)
+        player.set_midi_callback(track_midi_events)
+        player.set_playback_callback(track_playback_events)
         
         # Start and load set
         player.start(initial_set=test_set)
@@ -821,16 +829,16 @@ class TestPlayerIntegration:
         # Simulate MIDI press
         player._on_pad_pressed(0)
         
-        # Should have NOTE_ON event
-        assert (PlaybackEvent.NOTE_ON, 0) in events
+        # Should have NOTE_ON event in MIDI events
+        assert (MidiEvent.NOTE_ON, 0) in midi_events
         
         # Simulate engine firing PAD_PLAYING
         player.on_playback_event(PlaybackEvent.PAD_PLAYING, 0)
-        assert (PlaybackEvent.PAD_PLAYING, 0) in events
+        assert (PlaybackEvent.PAD_PLAYING, 0) in playback_events
         
         # Simulate MIDI release
         player._on_pad_released(0)
-        assert (PlaybackEvent.NOTE_OFF, 0) in events
+        assert (MidiEvent.NOTE_OFF, 0) in midi_events
         
         # Stop player
         player.stop()

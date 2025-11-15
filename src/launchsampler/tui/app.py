@@ -1,7 +1,6 @@
 """Main unified TUI application with edit and play modes."""
 
 import logging
-from functools import wraps
 from pathlib import Path
 from typing import Optional
 
@@ -13,8 +12,9 @@ from textual.binding import Binding
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 
-from launchsampler.protocols import PlaybackEvent, EditEvent, EditObserver
+from launchsampler.protocols import PlaybackEvent, EditEvent, EditObserver, MidiEvent
 
+from .decorators import edit_only, play_only
 from .services import EditorService
 from .widgets import (
     PadGrid,
@@ -28,39 +28,6 @@ from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserSc
 
 
 logger = logging.getLogger(__name__)
-
-
-def require_mode(*modes):
-    """Decorator to restrict action to specific sampler mode(s).
-
-    Args:
-        *modes: One or more mode names (e.g., "edit", "play")
-
-    If the app is not in one of the specified modes, the decorated
-    method will return immediately without executing.
-
-    Example:
-        @require_mode("edit")
-        def action_copy_pad(self):
-            ...
-
-        @require_mode("edit", "play")
-        def action_save(self):
-            ...
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            if self._sampler_mode not in modes:
-                return
-            return func(self, *args, **kwargs)
-        return wrapper
-    return decorator
-
-
-# Convenient mode restriction aliases
-edit_only = require_mode("edit")
-play_only = require_mode("play")
 
 
 class LaunchpadSampler(App):
@@ -203,7 +170,10 @@ class LaunchpadSampler(App):
         if not self.player.start(initial_set=self.current_set):
             self.notify("Failed to start player - app may not function correctly", severity="error")
 
-        # Register for playback events
+        # Register for MIDI events (controller input)
+        self.player.set_midi_callback(self._on_midi_event)
+        
+        # Register for playback events (audio engine)
         self.player.set_playback_callback(self._on_playback_event)
 
         # Register as observer for editing events
@@ -329,9 +299,31 @@ class LaunchpadSampler(App):
         logger.info(f"Switched to {mode} mode")
         return True
 
+    def _on_midi_event(self, event: MidiEvent, pad_index: int) -> None:
+        """
+        Handle MIDI events from controller.
+
+        Called from MIDI thread via callback, so use call_from_thread.
+
+        Args:
+            event: The MIDI event that occurred
+            pad_index: Index of the pad (0-63), or -1 for connection events
+        """
+        if event == MidiEvent.NOTE_ON:
+            # MIDI note on - show green border
+            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, True)
+        
+        elif event == MidiEvent.NOTE_OFF:
+            # MIDI note off - remove green border
+            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, False)
+        
+        elif event in (MidiEvent.CONTROLLER_CONNECTED, MidiEvent.CONTROLLER_DISCONNECTED):
+            # MIDI controller connection changed - update status bar
+            self.call_from_thread(self._update_status_bar)
+
     def _on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
         """
-        Handle playback events from player.
+        Handle playback events from audio engine.
 
         Called from audio thread via callback, so use call_from_thread.
 
@@ -339,27 +331,19 @@ class LaunchpadSampler(App):
             event: The playback event that occurred
             pad_index: Index of the pad (0-63)
         """
-        # Handle MIDI input events (green border)
-        if event == PlaybackEvent.NOTE_ON:
-            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, True)
-        elif event == PlaybackEvent.NOTE_OFF:
-            # Check for connection change signal (pad_index = -1)
-            if pad_index == -1:
-                self.call_from_thread(self._update_status_bar)
-            else:
-                self.call_from_thread(self._set_pad_midi_on_ui, pad_index, False)
-        
         # Handle audio playback events (yellow background)
-        elif event == PlaybackEvent.PAD_PLAYING:
+        if event == PlaybackEvent.PAD_PLAYING:
             # Pad started playing - show as active
             self.call_from_thread(self._set_pad_playing_ui, pad_index, True)
             # Update status bar for voice count
             self.call_from_thread(self._update_status_bar)
+        
         elif event in (PlaybackEvent.PAD_STOPPED, PlaybackEvent.PAD_FINISHED):
             # Pad stopped or finished - show as inactive
             self.call_from_thread(self._set_pad_playing_ui, pad_index, False)
             # Update status bar for voice count
             self.call_from_thread(self._update_status_bar)
+        
         # PAD_TRIGGERED events don't need UI updates (playing will follow immediately)
 
     def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:
