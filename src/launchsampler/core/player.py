@@ -262,6 +262,12 @@ class Player(StateObserver):
             return
 
         pad = self.current_set.launchpad.pads[pad_index]
+        
+        # Always provide UI feedback
+        if self._on_playback_change:
+            self._on_playback_change(PlaybackEvent.PAD_PLAYING, pad_index)
+        
+        # Only trigger audio if sample is assigned
         if pad.is_assigned:
             self.trigger_pad(pad_index)
 
@@ -271,6 +277,12 @@ class Player(StateObserver):
             return
 
         pad = self.current_set.launchpad.pads[pad_index]
+        
+        # Always provide UI feedback
+        if self._on_playback_change:
+            self._on_playback_change(PlaybackEvent.PAD_STOPPED, pad_index)
+        
+        # Only release audio if sample is assigned and mode supports it
         if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
             self.release_pad(pad_index)
 
