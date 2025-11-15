@@ -49,15 +49,16 @@ class PadWidget(Static):
     }
 
     PadWidget.selected {
-        border: double $warning;
+        border: double $warning 80%;
     }
 
     PadWidget.midi_on {
-        border: double $warning 100%;
+        border: double $primary 60%;
     }
 
     PadWidget.active {
-        background: $warning 60%;
+        background: $primary 60%;
+        border: solid $primary;
     }
     """
 
