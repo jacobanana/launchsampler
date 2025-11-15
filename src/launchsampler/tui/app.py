@@ -791,6 +791,12 @@ class LaunchpadSampler(App):
         if target_index is None:
             return  # At edge, silently do nothing (like navigation)
 
+        # Check if source pad has a sample to duplicate
+        source_pad = self.editor.get_pad(selected_pad)
+        if not source_pad.is_assigned:
+            self.notify("No sample to duplicate", severity="warning")
+            return
+
         try:
             # Try duplicate with overwrite=False first
             pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
@@ -867,6 +873,12 @@ class LaunchpadSampler(App):
         target_index = self._get_directional_target(selected_pad, direction)
         if target_index is None:
             return  # At edge, silently do nothing (like navigation)
+
+        # Check if source pad has a sample to move
+        source_pad = self.editor.get_pad(selected_pad)
+        if not source_pad.is_assigned:
+            self.notify("No sample to move", severity="warning")
+            return
 
         target_pad = self.editor.get_pad(target_index)
 
