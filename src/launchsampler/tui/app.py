@@ -1141,34 +1141,38 @@ class LaunchpadSampler(App):
 
         # If target is occupied, show swap confirmation
         if target_pad.is_assigned:
-            def handle_move_confirm(swap: bool) -> None:
-                if swap:
-                    try:
-                        # Check if pads are playing and stop them
-                        source_was_playing = self.player.is_pad_playing(selected_pad)
-                        target_was_playing = self.player.is_pad_playing(target_index)
+            def handle_move_confirm(action: str) -> None:
+                if action == "cancel":
+                    return
+                
+                swap = (action == "swap")
+                try:
+                    # Check if pads are playing and stop them
+                    source_was_playing = self.player.is_pad_playing(selected_pad)
+                    target_was_playing = self.player.is_pad_playing(target_index)
 
-                        if source_was_playing:
-                            self.player.stop_pad(selected_pad)
-                        if target_was_playing:
-                            self.player.stop_pad(target_index)
+                    if source_was_playing:
+                        self.player.stop_pad(selected_pad)
+                    if target_was_playing:
+                        self.player.stop_pad(target_index)
 
-                        # Move/swap (events handle audio/UI sync automatically)
-                        source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=True)
+                    # Move/swap (events handle audio/UI sync automatically)
+                    source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=swap)
 
-                        # Update UI to clear playing indicators
-                        if source_was_playing:
-                            self._set_pad_playing_ui(selected_pad, False)
-                        if target_was_playing:
-                            self._set_pad_playing_ui(target_index, False)
+                    # Update UI to clear playing indicators
+                    if source_was_playing:
+                        self._set_pad_playing_ui(selected_pad, False)
+                    if target_was_playing:
+                        self._set_pad_playing_ui(target_index, False)
 
-                        # Move selection to target
-                        self.editor.select_pad(target_index)  # Event system handles UI sync
+                    # Move selection to target
+                    self.editor.select_pad(target_index)  # Event system handles UI sync
 
-                        self.notify(f"Swapped {direction}", severity="information")
-                    except Exception as e:
-                        logger.error(f"Error moving: {e}")
-                        self.notify(f"Error: {e}", severity="error")
+                    action_name = "Swapped" if swap else "Moved"
+                    self.notify(f"{action_name} {direction}", severity="information")
+                except Exception as e:
+                    logger.error(f"Error moving: {e}")
+                    self.notify(f"Error: {e}", severity="error")
 
             self.push_screen(
                 MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
