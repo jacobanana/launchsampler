@@ -139,7 +139,12 @@ class EditorService:
         """
         self._validate_pad_index(pad_index)
         self.selected_pad_index = pad_index
-        return self.launchpad.pads[pad_index]
+        pad = self.launchpad.pads[pad_index]
+        
+        # Notify observers of selection change
+        self._notify_observers(EditEvent.PAD_SELECTED, [pad_index], [pad])
+        
+        return pad
 
     def get_pad(self, pad_index: int) -> Pad:
         """

@@ -179,7 +179,8 @@ class LaunchpadSampler(App):
 
         # Update selected pad if one is selected
         if self.editor.selected_pad_index is not None:
-            self._sync_pad_ui(self.editor.selected_pad_index, select=True)
+            # Selection event will sync UI automatically
+            pass
 
         # Update subtitle (only if mode is set)
         if self._sampler_mode:
@@ -297,8 +298,7 @@ class LaunchpadSampler(App):
                 grid.select_pad(self.editor.selected_pad_index)
             else:
                 # No pad selected yet, select pad 0 by default
-                self.editor.select_pad(0)
-                self._sync_pad_ui(0, select=True)
+                self.editor.select_pad(0)  # Event system handles UI sync
 
         # Update status bar
         self._update_status_bar()
@@ -384,9 +384,15 @@ class LaunchpadSampler(App):
         """
         logger.debug(f"App received edit event: {event.value} for pads {pad_indices}")
         
-        # Update UI for each affected pad
-        for pad_index, pad in zip(pad_indices, pads):
-            self._update_pad_ui(pad_index, pad)
+        if event == EditEvent.PAD_SELECTED:
+            # Handle selection separately - update selection and details panel
+            pad_index = pad_indices[0]
+            pad = pads[0]
+            self._sync_pad_ui(pad_index, pad, select=True)
+        else:
+            # Update UI for each affected pad
+            for pad_index, pad in zip(pad_indices, pads):
+                self._update_pad_ui(pad_index, pad)
 
     # =================================================================
     # UI Update Helpers
@@ -468,8 +474,7 @@ class LaunchpadSampler(App):
         """Handle pad selection from grid."""
         if self._sampler_mode == "edit":
             try:
-                self.editor.select_pad(message.pad_index)
-                self._sync_pad_ui(message.pad_index, select=True)
+                self.editor.select_pad(message.pad_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error selecting pad: {e}")
                 self.notify(f"Error selecting pad: {e}", severity="error")
@@ -609,9 +614,8 @@ class LaunchpadSampler(App):
                 # For move/overwrite, follow the sample to target pad
                 new_selection = target_index
 
-            # Update editor's selected pad and sync UI
-            self.editor.selected_pad_index = new_selection
-            self._sync_pad_ui(new_selection, select=True)
+            # Update editor's selected pad (event system handles UI sync)
+            self.editor.select_pad(new_selection)
 
             # Show success message
             action = "Swapped" if swap else "Moved"
@@ -847,7 +851,7 @@ class LaunchpadSampler(App):
 
             # Move selection to duplicated pad
             self.editor.select_pad(target_index)
-            self._sync_pad_ui(target_index, pad, select=True)
+            # Selection event will sync UI automatically
 
             self.notify(f"Duplicated {direction}", severity="information")
 
@@ -864,8 +868,7 @@ class LaunchpadSampler(App):
                             pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
 
                             # Move selection to duplicated pad
-                            self.editor.select_pad(target_index)
-                            self._sync_pad_ui(target_index, pad, select=True)
+                            self.editor.select_pad(target_index)  # Event system handles UI sync
 
                             self.notify(f"Duplicated {direction}", severity="information")
                         except Exception as e:
@@ -944,15 +947,13 @@ class LaunchpadSampler(App):
                             self._set_pad_playing_ui(target_index, False)
 
                         # Move selection to target
-                        self.editor.select_pad(target_index)
-                        self._sync_pad_ui(target_index, target_pad, select=True)
+                        self.editor.select_pad(target_index)  # Event system handles UI sync
 
                         self.notify(f"Swapped {direction}", severity="information")
                     except Exception as e:
                         logger.error(f"Error moving: {e}")
                         self.notify(f"Error: {e}", severity="error")
 
-            from launchsampler.tui.widgets.move_confirmation_modal import MoveConfirmationModal
             self.push_screen(
                 MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
                 handle_move_confirm
@@ -975,8 +976,7 @@ class LaunchpadSampler(App):
                     self._set_pad_playing_ui(selected_pad, False)
 
                 # Move selection to target
-                self.editor.select_pad(target_index)
-                self._sync_pad_ui(target_index, target_pad, select=True)
+                self.editor.select_pad(target_index)  # Event system handles UI sync
 
                 self.notify(f"Moved {direction}", severity="information")
             except Exception as e:
@@ -1159,8 +1159,7 @@ class LaunchpadSampler(App):
         if y < 7:
             new_index = (y + 1) * 8 + x
             try:
-                self.editor.select_pad(new_index)
-                self._sync_pad_ui(new_index, select=True)
+                self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -1175,8 +1174,7 @@ class LaunchpadSampler(App):
         if y > 0:
             new_index = (y - 1) * 8 + x
             try:
-                self.editor.select_pad(new_index)
-                self._sync_pad_ui(new_index, select=True)
+                self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -1191,8 +1189,7 @@ class LaunchpadSampler(App):
         if x > 0:
             new_index = y * 8 + (x - 1)
             try:
-                self.editor.select_pad(new_index)
-                self._sync_pad_ui(new_index, select=True)
+                self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -1207,8 +1204,7 @@ class LaunchpadSampler(App):
         if x < 7:
             new_index = y * 8 + (x + 1)
             try:
-                self.editor.select_pad(new_index)
-                self._sync_pad_ui(new_index, select=True)
+                self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 

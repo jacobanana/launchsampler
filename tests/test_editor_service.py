@@ -912,6 +912,21 @@ class TestEditorServiceEvents:
         assert not pads[0].is_assigned
 
     @pytest.mark.unit
+    def test_select_pad_fires_event(self, editor, observer, sample_audio_file):
+        """Test that select_pad fires PAD_SELECTED event."""
+        editor.assign_sample(5, sample_audio_file)
+        editor.register_observer(observer)
+        
+        pad = editor.select_pad(5)
+        
+        observer.on_edit_event.assert_called_once()
+        event, indices, pads = observer.on_edit_event.call_args[0]
+        assert event == EditEvent.PAD_SELECTED
+        assert indices == [5]
+        assert pads[0] == pad
+        assert editor.selected_pad_index == 5
+
+    @pytest.mark.unit
     def test_observer_exception_doesnt_break_others(self, editor, sample_audio_file):
         """Test that exception in one observer doesn't break others."""
         bad_observer = Mock(spec=EditObserver)
