@@ -1,6 +1,7 @@
 """Main unified TUI application with edit and play modes."""
 
 import logging
+from functools import wraps
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +28,20 @@ from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserSc
 
 
 logger = logging.getLogger(__name__)
+
+
+def edit_mode_only(func):
+    """Decorator to restrict action to edit mode only.
+
+    If the app is not in edit mode, the decorated method will return
+    immediately without executing.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self._sampler_mode != "edit":
+            return
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 class LaunchpadSampler(App):
@@ -388,12 +403,10 @@ class LaunchpadSampler(App):
         elif button_id == "stop-btn":
             self.action_toggle_test()  # Use same toggle behavior
 
+    @edit_mode_only
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
         """Handle mode radio button changes."""
         if event.radio_set.id != "mode-radio":
-            return
-
-        if self._sampler_mode != "edit":
             return
 
         # Map radio button IDs to playback modes
@@ -408,11 +421,9 @@ class LaunchpadSampler(App):
         if pressed_id in mode_map:
             self._set_pad_mode(mode_map[pressed_id])
 
+    @edit_mode_only
     def on_pad_details_panel_volume_changed(self, event: PadDetailsPanel.VolumeChanged) -> None:
         """Handle volume change from details panel."""
-        if self._sampler_mode != "edit":
-            return
-
         try:
             # Update through editor service
             pad = self.editor.set_pad_volume(event.pad_index, event.volume)
@@ -428,11 +439,9 @@ class LaunchpadSampler(App):
             logger.error(f"Error updating volume: {e}")
             self.notify(f"Error updating volume: {e}", severity="error")
 
+    @edit_mode_only
     def on_pad_details_panel_name_changed(self, event: PadDetailsPanel.NameChanged) -> None:
         """Handle name change from details panel."""
-        if self._sampler_mode != "edit":
-            return
-
         try:
             # Update through editor service
             pad = self.editor.set_sample_name(event.pad_index, event.name)
@@ -444,11 +453,9 @@ class LaunchpadSampler(App):
             logger.error(f"Error updating name: {e}")
             self.notify(f"Error updating name: {e}", severity="error")
 
+    @edit_mode_only
     def on_pad_details_panel_move_pad_requested(self, event: PadDetailsPanel.MovePadRequested) -> None:
         """Handle move pad request from details panel."""
-        if self._sampler_mode != "edit":
-            return
-
         try:
             source_index = event.source_index
             target_index = event.target_index
@@ -555,11 +562,9 @@ class LaunchpadSampler(App):
     # Actions
     # =================================================================
 
+    @edit_mode_only
     def action_browse_sample(self) -> None:
         """Open file browser to assign a sample."""
-        if self._sampler_mode != "edit":
-            return
-
         if self.editor.selected_pad_index is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -596,11 +601,9 @@ class LaunchpadSampler(App):
             handle_file
         )
 
+    @edit_mode_only
     def action_clear_pad(self) -> None:
         """Clear the selected pad."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -636,11 +639,9 @@ class LaunchpadSampler(App):
             handle_confirmation
         )
 
+    @edit_mode_only
     def action_copy_pad(self) -> None:
         """Copy selected pad to clipboard."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -652,11 +653,9 @@ class LaunchpadSampler(App):
         except ValueError as e:
             self.notify(str(e), severity="error")
 
+    @edit_mode_only
     def action_cut_pad(self) -> None:
         """Cut selected pad to clipboard."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -675,11 +674,9 @@ class LaunchpadSampler(App):
         except ValueError as e:
             self.notify(str(e), severity="error")
 
+    @edit_mode_only
     def action_paste_pad(self) -> None:
         """Paste clipboard to selected pad."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -777,11 +774,9 @@ class LaunchpadSampler(App):
         """Duplicate selected pad to the right."""
         self._duplicate_directional("right")
 
+    @edit_mode_only
     def _duplicate_directional(self, direction: str) -> None:
         """Duplicate pad in given direction."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -861,11 +856,9 @@ class LaunchpadSampler(App):
         """Move selected pad to the right."""
         self._move_directional("right")
 
+    @edit_mode_only
     def _move_directional(self, direction: str) -> None:
         """Move pad in given direction."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -1061,11 +1054,9 @@ class LaunchpadSampler(App):
         start_dir = self.current_set.samples_root if self.current_set.samples_root else Path.home()
         self.push_screen(DirectoryBrowserScreen(start_dir), handle_directory_selected)
 
+    @edit_mode_only
     def _set_pad_mode(self, mode: PlaybackMode) -> None:
         """Set the playback mode for selected pad."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             return
