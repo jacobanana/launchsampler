@@ -29,13 +29,38 @@ class EditorService:
         self.launchpad = launchpad
         self.config = config
         self.selected_pad_index: Optional[int] = None
+        self._clipboard: Optional[Pad] = None
+
+    @property
+    def grid_size(self) -> int:
+        """Get the total number of pads in the launchpad grid."""
+        return len(self.launchpad.pads)
+
+    @property
+    def has_clipboard(self) -> bool:
+        """Check if clipboard has content."""
+        return self._clipboard is not None
+
+    def _validate_pad_index(self, pad_index: int, label: str = "Pad index") -> None:
+        """
+        Validate that a pad index is within valid range.
+
+        Args:
+            pad_index: The index to validate
+            label: Description for error message (e.g., "Source pad index")
+
+        Raises:
+            IndexError: If pad_index is out of range
+        """
+        if not 0 <= pad_index < self.grid_size:
+            raise IndexError(f"{label} {pad_index} out of range (0-{self.grid_size-1})")
 
     def select_pad(self, pad_index: int) -> Pad:
         """
         Select a pad and return its state.
 
         Args:
-            pad_index: Index of pad to select (0-63)
+            pad_index: Index of pad to select
 
         Returns:
             The selected Pad
@@ -43,9 +68,7 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         self.selected_pad_index = pad_index
         return self.launchpad.pads[pad_index]
 
@@ -54,7 +77,7 @@ class EditorService:
         Get a pad by index (read-only).
 
         Args:
-            pad_index: Index of pad to get (0-63)
+            pad_index: Index of pad to get
 
         Returns:
             The Pad
@@ -62,9 +85,7 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         return self.launchpad.pads[pad_index]
 
     def assign_sample(self, pad_index: int, sample_path: Path) -> Pad:
@@ -82,9 +103,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If sample file doesn't exist
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         if not sample_path.exists():
             raise ValueError(f"Sample file not found: {sample_path}")
 
@@ -117,9 +136,7 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         # Get current pad position
         old_pad = self.launchpad.pads[pad_index]
 
@@ -145,9 +162,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If pad has no sample assigned
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         pad = self.launchpad.pads[pad_index]
 
         if not pad.is_assigned:
@@ -174,9 +189,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If volume is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         if not 0.0 <= volume <= 1.0:
             raise ValueError(f"Volume {volume} out of range (0.0-1.0)")
 
@@ -201,9 +214,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If pad has no sample assigned or name is empty
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
-
+        self._validate_pad_index(pad_index)
         if not name or not name.strip():
             raise ValueError("Sample name cannot be empty")
 
@@ -275,8 +286,8 @@ class EditorService:
         Move a sample from source pad to target pad.
 
         Args:
-            source_index: Index of source pad (0-63)
-            target_index: Index of target pad (0-63)
+            source_index: Index of source pad
+            target_index: Index of target pad
             swap: If True, swap samples between pads. If False, overwrite target.
 
         Returns:
@@ -286,12 +297,8 @@ class EditorService:
             IndexError: If pad indices are out of range
             ValueError: If source pad is empty
         """
-        if not 0 <= source_index < 64:
-            raise IndexError(f"Source pad index {source_index} out of range (0-63)")
-
-        if not 0 <= target_index < 64:
-            raise IndexError(f"Target pad index {target_index} out of range (0-63)")
-
+        self._validate_pad_index(source_index, "Source pad index")
+        self._validate_pad_index(target_index, "Target pad index")
         if source_index == target_index:
             raise ValueError("Source and target pads must be different")
 
@@ -339,3 +346,215 @@ class EditorService:
             logger.info(f"Moved sample from pad {source_index} to {target_index}")
 
         return (source_pad, target_pad)
+
+    def duplicate_pad(self, source_index: int, target_index: int, overwrite: bool = False) -> Pad:
+        """
+        Duplicate a sample from source pad to target pad.
+
+        Creates a complete deep copy of the source pad, preserving only
+        the target's position. This ensures all properties are duplicated
+        without needing to handle them individually.
+
+        Args:
+            source_index: Index of source pad
+            target_index: Index of target pad
+            overwrite: If False (default), raise ValueError if target already has a sample.
+                      If True, replace target pad contents even if occupied.
+
+        Returns:
+            The new target Pad
+
+        Raises:
+            IndexError: If pad indices are out of range
+            ValueError: If source pad is empty, indices are the same,
+                       or target is occupied and overwrite=False
+        """
+        self._validate_pad_index(source_index, "Source pad index")
+        self._validate_pad_index(target_index, "Target pad index")
+        if source_index == target_index:
+            raise ValueError("Source and target pads must be different")
+
+        source_pad = self.launchpad.pads[source_index]
+        target_pad = self.launchpad.pads[target_index]
+
+        if not source_pad.is_assigned:
+            raise ValueError(f"Source pad {source_index} has no sample to copy")
+
+        # Check if target is occupied and overwrite is disabled
+        if not overwrite and target_pad.is_assigned:
+            raise ValueError(
+                f"Target pad {target_index} already has sample '{target_pad.sample.name}'"
+            )
+
+        # Log if we're overwriting an existing sample
+        if target_pad.is_assigned:
+            logger.info(
+                f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
+                f"with duplicate from pad {source_index} ('{source_pad.sample.name}')"
+            )
+        else:
+            logger.info(f"Duplicated sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}")
+
+        # Deep copy entire source pad but preserve target position
+        new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
+        self.launchpad.pads[target_index] = new_target
+
+        return new_target
+
+    def copy_pad(self, pad_index: int) -> Pad:
+        """
+        Copy a pad to the clipboard buffer.
+
+        Creates a deep copy of the pad and stores it in an internal buffer
+        for later pasting.
+
+        Args:
+            pad_index: Index of pad to copy
+
+        Returns:
+            The copied Pad
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If pad is empty
+        """
+        self._validate_pad_index(pad_index)
+        pad = self.launchpad.pads[pad_index]
+
+        if not pad.is_assigned:
+            raise ValueError(f"Cannot copy empty pad {pad_index}")
+
+        # Deep copy the pad to clipboard
+        self._clipboard = pad.model_copy(deep=True)
+
+        logger.info(f"Copied pad {pad_index} ('{pad.sample.name}') to clipboard")
+        return self._clipboard
+
+    def paste_pad(self, target_index: int, overwrite: bool = False) -> Pad:
+        """
+        Paste the clipboard buffer to a target pad.
+
+        Args:
+            target_index: Index of pad to paste to
+            overwrite: If False (default), raise ValueError if target already has a sample.
+                      If True, replace target pad contents even if occupied.
+
+        Returns:
+            The new target Pad
+
+        Raises:
+            IndexError: If target_index is out of range
+            ValueError: If clipboard is empty or target is occupied and overwrite=False
+        """
+        self._validate_pad_index(target_index, "Target pad index")
+
+        if self._clipboard is None:
+            raise ValueError("Clipboard is empty. Copy a pad first.")
+
+        target_pad = self.launchpad.pads[target_index]
+
+        # Check if target is occupied and overwrite is disabled
+        if not overwrite and target_pad.is_assigned:
+            raise ValueError(
+                f"Target pad {target_index} already has sample '{target_pad.sample.name}'"
+            )
+
+        # Log if we're overwriting an existing sample
+        if target_pad.is_assigned:
+            logger.info(
+                f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
+                f"with paste from clipboard ('{self._clipboard.sample.name}')"
+            )
+        else:
+            logger.info(f"Pasted sample '{self._clipboard.sample.name}' from clipboard to pad {target_index}")
+
+        # Deep copy clipboard to target, preserving target position
+        new_target = self._clipboard.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
+        self.launchpad.pads[target_index] = new_target
+
+        return new_target
+
+    def cut_pad(self, pad_index: int) -> Pad:
+        """
+        Cut a pad to the clipboard buffer and clear the source.
+
+        Atomically copies the pad to clipboard and clears the source pad.
+        This is equivalent to copy_pad() followed by clear_pad().
+
+        Args:
+            pad_index: Index of pad to cut
+
+        Returns:
+            The copied Pad (now in clipboard)
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If pad is empty
+        """
+        self._validate_pad_index(pad_index)
+        pad = self.launchpad.pads[pad_index]
+
+        if not pad.is_assigned:
+            raise ValueError(f"Cannot cut empty pad {pad_index}")
+
+        # Deep copy the pad to clipboard
+        self._clipboard = pad.model_copy(deep=True)
+
+        # Clear the source pad
+        old_pad = self.launchpad.pads[pad_index]
+        new_pad = Pad.empty(old_pad.x, old_pad.y)
+        self.launchpad.pads[pad_index] = new_pad
+
+        logger.info(f"Cut pad {pad_index} ('{self._clipboard.sample.name}') to clipboard")
+        return self._clipboard
+
+    def clear_all(self) -> int:
+        """
+        Clear all pads in the launchpad.
+
+        Returns:
+            Number of pads that were cleared (had samples)
+
+        """
+        cleared_count = 0
+        for i in range(self.grid_size):
+            pad = self.launchpad.pads[i]
+            if pad.is_assigned:
+                new_pad = Pad.empty(pad.x, pad.y)
+                self.launchpad.pads[i] = new_pad
+                cleared_count += 1
+
+        logger.info(f"Cleared all pads ({cleared_count} pads had samples)")
+        return cleared_count
+
+    def clear_range(self, start_index: int, end_index: int) -> int:
+        """
+        Clear a range of pads.
+
+        Args:
+            start_index: First pad index (inclusive)
+            end_index: Last pad index (inclusive)
+
+        Returns:
+            Number of pads that were cleared (had samples)
+
+        Raises:
+            IndexError: If start_index or end_index is out of range
+            ValueError: If start_index > end_index
+        """
+        self._validate_pad_index(start_index, "Start pad index")
+        self._validate_pad_index(end_index, "End pad index")
+
+        if start_index > end_index:
+            raise ValueError(f"Start index {start_index} must be <= end index {end_index}")
+
+        cleared_count = 0
+        for i in range(start_index, end_index + 1):
+            pad = self.launchpad.pads[i]
+            if pad.is_assigned:
+                new_pad = Pad.empty(pad.x, pad.y)
+                self.launchpad.pads[i] = new_pad
+                cleared_count += 1
+
+        logger.info(f"Cleared pads {start_index}-{end_index} ({cleared_count} pads had samples)")
+        return cleared_count

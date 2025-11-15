@@ -290,7 +290,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
         yield Rule()
         with Grid(classes="button-grid"):
             yield Button("[▪] Browse", id="browse-btn", variant="primary", disabled=True)
-            yield Button("\\[X] Clear", id="clear-btn", variant="default", disabled=True)
+            yield Button("\\[X] Delete", id="clear-btn", variant="default", disabled=True)
 
         yield Rule()
         yield Label("", id="sample-info") # gets updated by update_for_pad

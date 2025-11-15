@@ -1,6 +1,7 @@
 """Main unified TUI application with edit and play modes."""
 
 import logging
+from functools import wraps
 from pathlib import Path
 from typing import Optional
 
@@ -15,11 +16,51 @@ from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 from launchsampler.protocols import PlaybackEvent
 
 from .services import EditorService
-from .widgets import PadGrid, PadDetailsPanel, StatusBar, MoveConfirmationModal, ClearConfirmationModal
+from .widgets import (
+    PadGrid,
+    PadDetailsPanel,
+    StatusBar,
+    MoveConfirmationModal,
+    ClearConfirmationModal,
+    PasteConfirmationModal,
+)
 from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
 
 
 logger = logging.getLogger(__name__)
+
+
+def require_mode(*modes):
+    """Decorator to restrict action to specific sampler mode(s).
+
+    Args:
+        *modes: One or more mode names (e.g., "edit", "play")
+
+    If the app is not in one of the specified modes, the decorated
+    method will return immediately without executing.
+
+    Example:
+        @require_mode("edit")
+        def action_copy_pad(self):
+            ...
+
+        @require_mode("edit", "play")
+        def action_save(self):
+            ...
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if self._sampler_mode not in modes:
+                return
+            return func(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# Convenient mode restriction aliases
+edit_only = require_mode("edit")
+play_only = require_mode("play")
 
 
 class LaunchpadSampler(App):
@@ -49,7 +90,10 @@ class LaunchpadSampler(App):
         Binding("ctrl+l", "open_directory", "Load from Directory", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
-        Binding("c", "clear_pad", "Clear", show=False),
+        Binding("c", "copy_pad", "Copy", show=True),
+        Binding("x", "cut_pad", "Cut", show=True),
+        Binding("v", "paste_pad", "Paste", show=True),
+        Binding("d", "delete_pad", "Delete", show=True),
         Binding("space", "toggle_test", "Test/Stop", show=False),
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
         Binding("2", "set_mode_hold", "Hold", show=False),
@@ -59,6 +103,14 @@ class LaunchpadSampler(App):
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
         Binding("right", "navigate_right", "Right", show=False),
+        Binding("alt+up", "duplicate_up", "Duplicate Up", show=False),
+        Binding("alt+down", "duplicate_down", "Duplicate Down", show=False),
+        Binding("alt+left", "duplicate_left", "Duplicate Left", show=False),
+        Binding("alt+right", "duplicate_right", "Duplicate Right", show=False),
+        Binding("ctrl+up", "move_up", "Move Up", show=False),
+        Binding("ctrl+down", "move_down", "Move Down", show=False),
+        Binding("ctrl+left", "move_left", "Move Left", show=False),
+        Binding("ctrl+right", "move_right", "Move Right", show=False),
     ]
 
     def __init__(
@@ -372,18 +424,16 @@ class LaunchpadSampler(App):
         if button_id == "browse-btn":
             self.action_browse_sample()
         elif button_id == "clear-btn":
-            self.action_clear_pad()
+            self.action_delete_pad()
         elif button_id == "test-btn":
             self.action_test_pad()
         elif button_id == "stop-btn":
             self.action_toggle_test()  # Use same toggle behavior
 
+    @edit_only
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
         """Handle mode radio button changes."""
         if event.radio_set.id != "mode-radio":
-            return
-
-        if self._sampler_mode != "edit":
             return
 
         # Map radio button IDs to playback modes
@@ -398,11 +448,9 @@ class LaunchpadSampler(App):
         if pressed_id in mode_map:
             self._set_pad_mode(mode_map[pressed_id])
 
+    @edit_only
     def on_pad_details_panel_volume_changed(self, event: PadDetailsPanel.VolumeChanged) -> None:
         """Handle volume change from details panel."""
-        if self._sampler_mode != "edit":
-            return
-
         try:
             # Update through editor service
             pad = self.editor.set_pad_volume(event.pad_index, event.volume)
@@ -418,11 +466,9 @@ class LaunchpadSampler(App):
             logger.error(f"Error updating volume: {e}")
             self.notify(f"Error updating volume: {e}", severity="error")
 
+    @edit_only
     def on_pad_details_panel_name_changed(self, event: PadDetailsPanel.NameChanged) -> None:
         """Handle name change from details panel."""
-        if self._sampler_mode != "edit":
-            return
-
         try:
             # Update through editor service
             pad = self.editor.set_sample_name(event.pad_index, event.name)
@@ -434,11 +480,9 @@ class LaunchpadSampler(App):
             logger.error(f"Error updating name: {e}")
             self.notify(f"Error updating name: {e}", severity="error")
 
+    @edit_only
     def on_pad_details_panel_move_pad_requested(self, event: PadDetailsPanel.MovePadRequested) -> None:
         """Handle move pad request from details panel."""
-        if self._sampler_mode != "edit":
-            return
-
         try:
             source_index = event.source_index
             target_index = event.target_index
@@ -545,11 +589,9 @@ class LaunchpadSampler(App):
     # Actions
     # =================================================================
 
+    @edit_only
     def action_browse_sample(self) -> None:
         """Open file browser to assign a sample."""
-        if self._sampler_mode != "edit":
-            return
-
         if self.editor.selected_pad_index is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -586,11 +628,9 @@ class LaunchpadSampler(App):
             handle_file
         )
 
-    def action_clear_pad(self) -> None:
-        """Clear the selected pad."""
-        if self._sampler_mode != "edit":
-            return
-
+    @edit_only
+    def action_delete_pad(self) -> None:
+        """Delete the selected pad."""
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -616,15 +656,331 @@ class LaunchpadSampler(App):
                 # Update UI
                 self._sync_pad_ui(selected_pad, pad)
 
-                self.notify("Pad cleared")
+                self.notify("Pad deleted")
             except Exception as e:
-                logger.error(f"Error clearing pad: {e}")
+                logger.error(f"Error deleting pad: {e}")
                 self.notify(f"Error: {e}", severity="error")
 
         self.push_screen(
             ClearConfirmationModal(selected_pad, pad.sample.name),
             handle_confirmation
         )
+
+    @edit_only
+    def action_copy_pad(self) -> None:
+        """Copy selected pad to clipboard."""
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        try:
+            pad = self.editor.copy_pad(selected_pad)
+            self.notify(f"Copied: {pad.sample.name}", severity="information")
+        except ValueError as e:
+            self.notify(str(e), severity="error")
+
+    @edit_only
+    def action_cut_pad(self) -> None:
+        """Cut selected pad to clipboard."""
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        try:
+            # Stop playback if pad is playing
+            if self.player.is_pad_playing(selected_pad):
+                self.player.stop_pad(selected_pad)
+                self._set_pad_playing_ui(selected_pad, False)
+
+            pad = self.editor.cut_pad(selected_pad)
+
+            # Update audio engine - pad is now empty
+            self._reload_pad(selected_pad)
+
+            # Update UI
+            self._sync_pad_ui(selected_pad, self.editor.get_pad(selected_pad))
+
+            self.notify(f"Cut: {pad.sample.name}", severity="information")
+        except ValueError as e:
+            self.notify(str(e), severity="error")
+
+    @edit_only
+    def action_paste_pad(self) -> None:
+        """Paste clipboard to selected pad."""
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        if not self.editor.has_clipboard:
+            self.notify("Clipboard is empty", severity="warning")
+            return
+
+        try:
+            # Try paste with overwrite=False first
+            pad = self.editor.paste_pad(selected_pad, overwrite=False)
+
+            # Success - update audio and UI
+            self._reload_pad(selected_pad)
+            self._sync_pad_ui(selected_pad, pad)
+
+            self.notify(f"Pasted: {pad.sample.name}", severity="information")
+
+        except ValueError as e:
+            # Check if it's because target is occupied
+            if "already has sample" in str(e):
+                # Show confirmation modal
+                target_pad = self.editor.get_pad(selected_pad)
+
+                def handle_paste_confirm(overwrite: bool) -> None:
+                    if overwrite:
+                        try:
+                            pad = self.editor.paste_pad(selected_pad, overwrite=True)
+                            self._reload_pad(selected_pad)
+                            self._sync_pad_ui(selected_pad, pad)
+                            self.notify(f"Pasted: {pad.sample.name}", severity="information")
+                        except Exception as e:
+                            logger.error(f"Error pasting: {e}")
+                            self.notify(f"Error: {e}", severity="error")
+
+                self.push_screen(
+                    PasteConfirmationModal(selected_pad, target_pad.sample.name),
+                    handle_paste_confirm
+                )
+            else:
+                # Some other error
+                self.notify(str(e), severity="error")
+
+    def _get_directional_target(self, source_index: int, direction: str) -> Optional[int]:
+        """Get target pad index from source + direction.
+
+        Args:
+            source_index: Current pad index
+            direction: One of "up", "down", "left", "right"
+
+        Returns:
+            Target pad index, or None if at edge (cannot move in that direction)
+        """
+        x, y = self.current_set.launchpad.note_to_xy(source_index)
+
+        # Check bounds BEFORE calculating target (like navigation does)
+        if direction == "up":
+            if y >= 7:  # Already at top
+                return None
+            y = y + 1
+        elif direction == "down":
+            if y <= 0:  # Already at bottom
+                return None
+            y = y - 1
+        elif direction == "left":
+            if x <= 0:  # Already at left edge
+                return None
+            x = x - 1
+        elif direction == "right":
+            if x >= 7:  # Already at right edge
+                return None
+            x = x + 1
+        else:
+            return None
+
+        target = self.current_set.launchpad.xy_to_note(x, y)
+        return target
+
+    # Duplicate directional operations (Alt+Arrow)
+
+    def action_duplicate_up(self) -> None:
+        """Duplicate selected pad upward."""
+        self._duplicate_directional("up")
+
+    def action_duplicate_down(self) -> None:
+        """Duplicate selected pad downward."""
+        self._duplicate_directional("down")
+
+    def action_duplicate_left(self) -> None:
+        """Duplicate selected pad to the left."""
+        self._duplicate_directional("left")
+
+    def action_duplicate_right(self) -> None:
+        """Duplicate selected pad to the right."""
+        self._duplicate_directional("right")
+
+    @edit_only
+    def _duplicate_directional(self, direction: str) -> None:
+        """Duplicate pad in given direction."""
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        target_index = self._get_directional_target(selected_pad, direction)
+        if target_index is None:
+            self.notify("Cannot duplicate: At grid edge", severity="warning")
+            return
+
+        # Check if source pad has a sample to duplicate
+        source_pad = self.editor.get_pad(selected_pad)
+        if not source_pad.is_assigned:
+            self.notify("No sample to duplicate", severity="warning")
+            return
+
+        try:
+            # Try duplicate with overwrite=False first
+            pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
+
+            # Success - update audio and UI
+            self._reload_pad(target_index)
+            self._sync_pad_ui(target_index, pad)
+
+            # Move selection to duplicated pad
+            self.editor.select_pad(target_index)
+            self._sync_pad_ui(target_index, pad, select=True)
+
+            self.notify(f"Duplicated {direction}", severity="information")
+
+        except ValueError as e:
+            # Check if it's because target is occupied
+            if "already has sample" in str(e):
+                # Show confirmation modal
+                target_pad = self.editor.get_pad(target_index)
+
+                def handle_duplicate_confirm(overwrite: bool) -> None:
+                    if overwrite:
+                        try:
+                            pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
+                            self._reload_pad(target_index)
+                            self._sync_pad_ui(target_index, pad)
+
+                            # Move selection to duplicated pad
+                            self.editor.select_pad(target_index)
+                            self._sync_pad_ui(target_index, pad, select=True)
+
+                            self.notify(f"Duplicated {direction}", severity="information")
+                        except Exception as e:
+                            logger.error(f"Error duplicating: {e}")
+                            self.notify(f"Error: {e}", severity="error")
+
+                from launchsampler.tui.widgets.paste_confirmation_modal import PasteConfirmationModal
+                self.push_screen(
+                    PasteConfirmationModal(target_index, target_pad.sample.name),
+                    handle_duplicate_confirm
+                )
+            else:
+                # Some other error
+                self.notify(str(e), severity="error")
+
+    # Move directional operations (Ctrl+Arrow)
+
+    def action_move_up(self) -> None:
+        """Move selected pad upward."""
+        self._move_directional("up")
+
+    def action_move_down(self) -> None:
+        """Move selected pad downward."""
+        self._move_directional("down")
+
+    def action_move_left(self) -> None:
+        """Move selected pad to the left."""
+        self._move_directional("left")
+
+    def action_move_right(self) -> None:
+        """Move selected pad to the right."""
+        self._move_directional("right")
+
+    @edit_only
+    def _move_directional(self, direction: str) -> None:
+        """Move pad in given direction."""
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        target_index = self._get_directional_target(selected_pad, direction)
+        if target_index is None:
+            self.notify("Cannot move: At grid edge", severity="warning")
+            return
+
+        # Check if source pad has a sample to move
+        source_pad = self.editor.get_pad(selected_pad)
+        if not source_pad.is_assigned:
+            self.notify("No sample to move", severity="warning")
+            return
+
+        target_pad = self.editor.get_pad(target_index)
+
+        # If target is occupied, show swap confirmation
+        if target_pad.is_assigned:
+            def handle_move_confirm(swap: bool) -> None:
+                if swap:
+                    try:
+                        # Check if pads are playing and stop them
+                        source_was_playing = self.player.is_pad_playing(selected_pad)
+                        target_was_playing = self.player.is_pad_playing(target_index)
+
+                        if source_was_playing:
+                            self.player.stop_pad(selected_pad)
+                        if target_was_playing:
+                            self.player.stop_pad(target_index)
+
+                        source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=True)
+
+                        # Update both pads in audio engine
+                        self._reload_pad(selected_pad)
+                        self._reload_pad(target_index)
+
+                        # Update UI to clear playing indicators
+                        if source_was_playing:
+                            self._set_pad_playing_ui(selected_pad, False)
+                        if target_was_playing:
+                            self._set_pad_playing_ui(target_index, False)
+                        self._sync_pad_ui(selected_pad, source_pad)
+                        self._sync_pad_ui(target_index, target_pad)
+
+                        # Move selection to target
+                        self.editor.select_pad(target_index)
+                        self._sync_pad_ui(target_index, target_pad, select=True)
+
+                        self.notify(f"Swapped {direction}", severity="information")
+                    except Exception as e:
+                        logger.error(f"Error moving: {e}")
+                        self.notify(f"Error: {e}", severity="error")
+
+            from launchsampler.tui.widgets.move_confirmation_modal import MoveConfirmationModal
+            self.push_screen(
+                MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
+                handle_move_confirm
+            )
+        else:
+            # Move to empty target
+            try:
+                # Stop playback if source pad is playing
+                was_playing = self.player.is_pad_playing(selected_pad)
+                logger.info(f"Move operation: source={selected_pad}, target={target_index}, was_playing={was_playing}")
+                if was_playing:
+                    self.player.stop_pad(selected_pad)
+                    logger.info(f"Stopped playback on pad {selected_pad}")
+
+                source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=False)
+
+                # Update both pads in audio engine
+                self._reload_pad(selected_pad)  # Now empty - will unload
+                self._reload_pad(target_index)  # Now has the sample - will load
+
+                # Update UI to clear playing indicator if it was playing
+                if was_playing:
+                    self._set_pad_playing_ui(selected_pad, False)
+                self._sync_pad_ui(selected_pad, source_pad)
+                self._sync_pad_ui(target_index, target_pad)
+
+                # Move selection to target
+                self.editor.select_pad(target_index)
+                self._sync_pad_ui(target_index, target_pad, select=True)
+
+                self.notify(f"Moved {direction}", severity="information")
+            except Exception as e:
+                logger.error(f"Error moving: {e}")
+                self.notify(f"Error: {e}", severity="error")
 
     def action_test_pad(self) -> None:
         """Test the selected pad (works in both modes)."""
@@ -756,11 +1112,9 @@ class LaunchpadSampler(App):
         start_dir = self.current_set.samples_root if self.current_set.samples_root else Path.home()
         self.push_screen(DirectoryBrowserScreen(start_dir), handle_directory_selected)
 
+    @edit_only
     def _set_pad_mode(self, mode: PlaybackMode) -> None:
         """Set the playback mode for selected pad."""
-        if self._sampler_mode != "edit":
-            return
-
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             return
@@ -882,9 +1236,12 @@ class LaunchpadSampler(App):
 
         if pad.is_assigned:
             # Reload the sample into the engine
-            self.player._engine.load_sample(pad_index, pad)
+            logger.info(f"_reload_pad: Loading sample '{pad.sample.name}' into pad {pad_index}")
+            result = self.player._engine.load_sample(pad_index, pad)
+            logger.info(f"_reload_pad: Load result for pad {pad_index}: {result}")
         else:
             # Unload the sample from the engine
+            logger.info(f"_reload_pad: Unloading pad {pad_index}")
             self.player._engine.unload_sample(pad_index)
 
     def _sync_pad_ui(self, pad_index: int, pad: Optional[Pad] = None, *, select: bool = False) -> None:
