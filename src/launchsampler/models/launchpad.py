@@ -13,13 +13,24 @@ from .enums import PlaybackMode
 logger = logging.getLogger(__name__)
 
 
+# Constants defined at module level for use in default_factory
+GRID_SIZE = 8
+TOTAL_PADS = 64
+
+
+def _create_default_pads() -> list[Pad]:
+    """Create default 8x8 grid of pads."""
+    return [Pad(x=x, y=y) for y in range(GRID_SIZE) for x in range(GRID_SIZE)]
+
+
 class Launchpad(BaseModel):
     """Represents the complete 8x8 grid of pads."""
 
+    GRID_SIZE: int = GRID_SIZE  # 8x8 grid
+    TOTAL_PADS: int = TOTAL_PADS  # 8 * 8
+
     pads: list[Pad] = Field(
-        default_factory=lambda: [
-            Pad(x=x, y=y) for y in range(8) for x in range(8)
-        ],
+        default_factory=_create_default_pads,
         description="8x8 grid of pads (64 total)"
     )
 
@@ -27,29 +38,29 @@ class Launchpad(BaseModel):
     @classmethod
     def validate_pad_count(cls, v: list[Pad]) -> list[Pad]:
         """Ensure exactly 64 pads."""
-        if len(v) != 64:
-            raise ValueError("Launchpad must have exactly 64 pads (8x8)")
+        if len(v) != TOTAL_PADS:
+            raise ValueError(f"Launchpad must have exactly {TOTAL_PADS} pads ({GRID_SIZE}x{GRID_SIZE})")
         return v
 
     def xy_to_note(self, x: int, y: int) -> int:
         """Convert (x, y) coordinates to MIDI note."""
-        return y * 8 + x
+        return y * self.GRID_SIZE + x
 
     def note_to_xy(self, note: int) -> tuple[int, int]:
         """Convert MIDI note to (x, y) coordinates."""
-        y = note // 8
-        x = note % 8
+        y = note // self.GRID_SIZE
+        x = note % self.GRID_SIZE
         return (x, y)
 
     def get_pad(self, x: int, y: int) -> Pad:
         """Get pad at specific coordinates."""
-        if not (0 <= x < 8 and 0 <= y < 8):
-            raise ValueError(f"Invalid coordinates: ({x}, {y}). Must be 0-7.")
+        if not (0 <= x < self.GRID_SIZE and 0 <= y < self.GRID_SIZE):
+            raise ValueError(f"Invalid coordinates: ({x}, {y}). Must be 0-{self.GRID_SIZE - 1}.")
         return self.pads[self.xy_to_note(x, y)]
 
     def get_pad_by_note(self, note: int) -> Optional[Pad]:
         """Get pad by MIDI note number (0-63)."""
-        if not 0 <= note < 64:
+        if not 0 <= note < self.TOTAL_PADS:
             return None
         x, y = self.note_to_xy(note)
         return self.get_pad(x, y)
@@ -111,7 +122,7 @@ class Launchpad(BaseModel):
         launchpad = cls.create_empty()
 
         # Assign samples to pads (max 64)
-        for i, sample_file in enumerate(sample_files[:64]):
+        for i, sample_file in enumerate(sample_files[:TOTAL_PADS]):
             sample = Sample.from_file(sample_file)
             pad = launchpad.pads[i]
 
@@ -133,7 +144,7 @@ class Launchpad(BaseModel):
                 f"RGB={pad.color.r},{pad.color.g},{pad.color.b})"
             )
 
-        logger.info(f"Loaded {len(sample_files[:64])} samples from {samples_dir}")
+        logger.info(f"Loaded {len(sample_files[:TOTAL_PADS])} samples from {samples_dir}")
 
         return launchpad
 

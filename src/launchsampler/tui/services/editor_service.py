@@ -186,12 +186,12 @@ class EditorService:
 
         # Get pad and assign sample
         pad = self.launchpad.pads[pad_index]
+        was_empty = not pad.is_assigned
         pad.sample = sample
         pad.volume = 0.8  # Default volume
 
-        # Set default mode if not already configured
-        if pad.mode is None:
-            pad.mode = PlaybackMode.ONE_SHOT
+        # Set default color if pad was previously empty
+        if was_empty:
             pad.color = pad.mode.get_default_color()
 
         # Notify observers

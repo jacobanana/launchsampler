@@ -134,8 +134,8 @@ class TestEditorServiceDuplicatePad:
         editor.assign_sample(target_index, second_file)
         editor.set_pad_volume(target_index, 0.9)
 
-        # Copy source to target
-        editor.duplicate_pad(source_index, target_index)
+        # Copy source to target with overwrite enabled
+        editor.duplicate_pad(source_index, target_index, overwrite=True)
 
         target_pad = editor.get_pad(target_index)
 

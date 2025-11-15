@@ -187,7 +187,7 @@ class LaunchpadSampler(App):
         # Update grid UI
         grid = self.query_one(PadGrid)
         grid.launchpad = new_set.launchpad
-        for i in range(64):
+        for i in range(self.launchpad.TOTAL_PADS):
             grid.update_pad(i, new_set.launchpad.pads[i])
 
         # Update selected pad if one is selected
@@ -886,7 +886,7 @@ class LaunchpadSampler(App):
 
         x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
 
-        if y < 7:
+        if y < self.launchpad.GRID_SIZE - 1:
             new_index = self.launchpad.xy_to_note(x, y + 1)
             try:
                 self.editor.select_pad(new_index)  # Event system handles UI sync
@@ -928,7 +928,7 @@ class LaunchpadSampler(App):
 
         x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
 
-        if x < 7:
+        if x < self.launchpad.GRID_SIZE - 1:
             new_index = self.launchpad.xy_to_note(x + 1, y)
             try:
                 self.editor.select_pad(new_index)  # Event system handles UI sync
@@ -1039,7 +1039,7 @@ class LaunchpadSampler(App):
 
         # Check bounds BEFORE calculating target (like navigation does)
         if direction == "up":
-            if y >= 7:  # Already at top
+            if y >= self.launchpad.GRID_SIZE - 1:  # Already at top
                 return None
             y = y + 1
         elif direction == "down":
@@ -1051,7 +1051,7 @@ class LaunchpadSampler(App):
                 return None
             x = x - 1
         elif direction == "right":
-            if x >= 7:  # Already at right edge
+            if x >= self.launchpad.GRID_SIZE - 1:  # Already at right edge
                 return None
             x = x + 1
         else:
