@@ -6,7 +6,12 @@
       "Bash(uv run launchsampler --help:*)",
       "Bash(uv run:*)",
       "Bash(timeout 3 uv run:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(for:*)",
+      "Bash(done)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []
