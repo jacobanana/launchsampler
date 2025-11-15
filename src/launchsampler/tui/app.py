@@ -416,7 +416,7 @@ class LaunchpadSampler(App):
         if button_id == "browse-btn":
             self.action_browse_sample()
         elif button_id == "clear-btn":
-            self.action_clear_pad()
+            self.action_delete_pad()
         elif button_id == "test-btn":
             self.action_test_pad()
         elif button_id == "stop-btn":

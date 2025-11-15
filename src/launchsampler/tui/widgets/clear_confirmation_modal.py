@@ -65,7 +65,7 @@ class ClearConfirmationModal(ModalScreen[bool]):
         """Create the modal content."""
         with Vertical(id="dialog"):
             yield Label(
-                f"Clear pad {self.pad_index}?",
+                f"Delete pad {self.pad_index}?",
                 id="question"
             )
             yield Label(
@@ -73,7 +73,7 @@ class ClearConfirmationModal(ModalScreen[bool]):
                 id="details"
             )
             with Horizontal(id="button-container"):
-                yield Button("Clear", variant="error", id="clear-btn")
+                yield Button("Delete", variant="error", id="clear-btn")
                 yield Button("Cancel", variant="default", id="cancel-btn")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
