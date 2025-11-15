@@ -341,7 +341,7 @@ class EditorService:
 
         return (source_pad, target_pad)
 
-    def copy_pad(self, source_index: int, target_index: int) -> Pad:
+    def copy_pad(self, source_index: int, target_index: int, overwrite: bool = True) -> Pad:
         """
         Copy a sample from source pad to target pad.
 
@@ -352,13 +352,16 @@ class EditorService:
         Args:
             source_index: Index of source pad
             target_index: Index of target pad
+            overwrite: If False, raise ValueError if target already has a sample.
+                      If True (default), silently replace target pad contents.
 
         Returns:
             The new target Pad
 
         Raises:
             IndexError: If pad indices are out of range
-            ValueError: If source pad is empty or indices are the same
+            ValueError: If source pad is empty, indices are the same,
+                       or target is occupied and overwrite=False
         """
         self._validate_pad_index(source_index, "Source pad index")
         self._validate_pad_index(target_index, "Target pad index")
@@ -371,9 +374,24 @@ class EditorService:
         if not source_pad.is_assigned:
             raise ValueError(f"Source pad {source_index} has no sample to copy")
 
+        # Check if target is occupied and overwrite is disabled
+        if not overwrite and target_pad.is_assigned:
+            raise ValueError(
+                f"Target pad {target_index} already has sample '{target_pad.sample.name}'. "
+                f"Set overwrite=True to replace it."
+            )
+
+        # Log if we're overwriting an existing sample
+        if target_pad.is_assigned:
+            logger.info(
+                f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
+                f"with copy from pad {source_index} ('{source_pad.sample.name}')"
+            )
+        else:
+            logger.info(f"Copied sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}")
+
         # Deep copy entire source pad but preserve target position
         new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
         self.launchpad.pads[target_index] = new_target
 
-        logger.info(f"Copied sample from pad {source_index} to pad {target_index}")
         return new_target

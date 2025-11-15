@@ -217,3 +217,109 @@ class TestEditorServiceCopyPad:
 
         assert source_pad.volume == 0.5
         assert target_pad.volume == 1.0
+
+    @pytest.mark.unit
+    def test_copy_pad_overwrite_false_empty_target(self, editor, sample_audio_file):
+        """Test copying with overwrite=False to empty target succeeds."""
+        source_index = 0
+        target_index = 1
+
+        editor.assign_sample(source_index, sample_audio_file)
+
+        # Should succeed - target is empty
+        result = editor.copy_pad(source_index, target_index, overwrite=False)
+
+        target_pad = editor.get_pad(target_index)
+        assert target_pad.is_assigned
+        assert target_pad.sample.name == "test"
+        assert result == target_pad
+
+    @pytest.mark.unit
+    def test_copy_pad_overwrite_false_occupied_target(self, editor, sample_audio_file, temp_dir):
+        """Test copying with overwrite=False to occupied target raises ValueError."""
+        import numpy as np
+        import soundfile as sf
+
+        # Create second audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        second_file = temp_dir / "second.wav"
+        sf.write(str(second_file), audio_data, sample_rate)
+
+        source_index = 0
+        target_index = 1
+
+        # Assign samples to both pads
+        editor.assign_sample(source_index, sample_audio_file)
+        editor.assign_sample(target_index, second_file)
+
+        # Should fail - target already has a sample
+        with pytest.raises(
+            ValueError,
+            match=r"Target pad 1 already has sample 'second'\. Set overwrite=True to replace it\."
+        ):
+            editor.copy_pad(source_index, target_index, overwrite=False)
+
+        # Verify target was not modified
+        target_pad = editor.get_pad(target_index)
+        assert target_pad.sample.name == "second"
+
+    @pytest.mark.unit
+    def test_copy_pad_overwrite_true_occupied_target(self, editor, sample_audio_file, temp_dir):
+        """Test copying with overwrite=True to occupied target succeeds."""
+        import numpy as np
+        import soundfile as sf
+
+        # Create second audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        second_file = temp_dir / "second.wav"
+        sf.write(str(second_file), audio_data, sample_rate)
+
+        source_index = 0
+        target_index = 1
+
+        # Assign samples to both pads
+        editor.assign_sample(source_index, sample_audio_file)
+        editor.assign_sample(target_index, second_file)
+
+        # Should succeed - overwrite=True (default)
+        result = editor.copy_pad(source_index, target_index, overwrite=True)
+
+        # Verify target now has source's sample
+        target_pad = editor.get_pad(target_index)
+        assert target_pad.sample.name == "test"
+        assert target_pad.sample.path == sample_audio_file
+        assert result == target_pad
+
+    @pytest.mark.unit
+    def test_copy_pad_default_overwrite_behavior(self, editor, sample_audio_file, temp_dir):
+        """Test that overwrite defaults to True."""
+        import numpy as np
+        import soundfile as sf
+
+        # Create second audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        second_file = temp_dir / "second.wav"
+        sf.write(str(second_file), audio_data, sample_rate)
+
+        source_index = 0
+        target_index = 1
+
+        # Assign samples to both pads
+        editor.assign_sample(source_index, sample_audio_file)
+        editor.assign_sample(target_index, second_file)
+
+        # Should succeed with default parameters (overwrite=True by default)
+        result = editor.copy_pad(source_index, target_index)
+
+        # Verify target was overwritten
+        target_pad = editor.get_pad(target_index)
+        assert target_pad.sample.name == "test"
