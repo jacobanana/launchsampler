@@ -339,3 +339,50 @@ class EditorService:
             logger.info(f"Moved sample from pad {source_index} to {target_index}")
 
         return (source_pad, target_pad)
+
+    def copy_pad(self, source_index: int, target_index: int) -> Pad:
+        """
+        Copy a sample from source pad to target pad.
+
+        Creates new Sample and Color objects so the target is completely
+        independent from the source (no shared references).
+
+        Args:
+            source_index: Index of source pad (0-63)
+            target_index: Index of target pad (0-63)
+
+        Returns:
+            The modified target Pad
+
+        Raises:
+            IndexError: If pad indices are out of range
+            ValueError: If source pad is empty or indices are the same
+        """
+        if not 0 <= source_index < 64:
+            raise IndexError(f"Source pad index {source_index} out of range (0-63)")
+
+        if not 0 <= target_index < 64:
+            raise IndexError(f"Target pad index {target_index} out of range (0-63)")
+
+        if source_index == target_index:
+            raise ValueError("Source and target pads must be different")
+
+        source_pad = self.launchpad.pads[source_index]
+        target_pad = self.launchpad.pads[target_index]
+
+        if not source_pad.is_assigned:
+            raise ValueError(f"Source pad {source_index} has no sample to copy")
+
+        # Create deep copies of all objects to avoid shared references
+        if source_pad.sample:
+            target_pad.sample = source_pad.sample.model_copy(deep=True)
+
+        # Copy other properties (mode is enum, volume is float - no reference issues)
+        target_pad.mode = source_pad.mode
+        target_pad.volume = source_pad.volume
+
+        # Deep copy color to avoid shared object
+        target_pad.color = source_pad.color.model_copy(deep=True)
+
+        logger.info(f"Copied sample from pad {source_index} to pad {target_index}")
+        return target_pad
