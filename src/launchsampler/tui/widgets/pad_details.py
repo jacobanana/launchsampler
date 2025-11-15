@@ -282,10 +282,10 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield NoTabInput(placeholder="0-100", id="volume-input", type="integer", disabled=True)
 
         with RadioSet(id="mode-radio"):
-            yield RadioButton("ONE_SHOT", id="mode-oneshot", disabled=True)
-            yield RadioButton("HOLD", id="mode-hold", disabled=True)
-            yield RadioButton("LOOP", id="mode-loop", disabled=True)
-            yield RadioButton("LOOP_TOGGLE", id="mode-looptoggle", disabled=True)
+            yield RadioButton("\\[1] One Shot", id="mode-oneshot", disabled=True)
+            yield RadioButton("\\[2] Hold", id="mode-hold", disabled=True)
+            yield RadioButton("\\[3] Loop", id="mode-loop", disabled=True)
+            yield RadioButton("\\[4] Loop Toggle", id="mode-looptoggle", disabled=True)
 
         yield Rule()
         with Grid(classes="button-grid"):

@@ -353,8 +353,6 @@ class LaunchpadSampler(App):
             except Exception as e:
                 logger.error(f"Error selecting pad: {e}")
                 self.notify(f"Error selecting pad: {e}", severity="error")
-        else:
-            self.notify("Switch to edit mode to select pads", severity="warning")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses from details panel."""
@@ -542,7 +540,6 @@ class LaunchpadSampler(App):
     def action_browse_sample(self) -> None:
         """Open file browser to assign a sample."""
         if self._sampler_mode != "edit":
-            self.notify("Switch to edit mode first", severity="warning")
             return
 
         if self.editor.selected_pad_index is None:
@@ -584,7 +581,6 @@ class LaunchpadSampler(App):
     def action_clear_pad(self) -> None:
         """Clear the selected pad."""
         if self._sampler_mode != "edit":
-            self.notify("Switch to edit mode first", severity="warning")
             return
 
         selected_pad = self.editor.selected_pad_index
@@ -755,7 +751,6 @@ class LaunchpadSampler(App):
     def _set_pad_mode(self, mode: PlaybackMode) -> None:
         """Set the playback mode for selected pad."""
         if self._sampler_mode != "edit":
-            self.notify("Switch to edit mode first", severity="warning")
             return
 
         selected_pad = self.editor.selected_pad_index
