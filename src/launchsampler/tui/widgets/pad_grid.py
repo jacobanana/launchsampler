@@ -109,6 +109,17 @@ class PadGrid(Container):
         if pad_index in self.pad_widgets:
             self.pad_widgets[pad_index].set_playing(is_playing)
 
+    def set_pad_midi_on(self, pad_index: int, midi_on: bool) -> None:
+        """
+        Set the MIDI note on/off state of a pad.
+
+        Args:
+            pad_index: Index of pad (0-63)
+            midi_on: Whether a MIDI note on is held for this pad
+        """
+        if pad_index in self.pad_widgets:
+            self.pad_widgets[pad_index].set_midi_on(midi_on)
+
     def on_pad_widget_selected(self, message: PadWidget.Selected) -> None:
         """
         Handle pad selection from child widgets.

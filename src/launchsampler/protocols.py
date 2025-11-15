@@ -7,6 +7,8 @@ from typing import Protocol, runtime_checkable
 class PlaybackEvent(Enum):
     """Events that can occur during sample playback."""
 
+    NOTE_ON = "note_on"              # MIDI note on received (always fired)
+    NOTE_OFF = "note_off"            # MIDI note off received (always fired)
     PAD_TRIGGERED = "pad_triggered"  # Pad was just triggered (note on)
     PAD_PLAYING = "pad_playing"      # Pad started playing audio
     PAD_STOPPED = "pad_stopped"      # Pad was stopped (note off or interrupt)

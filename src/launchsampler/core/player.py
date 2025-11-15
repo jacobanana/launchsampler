@@ -263,9 +263,9 @@ class Player(StateObserver):
 
         pad = self.current_set.launchpad.pads[pad_index]
         
-        # Always provide UI feedback
+        # Always fire NOTE_ON for MIDI input feedback
         if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.PAD_PLAYING, pad_index)
+            self._on_playback_change(PlaybackEvent.NOTE_ON, pad_index)
         
         # Only trigger audio if sample is assigned
         if pad.is_assigned:
@@ -278,9 +278,9 @@ class Player(StateObserver):
 
         pad = self.current_set.launchpad.pads[pad_index]
         
-        # Always provide UI feedback
+        # Always fire NOTE_OFF for MIDI input feedback
         if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.PAD_STOPPED, pad_index)
+            self._on_playback_change(PlaybackEvent.NOTE_OFF, pad_index)
         
         # Only release audio if sample is assigned and mode supports it
         if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):

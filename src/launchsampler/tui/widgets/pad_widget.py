@@ -52,6 +52,10 @@ class PadWidget(Static):
         border: double $warning;
     }
 
+    PadWidget.midi_on {
+        border: double $warning 100%;
+    }
+
     PadWidget.active {
         background: $warning 60%;
     }
@@ -76,6 +80,7 @@ class PadWidget(Static):
         self.pad_index = pad_index
         self._pad = pad
         self._is_playing = False
+        self._midi_on = False
         self.update_display()
 
     def update(self, pad: Pad) -> None:
@@ -118,6 +123,21 @@ class PadWidget(Static):
                 self.add_class("active")
             else:
                 self.remove_class("active")
+            self.refresh()
+
+    def set_midi_on(self, midi_on: bool) -> None:
+        """
+        Set the MIDI note on/off state of this pad.
+
+        Args:
+            midi_on: Whether a MIDI note on is currently held for this pad
+        """
+        if midi_on != self._midi_on:
+            self._midi_on = midi_on
+            if midi_on:
+                self.add_class("midi_on")
+            else:
+                self.remove_class("midi_on")
             self.refresh()
 
     def on_click(self) -> None:

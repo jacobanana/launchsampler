@@ -282,8 +282,14 @@ class LaunchpadSampler(App):
             event: The playback event that occurred
             pad_index: Index of the pad (0-63)
         """
-        # Update UI based on event type
-        if event == PlaybackEvent.PAD_PLAYING:
+        # Handle MIDI input events (green border)
+        if event == PlaybackEvent.NOTE_ON:
+            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, True)
+        elif event == PlaybackEvent.NOTE_OFF:
+            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, False)
+        
+        # Handle audio playback events (yellow background)
+        elif event == PlaybackEvent.PAD_PLAYING:
             # Pad started playing - show as active
             self.call_from_thread(self._set_pad_playing_ui, pad_index, True)
         elif event in (PlaybackEvent.PAD_STOPPED, PlaybackEvent.PAD_FINISHED):
@@ -293,7 +299,7 @@ class LaunchpadSampler(App):
 
     def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:
         """
-        Update UI to reflect pad playing state.
+        Update UI to reflect pad playing state (yellow background).
 
         Args:
             pad_index: Index of pad (0-63)
@@ -304,6 +310,20 @@ class LaunchpadSampler(App):
             grid.set_pad_playing(pad_index, is_playing)
         except Exception as e:
             logger.debug(f"Error updating pad {pad_index} playing state: {e}")
+
+    def _set_pad_midi_on_ui(self, pad_index: int, midi_on: bool) -> None:
+        """
+        Update UI to reflect MIDI note on/off state (green border).
+
+        Args:
+            pad_index: Index of pad (0-63)
+            midi_on: Whether MIDI note is held
+        """
+        try:
+            grid = self.query_one(PadGrid)
+            grid.set_pad_midi_on(pad_index, midi_on)
+        except Exception as e:
+            logger.debug(f"Error updating pad {pad_index} MIDI state: {e}")
 
     def _update_status_bar(self) -> None:
         """Update status bar with current state."""
