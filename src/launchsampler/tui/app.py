@@ -261,6 +261,8 @@ class LaunchpadSampler(App):
     def action_switch_mode(self, mode: str) -> None:
         """
         Switch between edit and play modes.
+        
+        Entry point for keybindings (E/P keys). Delegates to _set_mode.
 
         Args:
             mode: Target mode ("edit" or "play")
@@ -882,11 +884,10 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
-        x = self.editor.selected_pad_index % 8
-        y = self.editor.selected_pad_index // 8
+        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
 
         if y < 7:
-            new_index = (y + 1) * 8 + x
+            new_index = self.launchpad.xy_to_note(x, y + 1)
             try:
                 self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -897,11 +898,10 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
-        x = self.editor.selected_pad_index % 8
-        y = self.editor.selected_pad_index // 8
+        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
 
         if y > 0:
-            new_index = (y - 1) * 8 + x
+            new_index = self.launchpad.xy_to_note(x, y - 1)
             try:
                 self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -912,11 +912,10 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
-        x = self.editor.selected_pad_index % 8
-        y = self.editor.selected_pad_index // 8
+        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
 
         if x > 0:
-            new_index = y * 8 + (x - 1)
+            new_index = self.launchpad.xy_to_note(x - 1, y)
             try:
                 self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -927,11 +926,10 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
             return
 
-        x = self.editor.selected_pad_index % 8
-        y = self.editor.selected_pad_index // 8
+        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
 
         if x < 7:
-            new_index = y * 8 + (x + 1)
+            new_index = self.launchpad.xy_to_note(x + 1, y)
             try:
                 self.editor.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
