@@ -2,9 +2,9 @@
 
 from typing import Optional
 
-from textual.containers import Vertical, Horizontal
+from textual.containers import Vertical, Horizontal, Grid
 from textual.app import ComposeResult
-from textual.widgets import Label, Button, Input
+from textual.widgets import Label, Button, Input, Rule
 from textual.message import Message
 
 from launchsampler.audio.data import AudioData
@@ -13,6 +13,29 @@ from launchsampler.models import Pad
 
 class NoTabInput(Input):
     """Input that doesn't move focus to next field on Enter."""
+
+    DEFAULT_CSS = """
+    NoTabInput {
+        height: 1;
+        max-height: 1;
+        border: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    NoTabInput:focus {
+        border: none;
+    }
+    
+    NoTabInput.-invalid {
+        border: none;
+        background: $error 20%;
+    }
+    
+    NoTabInput.-invalid:focus {
+        border: none;
+    }
+    """
 
     def __init__(self, *args, **kwargs):
         """Initialize with submit tracking."""
@@ -64,52 +87,92 @@ class PadDetailsPanel(Vertical, can_focus=True):
     }
 
     PadDetailsPanel Label {
+        margin-bottom: 0;
+    }
+
+    PadDetailsPanel .pad-header {
+        height: auto;
+        layout: horizontal;
         margin-bottom: 1;
     }
 
-    PadDetailsPanel Button {
+    PadDetailsPanel .pad-header > Label:first-child {
+        width: 50%;
+    }
+
+    PadDetailsPanel .pad-header > Label:last-child {
+        width: 50%;
+        text-align: right;
+    }
+
+    PadDetailsPanel #sample-info {
+        margin-bottom: 0;
+    }
+
+    PadDetailsPanel .button-grid {
+        grid-size: 2;
+        grid-gutter: 1;
+        height: auto;
         margin-top: 1;
     }
 
-    PadDetailsPanel .button-row {
-        height: auto;
-        margin-top: 0;
+    PadDetailsPanel .name-container {
+        height: 1;
+        margin: 1 0;
+        layout: horizontal;
     }
 
-    PadDetailsPanel .input-container {
-        height: auto;
-        margin-top: 1;
-        margin-bottom: 1;
+    PadDetailsPanel .name-container > Label {
+        width: 30%;
+    }
+
+    PadDetailsPanel .name-container > NoTabInput {
+        width: 70%;
     }
 
     PadDetailsPanel #name-input {
-        height: 3;
-        padding: 0 1;
+        height: 1;
+        padding: 0;
         margin: 0;
+        padding: 0 1;
     }
 
     PadDetailsPanel .volume-container {
-        height: auto;
-        margin-top: 1;
-        margin-bottom: 1;
+        height: 1;
+        margin: 1 0;
+        layout: horizontal;
+    }
+
+    PadDetailsPanel .volume-container > Label {
+        width: 30%;
+    }
+
+    PadDetailsPanel .volume-container > NoTabInput {
+        width: 70%;
     }
 
     PadDetailsPanel #volume-input {
-        width: 15;
-        height: 3;
-        padding: 0 1;
+        height: 1;
         margin: 0;
+        padding: 0 1;
     }
 
     PadDetailsPanel .move-container {
-        height: auto;
-        margin-top: 1;
-        margin-bottom: 1;
+        height: 1;
+        margin: 1 0;
+        layout: horizontal;
+    }
+
+    PadDetailsPanel .move-container > Label {
+        width: 30%;
+    }
+
+    PadDetailsPanel .move-container > NoTabInput {
+        width: 70%;
     }
 
     PadDetailsPanel #move-input {
-        width: 15;
-        height: 3;
+        height: 1;
         padding: 0 1;
         margin: 0;
     }
@@ -168,35 +231,32 @@ class PadDetailsPanel(Vertical, can_focus=True):
 
     def compose(self) -> ComposeResult:
         """Create the details panel widgets."""
-        yield Label("No pad selected", id="pad-info")
-        yield Label("", id="sample-info")
-
-        with Horizontal(classes="input-container"):
-            yield Label("Name:", shrink=True)
-            yield NoTabInput(placeholder="Sample name", id="name-input", disabled=True)
-
-        with Horizontal(classes="volume-container"):
-            yield Label("Volume:", shrink=True)
-            yield NoTabInput(placeholder="0-100", id="volume-input", disabled=True)
-            yield Label("%", shrink=True)
+        with Horizontal(classes="pad-header"):
+            yield Label("No pad selected", id="pad-info")
+            yield Label("", id="pad-location")
 
         with Horizontal(classes="move-container"):
             yield Label("Move to:", shrink=True)
             yield NoTabInput(placeholder="0-63", id="move-input", disabled=True)
 
-        with Horizontal(classes="button-row"):
+        yield Rule()
+        yield Label("", id="sample-info") # gets updated by update_for_pad
+        yield Rule()
+        with Horizontal(classes="name-container"):
+            yield Label("Name:", shrink=True)
+            yield NoTabInput(placeholder="Sample name", id="name-input", disabled=True)
+
+        with Horizontal(classes="volume-container"):
+            yield Label("Volume [%]:", shrink=True)
+            yield NoTabInput(placeholder="0-100", id="volume-input", type="integer", disabled=True)
+
+        with Grid(classes="button-grid"):
             yield Button("Browse", id="browse-btn", variant="primary", disabled=True)
             yield Button("Clear", id="clear-btn", variant="default", disabled=True)
-
-        with Horizontal(classes="button-row"):
             yield Button("ONE_SHOT", id="mode-oneshot", variant="default", disabled=True)
             yield Button("HOLD", id="mode-hold", variant="default", disabled=True)
-
-        with Horizontal(classes="button-row"):
             yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
             yield Button("LOOP_TOGGLE", id="mode-looptoggle", variant="default", disabled=True)
-
-        with Horizontal(classes="button-row"):
             yield Button("Test Pad", id="test-btn", variant="success", disabled=True)
             yield Button("Stop Audio", id="stop-btn", variant="error", disabled=True)
 
@@ -211,9 +271,12 @@ class PadDetailsPanel(Vertical, can_focus=True):
         """
         self.selected_pad_index = pad_index
 
-        # Update pad info label
+        # Update pad info labels
         pad_info = self.query_one("#pad-info", Label)
-        pad_info.update(f"[b]Pad {pad_index}[/b] ({pad_index // 8}, {pad_index % 8})")
+        pad_info.update(f"[b]Pad {pad_index}[/b]")
+        
+        pad_location = self.query_one("#pad-location", Label)
+        pad_location.update(f"[{pad_index % 8}, {pad_index // 8}]")
 
         # Update sample info
         sample_info = self.query_one("#sample-info", Label)
