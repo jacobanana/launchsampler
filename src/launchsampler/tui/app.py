@@ -38,7 +38,9 @@ class LaunchpadSampler(App):
     - Player: Audio/MIDI/playback logic
     - EditorService: Editing operations
 
-    Implements EditObserver protocol (duck typing) to automatically sync UI when edits occur.
+    Implements (via duck typing due to metaclass conflicts):
+    - EditObserver: to automatically sync UI when edits occur
+    - MidiObserver: to show MIDI input feedback (green borders)
 
     Provides two modes:
     - Edit Mode: Build sets, assign samples, test with preview audio
@@ -131,10 +133,11 @@ class LaunchpadSampler(App):
         if not self.player.start(initial_set=self.current_set):
             self.notify("Failed to start player - app may not function correctly", severity="error")
 
-        # Register for MIDI events (controller input)
-        self.player.set_midi_callback(self._on_midi_event)
+        # Register as MIDI observer (controller input -> green borders)
+        if self.player._midi:
+            self.player._midi.register_observer(self)
         
-        # Register for playback events (audio engine)
+        # Register for playback events (audio engine -> yellow backgrounds)
         self.player.set_playback_callback(self._on_playback_event)
 
         # Register as observer for editing events
@@ -303,11 +306,15 @@ class LaunchpadSampler(App):
         logger.info(f"Switched to {mode} mode")
         return True
 
-    def _on_midi_event(self, event: MidiEvent, pad_index: int) -> None:
+    # =================================================================
+    # MidiObserver Protocol
+    # =================================================================
+
+    def on_midi_event(self, event: MidiEvent, pad_index: int) -> None:
         """
         Handle MIDI events from controller.
 
-        Called from MIDI thread via callback, so use call_from_thread.
+        Called from MIDI thread via LaunchpadController, so use call_from_thread.
 
         Args:
             event: The MIDI event that occurred
@@ -324,6 +331,10 @@ class LaunchpadSampler(App):
         elif event in (MidiEvent.CONTROLLER_CONNECTED, MidiEvent.CONTROLLER_DISCONNECTED):
             # MIDI controller connection changed - update status bar
             self.call_from_thread(self._update_status_bar)
+
+    # =================================================================
+    # Playback Events handling
+    # =================================================================
 
     def _on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
         """
@@ -349,6 +360,37 @@ class LaunchpadSampler(App):
             self.call_from_thread(self._update_status_bar)
         
         # PAD_TRIGGERED events don't need UI updates (playing will follow immediately)
+
+    # =================================================================
+    # EditObserver Events handling
+    # =================================================================
+
+    def on_edit_event(
+        self, 
+        event: EditEvent, 
+        pad_indices: list[int], 
+        pads: list[Pad]
+    ) -> None:
+        """
+        Handle editing events and update UI.
+        
+        This is called from the UI thread when editing operations occur.
+        Automatically synchronizes the UI with the new pad states.
+        
+        Args:
+            event: The type of editing event
+            pad_indices: List of affected pad indices
+            pads: List of affected pad states (post-edit)
+        """
+        logger.debug(f"App received edit event: {event.value} for pads {pad_indices}")
+        
+        # Update UI for each affected pad
+        for pad_index, pad in zip(pad_indices, pads):
+            self._update_pad_ui(pad_index, pad)
+
+    # =================================================================
+    # UI Update Helpers
+    # =================================================================
 
     def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:
         """
@@ -394,33 +436,6 @@ class LaunchpadSampler(App):
             # Status bar might not be mounted yet
             pass
 
-    # =================================================================
-    # EditObserver Protocol
-    # =================================================================
-
-    def on_edit_event(
-        self, 
-        event: EditEvent, 
-        pad_indices: list[int], 
-        pads: list[Pad]
-    ) -> None:
-        """
-        Handle editing events and update UI.
-        
-        This is called from the UI thread when editing operations occur.
-        Automatically synchronizes the UI with the new pad states.
-        
-        Args:
-            event: The type of editing event
-            pad_indices: List of affected pad indices
-            pads: List of affected pad states (post-edit)
-        """
-        logger.debug(f"App received edit event: {event.value} for pads {pad_indices}")
-        
-        # Update UI for each affected pad
-        for pad_index, pad in zip(pad_indices, pads):
-            self._update_pad_ui(pad_index, pad)
-
     def _update_pad_ui(self, pad_index: int, pad: Pad) -> None:
         """
         Update UI elements for a specific pad.
@@ -446,7 +461,7 @@ class LaunchpadSampler(App):
             logger.error(f"Error updating pad {pad_index} UI: {e}")
 
     # =================================================================
-    # Event Handlers
+    # Message Handlers
     # =================================================================
 
     def on_pad_grid_pad_selected(self, message: PadGrid.PadSelected) -> None:
@@ -498,7 +513,7 @@ class LaunchpadSampler(App):
         """Handle volume change from details panel."""
         try:
             # Update through editor service (events handle audio/UI sync automatically)
-            pad = self.editor.set_pad_volume(event.pad_index, event.volume)
+            _ = self.editor.set_pad_volume(event.pad_index, event.volume)
 
         except Exception as e:
             logger.error(f"Error updating volume: {e}")
@@ -509,7 +524,7 @@ class LaunchpadSampler(App):
         """Handle name change from details panel."""
         try:
             # Update through editor service (events handle UI sync automatically)
-            pad = self.editor.set_sample_name(event.pad_index, event.name)
+            _ = self.editor.set_sample_name(event.pad_index, event.name)
 
         except Exception as e:
             logger.error(f"Error updating name: {e}")
@@ -567,6 +582,10 @@ class LaunchpadSampler(App):
         except Exception as e:
             logger.error(f"Error moving pad: {e}")
             self.notify(f"Error moving pad: {e}", severity="error")
+
+    ## =================================================================
+    # Pad Move Execution
+    ## =================================================================
 
     def _execute_pad_move(self, source_index: int, target_index: int, swap: bool) -> None:
         """

@@ -84,21 +84,21 @@ class TestLaunchpadDevice:
 class TestLaunchpadController:
     """Test LaunchpadController class."""
 
-    def test_callback_registration(self):
-        """Test callback registration."""
+    def test_observer_registration(self):
+        """Test observer registration."""
+        from launchsampler.protocols import MidiObserver, MidiEvent
+        
         controller = LaunchpadController()
+        observer = Mock(spec=MidiObserver)
 
-        pressed_callback = Mock()
-        released_callback = Mock()
+        controller.register_observer(observer)
+        assert observer in controller._observers
+        
+        controller.unregister_observer(observer)
+        assert observer not in controller._observers
 
-        controller.on_pad_pressed(pressed_callback)
-        controller.on_pad_released(released_callback)
-
-        assert controller._on_pad_pressed == pressed_callback
-        assert controller._on_pad_released == released_callback
-
-    def test_no_callback_doesnt_crash(self):
-        """Test that missing callbacks don't cause errors."""
+    def test_no_observer_doesnt_crash(self):
+        """Test that missing observers don't cause errors."""
         controller = LaunchpadController()
 
         # Should not raise any errors - simulate messages
@@ -142,18 +142,18 @@ class TestLaunchpadController:
         assert not controller._midi._output_manager._running
 
     def test_message_handling(self):
-        """Test that MIDI messages are properly dispatched."""
+        """Test that MIDI messages are properly dispatched to observers."""
+        from launchsampler.protocols import MidiObserver, MidiEvent
+        
         controller = LaunchpadController()
-        callback_calls = []
+        observer_calls = []
 
-        def on_pressed(pad_index: int):
-            callback_calls.append(('pressed', pad_index))
+        class TestObserver:
+            def on_midi_event(self, event: MidiEvent, pad_index: int):
+                observer_calls.append((event, pad_index))
 
-        def on_released(pad_index: int):
-            callback_calls.append(('released', pad_index))
-
-        controller.on_pad_pressed(on_pressed)
-        controller.on_pad_released(on_released)
+        observer = TestObserver()
+        controller.register_observer(observer)
 
         # Simulate MIDI messages
         import mido
@@ -163,21 +163,25 @@ class TestLaunchpadController:
         controller._handle_message(note_on)
         controller._handle_message(note_off)
 
-        assert callback_calls == [('pressed', 32), ('released', 32)]
+        assert observer_calls == [(MidiEvent.NOTE_ON, 32), (MidiEvent.NOTE_OFF, 32)]
 
     def test_message_handling_filters_clock(self):
         """Test that clock messages are filtered."""
+        from launchsampler.protocols import MidiObserver, MidiEvent
+        
         controller = LaunchpadController()
-        callback_calls = []
+        observer_calls = []
 
-        def on_pressed(pad_index: int):
-            callback_calls.append(pad_index)
+        class TestObserver:
+            def on_midi_event(self, event: MidiEvent, pad_index: int):
+                observer_calls.append(pad_index)
 
-        controller.on_pad_pressed(on_pressed)
+        observer = TestObserver()
+        controller.register_observer(observer)
 
         # Clock message should be ignored
         import mido
         clock_msg = mido.Message('clock')
         controller._handle_message(clock_msg)
 
-        assert len(callback_calls) == 0
+        assert len(observer_calls) == 0
