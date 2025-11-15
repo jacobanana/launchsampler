@@ -388,11 +388,11 @@ class LaunchpadSampler(App):
             # Handle selection separately - update selection and details panel
             pad_index = pad_indices[0]
             pad = pads[0]
-            self._sync_pad_ui(pad_index, pad, select=True)
+            self._refresh_pad_selection(pad_index, pad)
         else:
             # Update UI for each affected pad
             for pad_index, pad in zip(pad_indices, pads):
-                self._update_pad_ui(pad_index, pad)
+                self._refresh_pad_content(pad_index, pad)
 
     # =================================================================
     # UI Update Helpers
@@ -442,9 +442,11 @@ class LaunchpadSampler(App):
             # Status bar might not be mounted yet
             pass
 
-    def _update_pad_ui(self, pad_index: int, pad: Pad) -> None:
+    def _refresh_pad_content(self, pad_index: int, pad: Pad) -> None:
         """
-        Update UI elements for a specific pad.
+        Update UI to reflect changes to a pad's content.
+        
+        Updates the grid display and details panel if this pad is currently selected.
         
         Args:
             pad_index: Index of pad to update
@@ -464,7 +466,7 @@ class LaunchpadSampler(App):
                 details = self.query_one(PadDetailsPanel)
                 details.update_for_pad(pad_index, pad, audio_data=audio_data)
         except Exception as e:
-            logger.error(f"Error updating pad {pad_index} UI: {e}")
+            logger.error(f"Error refreshing pad {pad_index} content UI: {e}")
 
     # =================================================================
     # Message Handlers
@@ -1212,24 +1214,22 @@ class LaunchpadSampler(App):
     # UI Updates
     # =================================================================
 
-    def _sync_pad_ui(self, pad_index: int, pad: Optional[Pad] = None, *, select: bool = False) -> None:
+    def _refresh_pad_selection(self, pad_index: int, pad: Optional[Pad] = None) -> None:
         """
-        Synchronize UI widgets with pad state.
+        Update UI to reflect a new pad selection.
+
+        Updates both the grid's visual selection state and the details panel.
 
         Args:
-            pad_index: Index of pad to sync
+            pad_index: Index of pad to select
             pad: Pad model (fetched if None)
-            select: If True, update grid selection; if False, update grid content
         """
         try:
             if pad is None:
                 pad = self.editor.get_pad(pad_index)
 
             grid = self.query_one(PadGrid)
-            if select:
-                grid.select_pad(pad_index)
-            else:
-                grid.update_pad(pad_index, pad)
+            grid.select_pad(pad_index)
 
             # Get audio data from engine if available
             audio_data = None
@@ -1239,7 +1239,7 @@ class LaunchpadSampler(App):
             details = self.query_one(PadDetailsPanel)
             details.update_for_pad(pad_index, pad, audio_data=audio_data)
         except Exception as e:
-            logger.error(f"Error syncing pad UI: {e}")
+            logger.error(f"Error refreshing pad selection UI: {e}")
 
     # =================================================================
     # Lifecycle
