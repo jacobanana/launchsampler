@@ -237,6 +237,16 @@ class Player(StateObserver):
         if self._engine:
             self._engine.release_pad(pad_index)
 
+    def stop_pad(self, pad_index: int) -> None:
+        """
+        Stop a specific pad immediately (works for all modes).
+
+        Args:
+            pad_index: Index of pad to stop (0-63)
+        """
+        if self._engine:
+            self._engine.stop_pad(pad_index)
+
     def stop_all(self) -> None:
         """Stop all playing pads."""
         if self._engine:

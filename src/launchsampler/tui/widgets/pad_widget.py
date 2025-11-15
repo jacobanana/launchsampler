@@ -17,8 +17,8 @@ class PadWidget(Static):
 
     DEFAULT_CSS = """
     PadWidget {
-        width: 9;
-        height: 4;
+        width: 100%;
+        height: 100%;
         border: solid $primary;
         content-align: center middle;
     }
@@ -101,7 +101,7 @@ class PadWidget(Static):
 
         if self._pad.is_assigned:
             # Show pad index and truncated sample name
-            name = self._pad.sample.name[:6] if self._pad.sample else "???"
+            name = self._pad.sample.name if self._pad.sample else "???"
             super().update(f"[b]{self.pad_index}[/b]\n{name}")
 
             # Add mode class for styling

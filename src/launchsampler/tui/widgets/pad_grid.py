@@ -23,7 +23,7 @@ class PadGrid(Container):
         grid-size: 8 8;
         grid-gutter: 1;
         padding: 1;
-        height: auto;
+        height: 100%;
     }
     """
 

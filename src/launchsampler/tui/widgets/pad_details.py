@@ -4,7 +4,7 @@ from typing import Optional
 
 from textual.containers import Vertical, Horizontal, Grid
 from textual.app import ComposeResult
-from textual.widgets import Label, Button, Input, Rule
+from textual.widgets import Label, Button, Input, Rule, RadioButton, RadioSet
 from textual.message import Message
 
 from launchsampler.audio.data import AudioData
@@ -106,7 +106,8 @@ class PadDetailsPanel(Vertical, can_focus=True):
     }
 
     PadDetailsPanel #sample-info {
-        margin-bottom: 0;
+        margin: 0;
+        padding: 0;
     }
 
     PadDetailsPanel .button-grid {
@@ -114,6 +115,11 @@ class PadDetailsPanel(Vertical, can_focus=True):
         grid-gutter: 1;
         height: auto;
         margin-top: 1;
+    }
+
+    PadDetailsPanel .button-grid Button {
+        width: 100%;
+        content-align: center middle;
     }
 
     PadDetailsPanel .name-container {
@@ -175,6 +181,32 @@ class PadDetailsPanel(Vertical, can_focus=True):
         height: 1;
         padding: 0 1;
         margin: 0;
+    }
+
+    PadDetailsPanel #mode-radio {
+        height: auto;
+        margin: 0;
+        padding: 0;
+        border: none;
+    }
+
+    PadDetailsPanel RadioButton {
+        margin: 0;
+        padding: 0 1;
+        height: 1;
+        border: none;
+    }
+
+    PadDetailsPanel .control-buttons {
+        grid-size: 2;
+        grid-gutter: 1;
+        height: auto;
+        dock: bottom;
+    }
+
+    PadDetailsPanel .control-buttons Button {
+        width: 100%;
+        content-align: center middle;
     }
     """
 
@@ -240,8 +272,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield NoTabInput(placeholder="0-63", id="move-input", disabled=True)
 
         yield Rule()
-        yield Label("", id="sample-info") # gets updated by update_for_pad
-        yield Rule()
+
         with Horizontal(classes="name-container"):
             yield Label("Name:", shrink=True)
             yield NoTabInput(placeholder="Sample name", id="name-input", disabled=True)
@@ -250,15 +281,24 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield Label("Volume [%]:", shrink=True)
             yield NoTabInput(placeholder="0-100", id="volume-input", type="integer", disabled=True)
 
+        with RadioSet(id="mode-radio"):
+            yield RadioButton("ONE_SHOT", id="mode-oneshot", disabled=True)
+            yield RadioButton("HOLD", id="mode-hold", disabled=True)
+            yield RadioButton("LOOP", id="mode-loop", disabled=True)
+            yield RadioButton("LOOP_TOGGLE", id="mode-looptoggle", disabled=True)
+
+        yield Rule()
         with Grid(classes="button-grid"):
-            yield Button("Browse", id="browse-btn", variant="primary", disabled=True)
-            yield Button("Clear", id="clear-btn", variant="default", disabled=True)
-            yield Button("ONE_SHOT", id="mode-oneshot", variant="default", disabled=True)
-            yield Button("HOLD", id="mode-hold", variant="default", disabled=True)
-            yield Button("LOOP", id="mode-loop", variant="default", disabled=True)
-            yield Button("LOOP_TOGGLE", id="mode-looptoggle", variant="default", disabled=True)
-            yield Button("Test Pad", id="test-btn", variant="success", disabled=True)
-            yield Button("Stop Audio", id="stop-btn", variant="error", disabled=True)
+            yield Button("[▪] Browse", id="browse-btn", variant="primary", disabled=True)
+            yield Button("\\[X] Clear", id="clear-btn", variant="default", disabled=True)
+
+        yield Rule()
+        yield Label("", id="sample-info") # gets updated by update_for_pad
+
+        with Grid(classes="control-buttons"):
+            yield Button("▶", id="test-btn", variant="success", disabled=True)
+            yield Button("■", id="stop-btn", variant="error", disabled=True)
+
 
     def update_for_pad(self, pad_index: int, pad: Pad, audio_data: Optional[AudioData] = None) -> None:
         """
@@ -302,7 +342,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
             
             sample_info.update(
                 f"Path: {pad.sample.path}"
-                f"{audio_info_str}\n"
+                f"{audio_info_str}"
             )
         else:
             sample_info.update("[dim]No sample assigned[/dim]")
@@ -348,10 +388,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
             self.query_one("#move-input", Input).disabled = not edit_enabled
             self.query_one("#browse-btn", Button).disabled = not edit_enabled
             self.query_one("#clear-btn", Button).disabled = not edit_enabled
-            self.query_one("#mode-oneshot", Button).disabled = not edit_enabled
-            self.query_one("#mode-loop", Button).disabled = not edit_enabled
-            self.query_one("#mode-hold", Button).disabled = not edit_enabled
-            self.query_one("#mode-looptoggle", Button).disabled = not edit_enabled
+            self.query_one("#mode-radio", RadioSet).disabled = not edit_enabled
 
     def _update_button_states(self, pad: Pad) -> None:
         """Update button states based on pad state and current mode."""
@@ -372,25 +409,29 @@ class PadDetailsPanel(Vertical, can_focus=True):
         # Edit controls - only enabled in edit mode
         self.query_one("#browse-btn", Button).disabled = not edit_enabled
         self.query_one("#clear-btn", Button).disabled = not edit_enabled or not pad.is_assigned
-        self.query_one("#mode-oneshot", Button).disabled = not edit_enabled
-        self.query_one("#mode-loop", Button).disabled = not edit_enabled
-        self.query_one("#mode-hold", Button).disabled = not edit_enabled
-        self.query_one("#mode-looptoggle", Button).disabled = not edit_enabled
+        self.query_one("#mode-radio", RadioSet).disabled = not edit_enabled or not pad.is_assigned
 
         # Test controls - available in both modes
         self.query_one("#test-btn", Button).disabled = not pad.is_assigned
         self.query_one("#stop-btn", Button).disabled = not pad.is_assigned
 
-        # Highlight current mode button
+        # Set the selected radio button based on current mode
         if pad.is_assigned:
-            for mode in ["oneshot", "loop", "hold", "looptoggle"]:
-                btn = self.query_one(f"#mode-{mode}", Button)
-                btn_mode = mode.upper() if mode not in ["oneshot", "looptoggle"] else ("ONE_SHOT" if mode == "oneshot" else "LOOP_TOGGLE")
-
-                if pad.mode.value == btn_mode.lower():
-                    btn.variant = "success"
-                else:
-                    btn.variant = "default"
+            mode_map = {
+                "one_shot": "mode-oneshot",
+                "loop": "mode-loop",
+                "hold": "mode-hold",
+                "loop_toggle": "mode-looptoggle"
+            }
+            radio_id = mode_map.get(pad.mode.value)
+            if radio_id:
+                radio_set = self.query_one("#mode-radio", RadioSet)
+                # Find and press the correct radio button
+                try:
+                    radio_button = radio_set.query_one(f"#{radio_id}", RadioButton)
+                    radio_button.value = True
+                except Exception:
+                    pass
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submissions."""

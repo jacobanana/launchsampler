@@ -159,16 +159,19 @@ class SamplerEngine:
 
     def stop_pad(self, pad_index: int) -> None:
         """
-        Stop playback for a pad.
+        Stop playback for a pad (works for all modes).
+        
+        Lock-free implementation using queue for minimal latency.
+        Safe to call from any thread.
 
         Args:
             pad_index: Pad index (0 to num_pads-1)
         """
-        with self._lock:
-            try:
-                self._playback_states[pad_index].stop()
-            except KeyError:
-                pass
+        try:
+            # Non-blocking queue write
+            self._trigger_queue.put_nowait(("stop", pad_index))
+        except Full:
+            logger.warning(f"Trigger queue full, dropped pad {pad_index} stop")
 
     def stop_all(self) -> None:
         """Stop all playing pads."""
@@ -367,6 +370,12 @@ class SamplerEngine:
 
                     elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
                         # Note: LOOP_TOGGLE ignores note off messages
+                        if state.is_playing:
+                            state.stop()
+                            self._state_machine.on_pad_stopped(pad_index)
+
+                    elif action == "stop":
+                        # Immediate stop - works for all modes
                         if state.is_playing:
                             state.stop()
                             self._state_machine.on_pad_stopped(pad_index)

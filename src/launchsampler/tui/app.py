@@ -6,7 +6,7 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Header, Footer, Button
+from textual.widgets import Header, Footer, Button, RadioSet
 from textual.binding import Binding
 
 from launchsampler.core.player import Player
@@ -15,7 +15,7 @@ from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 from launchsampler.protocols import PlaybackEvent
 
 from .services import EditorService
-from .widgets import PadGrid, PadDetailsPanel, StatusBar, MoveConfirmationModal
+from .widgets import PadGrid, PadDetailsPanel, StatusBar, MoveConfirmationModal, ClearConfirmationModal
 from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
 
 
@@ -50,12 +50,11 @@ class LaunchpadSampler(App):
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
         Binding("c", "clear_pad", "Clear", show=False),
-        Binding("t", "test_pad", "Test", show=False),
+        Binding("space", "toggle_test", "Test/Stop", show=False),
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
         Binding("2", "set_mode_hold", "Hold", show=False),
         Binding("3", "set_mode_loop", "Loop", show=False),
         Binding("4", "set_mode_loop_toggle", "Loop Toggle", show=False),
-        Binding("escape", "stop_audio", "Stop", show=False),
         Binding("up", "navigate_up", "Up", show=False),
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
@@ -371,19 +370,27 @@ class LaunchpadSampler(App):
         elif button_id == "test-btn":
             self.action_test_pad()
         elif button_id == "stop-btn":
-            self.action_stop_audio()
-        elif button_id.startswith("mode-"):
-            # Mode button pressed
-            mode_name = button_id.replace("mode-", "").upper()
-            if mode_name == "ONESHOT":
-                mode_name = "ONE_SHOT"
-            elif mode_name == "LOOPTOGGLE":
-                mode_name = "LOOP_TOGGLE"
-            try:
-                mode = PlaybackMode(mode_name.lower())
-                self._set_pad_mode(mode)
-            except ValueError:
-                logger.error(f"Invalid mode: {mode_name}")
+            self.action_toggle_test()  # Use same toggle behavior
+
+    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
+        """Handle mode radio button changes."""
+        if event.radio_set.id != "mode-radio":
+            return
+
+        if self._sampler_mode != "edit":
+            return
+
+        # Map radio button IDs to playback modes
+        mode_map = {
+            "mode-oneshot": PlaybackMode.ONE_SHOT,
+            "mode-loop": PlaybackMode.LOOP,
+            "mode-hold": PlaybackMode.HOLD,
+            "mode-looptoggle": PlaybackMode.LOOP_TOGGLE
+        }
+
+        pressed_id = event.pressed.id if event.pressed else None
+        if pressed_id in mode_map:
+            self._set_pad_mode(mode_map[pressed_id])
 
     def on_pad_details_panel_volume_changed(self, event: PadDetailsPanel.VolumeChanged) -> None:
         """Handle volume change from details panel."""
@@ -585,19 +592,35 @@ class LaunchpadSampler(App):
             self.notify("Select a pad first", severity="warning")
             return
 
-        try:
-            pad = self.editor.clear_pad(selected_pad)
+        # Check if pad has a sample
+        pad = self.editor.get_pad(selected_pad)
+        if not pad.is_assigned or not pad.sample:
+            self.notify("Pad is already empty", severity="warning")
+            return
 
-            # Unload from engine
-            self._reload_pad(selected_pad)
+        # Show confirmation modal
+        def handle_confirmation(confirmed: bool) -> None:
+            if not confirmed:
+                return
 
-            # Update UI
-            self._sync_pad_ui(selected_pad, pad)
+            try:
+                pad = self.editor.clear_pad(selected_pad)
 
-            self.notify("Pad cleared")
-        except Exception as e:
-            logger.error(f"Error clearing pad: {e}")
-            self.notify(f"Error: {e}", severity="error")
+                # Unload from engine
+                self._reload_pad(selected_pad)
+
+                # Update UI
+                self._sync_pad_ui(selected_pad, pad)
+
+                self.notify("Pad cleared")
+            except Exception as e:
+                logger.error(f"Error clearing pad: {e}")
+                self.notify(f"Error: {e}", severity="error")
+
+        self.push_screen(
+            ClearConfirmationModal(selected_pad, pad.sample.name),
+            handle_confirmation
+        )
 
     def action_test_pad(self) -> None:
         """Test the selected pad (works in both modes)."""
@@ -606,6 +629,23 @@ class LaunchpadSampler(App):
 
         pad = self.editor.get_pad(self.editor.selected_pad_index)
         if pad.is_assigned:
+            self.player.trigger_pad(self.editor.selected_pad_index)
+
+    def action_toggle_test(self) -> None:
+        """Toggle between test and stop for the selected pad."""
+        if self.editor.selected_pad_index is None:
+            return
+
+        pad = self.editor.get_pad(self.editor.selected_pad_index)
+        if not pad.is_assigned:
+            return
+
+        # Check if pad is currently playing
+        if self.player.is_pad_playing(self.editor.selected_pad_index):
+            # Stop the pad - goes through queue and fires proper events
+            self.player.stop_pad(self.editor.selected_pad_index)
+        else:
+            # Start the pad
             self.player.trigger_pad(self.editor.selected_pad_index)
 
     def action_stop_audio(self) -> None:
