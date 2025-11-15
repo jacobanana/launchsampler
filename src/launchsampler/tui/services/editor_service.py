@@ -35,7 +35,7 @@ class EditorService:
         Select a pad and return its state.
 
         Args:
-            pad_index: Index of pad to select (0-63)
+            pad_index: Index of pad to select
 
         Returns:
             The selected Pad
@@ -43,8 +43,9 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         self.selected_pad_index = pad_index
         return self.launchpad.pads[pad_index]
@@ -54,7 +55,7 @@ class EditorService:
         Get a pad by index (read-only).
 
         Args:
-            pad_index: Index of pad to get (0-63)
+            pad_index: Index of pad to get
 
         Returns:
             The Pad
@@ -62,8 +63,9 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         return self.launchpad.pads[pad_index]
 
@@ -82,8 +84,9 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If sample file doesn't exist
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         if not sample_path.exists():
             raise ValueError(f"Sample file not found: {sample_path}")
@@ -117,8 +120,9 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         # Get current pad position
         old_pad = self.launchpad.pads[pad_index]
@@ -145,8 +149,9 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If pad has no sample assigned
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         pad = self.launchpad.pads[pad_index]
 
@@ -174,8 +179,9 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If volume is out of range
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         if not 0.0 <= volume <= 1.0:
             raise ValueError(f"Volume {volume} out of range (0.0-1.0)")
@@ -201,8 +207,9 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If pad has no sample assigned or name is empty
         """
-        if not 0 <= pad_index < 64:
-            raise IndexError(f"Pad index {pad_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= pad_index < num_pads:
+            raise IndexError(f"Pad index {pad_index} out of range (0-{num_pads-1})")
 
         if not name or not name.strip():
             raise ValueError("Sample name cannot be empty")
@@ -275,8 +282,8 @@ class EditorService:
         Move a sample from source pad to target pad.
 
         Args:
-            source_index: Index of source pad (0-63)
-            target_index: Index of target pad (0-63)
+            source_index: Index of source pad
+            target_index: Index of target pad
             swap: If True, swap samples between pads. If False, overwrite target.
 
         Returns:
@@ -286,11 +293,12 @@ class EditorService:
             IndexError: If pad indices are out of range
             ValueError: If source pad is empty
         """
-        if not 0 <= source_index < 64:
-            raise IndexError(f"Source pad index {source_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= source_index < num_pads:
+            raise IndexError(f"Source pad index {source_index} out of range (0-{num_pads-1})")
 
-        if not 0 <= target_index < 64:
-            raise IndexError(f"Target pad index {target_index} out of range (0-63)")
+        if not 0 <= target_index < num_pads:
+            raise IndexError(f"Target pad index {target_index} out of range (0-{num_pads-1})")
 
         if source_index == target_index:
             raise ValueError("Source and target pads must be different")
@@ -344,25 +352,27 @@ class EditorService:
         """
         Copy a sample from source pad to target pad.
 
-        Creates new Sample and Color objects so the target is completely
-        independent from the source (no shared references).
+        Creates a complete deep copy of the source pad, preserving only
+        the target's position. This ensures all properties are copied
+        without needing to handle them individually.
 
         Args:
-            source_index: Index of source pad (0-63)
-            target_index: Index of target pad (0-63)
+            source_index: Index of source pad
+            target_index: Index of target pad
 
         Returns:
-            The modified target Pad
+            The new target Pad
 
         Raises:
             IndexError: If pad indices are out of range
             ValueError: If source pad is empty or indices are the same
         """
-        if not 0 <= source_index < 64:
-            raise IndexError(f"Source pad index {source_index} out of range (0-63)")
+        num_pads = len(self.launchpad.pads)
+        if not 0 <= source_index < num_pads:
+            raise IndexError(f"Source pad index {source_index} out of range (0-{num_pads-1})")
 
-        if not 0 <= target_index < 64:
-            raise IndexError(f"Target pad index {target_index} out of range (0-63)")
+        if not 0 <= target_index < num_pads:
+            raise IndexError(f"Target pad index {target_index} out of range (0-{num_pads-1})")
 
         if source_index == target_index:
             raise ValueError("Source and target pads must be different")
@@ -373,16 +383,9 @@ class EditorService:
         if not source_pad.is_assigned:
             raise ValueError(f"Source pad {source_index} has no sample to copy")
 
-        # Create deep copies of all objects to avoid shared references
-        if source_pad.sample:
-            target_pad.sample = source_pad.sample.model_copy(deep=True)
-
-        # Copy other properties (mode is enum, volume is float - no reference issues)
-        target_pad.mode = source_pad.mode
-        target_pad.volume = source_pad.volume
-
-        # Deep copy color to avoid shared object
-        target_pad.color = source_pad.color.model_copy(deep=True)
+        # Deep copy entire source pad but preserve target position
+        new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
+        self.launchpad.pads[target_index] = new_target
 
         logger.info(f"Copied sample from pad {source_index} to pad {target_index}")
-        return target_pad
+        return new_target
