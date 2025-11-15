@@ -272,6 +272,36 @@ class SamplerEngine:
                 'volume': state.volume,
             }
 
+    def get_audio_data(self, pad_index: int) -> Optional[AudioData]:
+        """
+        Get AudioData for a loaded pad.
+
+        Args:
+            pad_index: Pad index (0 to num_pads-1)
+
+        Returns:
+            AudioData object if pad has audio loaded, None otherwise
+        """
+        with self._lock:
+            if pad_index not in self._playback_states:
+                return None
+
+            state = self._playback_states[pad_index]
+            return state.audio_data
+
+    def get_audio_info(self, pad_index: int) -> Optional[dict]:
+        """
+        Get audio file information for a loaded pad.
+
+        Args:
+            pad_index: Pad index (0 to num_pads-1)
+
+        Returns:
+            Dictionary with audio info including duration, sample rate, channels, format, etc., or None
+        """
+        audio_data = self.get_audio_data(pad_index)
+        return audio_data.get_info() if audio_data else None
+
     def clear_cache(self) -> None:
         """Clear audio cache (useful to free memory)."""
         with self._lock:

@@ -238,6 +238,86 @@ class TestSamplerEngine:
 
                 manager.unload_sample(0)
 
+    def test_get_audio_data(self):
+        """Test getting AudioData object for loaded pad."""
+        devices, _ = AudioDevice.list_output_devices()
+
+        if devices:
+            device_id = devices[0][0]
+            audio_device = AudioDevice(device=device_id)
+            manager = SamplerEngine(audio_device)
+
+            # No pad loaded - should return None
+            assert manager.get_audio_data(0) is None
+
+            # Load sample
+            sample_path = Path("test_samples/kick.wav")
+            if sample_path.exists():
+                pad = Pad(x=0, y=0)
+                pad.sample = Sample.from_file(sample_path)
+                manager.load_sample(0, pad)
+
+                audio_data = manager.get_audio_data(0)
+                assert audio_data is not None
+                assert hasattr(audio_data, 'duration')
+                assert hasattr(audio_data, 'sample_rate')
+                assert hasattr(audio_data, 'num_channels')
+                assert hasattr(audio_data, 'num_frames')
+                assert hasattr(audio_data, 'data')
+                
+                # Verify we can call get_info() on it
+                info = audio_data.get_info()
+                assert info is not None
+                assert 'duration' in info
+
+    def test_get_audio_info(self):
+        """Test getting audio file info for loaded pad."""
+        devices, _ = AudioDevice.list_output_devices()
+
+        if devices:
+            device_id = devices[0][0]
+            audio_device = AudioDevice(device=device_id)
+            manager = SamplerEngine(audio_device)
+
+            # No pad loaded - should return None
+            assert manager.get_audio_info(0) is None
+
+            # Load sample
+            sample_path = Path("test_samples/kick.wav")
+            if sample_path.exists():
+                pad = Pad(x=0, y=0)
+                pad.sample = Sample.from_file(sample_path)
+                manager.load_sample(0, pad)
+
+                info = manager.get_audio_info(0)
+                assert info is not None
+                assert 'duration' in info
+                assert 'sample_rate' in info
+                assert 'num_channels' in info
+                assert 'num_frames' in info
+                assert 'size_bytes' in info
+                assert 'size_str' in info
+                
+                # Check types and values
+                assert isinstance(info['duration'], float)
+                assert info['duration'] > 0
+                assert isinstance(info['sample_rate'], int)
+                assert info['sample_rate'] > 0
+                assert isinstance(info['num_channels'], int)
+                assert info['num_channels'] in (1, 2)
+                assert isinstance(info['num_frames'], int)
+                assert info['num_frames'] > 0
+                assert isinstance(info['size_bytes'], int)
+                assert info['size_bytes'] > 0
+                assert isinstance(info['size_str'], str)
+                assert 'B' in info['size_str'] or 'KB' in info['size_str'] or 'MB' in info['size_str']
+                
+                # Format info should be present if file was loaded with metadata
+                if 'format' in info:
+                    assert isinstance(info['format'], str)
+                if 'subtype' in info:
+                    assert isinstance(info['subtype'], str)
+
     def test_context_manager(self):
         """Test using SamplerEngine as context manager."""
         devices, _ = AudioDevice.list_output_devices()

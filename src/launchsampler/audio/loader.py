@@ -44,6 +44,9 @@ class SampleLoader:
             raise FileNotFoundError(f"Audio file not found: {path}")
 
         try:
+            # Get file info for metadata
+            info = sf.info(str(path))
+            
             # Load audio file
             data, sample_rate = sf.read(str(path), dtype='float32')
 
@@ -56,8 +59,11 @@ class SampleLoader:
                 data = self._resample(data, sample_rate, self.target_sample_rate)
                 sample_rate = self.target_sample_rate
 
-            # Create AudioData
-            return AudioData.from_array(data, sample_rate)
+            # Create AudioData with metadata
+            audio_data = AudioData.from_array(data, sample_rate)
+            audio_data.format = info.format
+            audio_data.subtype = info.subtype
+            return audio_data
 
         except Exception as e:
             raise RuntimeError(f"Failed to load audio file {path}: {e}") from e

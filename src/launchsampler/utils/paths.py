@@ -4,6 +4,31 @@ from pathlib import Path
 from typing import Optional
 
 
+def format_bytes(size_bytes: int) -> str:
+    """Format byte size as human-readable string.
+
+    Args:
+        size_bytes: Size in bytes
+
+    Returns:
+        Human-readable size string (e.g., "1.5 KB", "2.3 MB")
+
+    Examples:
+        >>> format_bytes(500)
+        '500 B'
+        >>> format_bytes(1536)
+        '1.5 KB'
+        >>> format_bytes(2621440)
+        '2.5 MB'
+    """
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    else:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
 def find_common_path(paths: list[Path]) -> Optional[Path]:
     """Find the most specific common parent path shared by all paths.
 

@@ -843,8 +843,13 @@ class LaunchpadSampler(App):
             else:
                 grid.update_pad(pad_index, pad)
 
+            # Get audio data from engine if available
+            audio_data = None
+            if self.player._engine and pad.is_assigned:
+                audio_data = self.player._engine.get_audio_data(pad_index)
+
             details = self.query_one(PadDetailsPanel)
-            details.update_for_pad(pad_index, pad)
+            details.update_for_pad(pad_index, pad, audio_data=audio_data)
         except Exception as e:
             logger.error(f"Error syncing pad UI: {e}")
 

@@ -7,6 +7,7 @@ from textual.app import ComposeResult
 from textual.widgets import Label, Button, Input
 from textual.message import Message
 
+from launchsampler.audio.data import AudioData
 from launchsampler.models import Pad
 
 
@@ -199,13 +200,14 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield Button("Test Pad", id="test-btn", variant="success", disabled=True)
             yield Button("Stop Audio", id="stop-btn", variant="error", disabled=True)
 
-    def update_for_pad(self, pad_index: int, pad: Pad) -> None:
+    def update_for_pad(self, pad_index: int, pad: Pad, audio_data: Optional[AudioData] = None) -> None:
         """
         Update the panel to show info for selected pad.
 
         Args:
             pad_index: Index of selected pad (0-63)
             pad: Pad model instance
+            audio_data: Optional AudioData object for the loaded sample
         """
         self.selected_pad_index = pad_index
 
@@ -216,9 +218,28 @@ class PadDetailsPanel(Vertical, can_focus=True):
         # Update sample info
         sample_info = self.query_one("#sample-info", Label)
         if pad.is_assigned and pad.sample:
+            # Build audio info string if audio data available
+            audio_info_str = ""
+            if audio_data is not None:
+                audio_info_str = f"\nDuration: {audio_data.duration:.2f}s"
+                audio_info_str += f"\nSample Rate: {audio_data.sample_rate} Hz"
+                audio_info_str += f"\nChannels: {audio_data.num_channels}"
+                
+                # Add format info if available
+                if audio_data.format:
+                    audio_info_str += f"\nFormat: {audio_data.format}"
+                    if audio_data.subtype:
+                        audio_info_str += f" ({audio_data.subtype})"
+                
+                # Add file size
+                info = audio_data.get_info()
+                audio_info_str += f"\nSize: {info['size_str']}"
+            else:
+                audio_info_str = "\n[b]⚠️ File not found[/b]"
+            
             sample_info.update(
-                f"Path: {pad.sample.path}\n"
-                f"Mode: {pad.mode.value}"
+                f"Path: {pad.sample.path}"
+                f"{audio_info_str}\n"
             )
         else:
             sample_info.update("[dim]No sample assigned[/dim]")

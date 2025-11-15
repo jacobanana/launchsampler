@@ -4,7 +4,33 @@ from pathlib import Path
 
 import pytest
 
-from launchsampler.utils import find_common_path
+from launchsampler.utils import find_common_path, format_bytes
+
+
+class TestFormatBytes:
+    """Test format_bytes helper function."""
+
+    @pytest.mark.unit
+    def test_bytes(self):
+        """Test formatting values less than 1 KB."""
+        assert format_bytes(0) == "0 B"
+        assert format_bytes(500) == "500 B"
+        assert format_bytes(1023) == "1023 B"
+
+    @pytest.mark.unit
+    def test_kilobytes(self):
+        """Test formatting values in KB range."""
+        assert format_bytes(1024) == "1.0 KB"
+        assert format_bytes(1536) == "1.5 KB"
+        assert format_bytes(10240) == "10.0 KB"
+        assert format_bytes(1048575) == "1024.0 KB"
+
+    @pytest.mark.unit
+    def test_megabytes(self):
+        """Test formatting values in MB range."""
+        assert format_bytes(1048576) == "1.0 MB"
+        assert format_bytes(2621440) == "2.5 MB"
+        assert format_bytes(10485760) == "10.0 MB"
 
 
 class TestFindCommonPath:

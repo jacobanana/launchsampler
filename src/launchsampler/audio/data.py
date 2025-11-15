@@ -14,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..models import PlaybackMode
+from ..utils import format_bytes
 
 
 @dataclass(slots=True)
@@ -29,6 +30,8 @@ class AudioData:
     sample_rate: int                # Sample rate in Hz
     num_channels: int               # Number of channels (1=mono, 2=stereo)
     num_frames: int                 # Number of frames (samples per channel)
+    format: Optional[str] = None    # File format (e.g., 'WAV', 'FLAC')
+    subtype: Optional[str] = None   # File subtype (e.g., 'PCM_16', 'FLOAT')
 
     @classmethod
     def from_array(
@@ -100,6 +103,34 @@ class AudioData:
         peak = np.abs(self.data).max()
         if peak > 0:
             self.data *= (target_level / peak)
+
+    def get_info(self) -> dict:
+        """
+        Get comprehensive audio file information.
+
+        Returns:
+            Dictionary with audio metadata including duration, sample rate, 
+            channels, format, file size, etc.
+        """
+        # Calculate file size in bytes (based on loaded data in memory)
+        size_bytes = self.data.nbytes
+
+        info = {
+            'duration': self.duration,
+            'sample_rate': self.sample_rate,
+            'num_channels': self.num_channels,
+            'num_frames': self.num_frames,
+            'size_bytes': size_bytes,
+            'size_str': format_bytes(size_bytes),
+        }
+        
+        # Add format info if available
+        if self.format:
+            info['format'] = self.format
+        if self.subtype:
+            info['subtype'] = self.subtype
+        
+        return info
 
 
 @dataclass(slots=True)
