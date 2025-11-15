@@ -789,7 +789,8 @@ class LaunchpadSampler(App):
 
         target_index = self._get_directional_target(selected_pad, direction)
         if target_index is None:
-            return  # At edge, silently do nothing (like navigation)
+            self.notify("Cannot duplicate: At grid edge", severity="warning")
+            return
 
         # Check if source pad has a sample to duplicate
         source_pad = self.editor.get_pad(selected_pad)
@@ -872,7 +873,8 @@ class LaunchpadSampler(App):
 
         target_index = self._get_directional_target(selected_pad, direction)
         if target_index is None:
-            return  # At edge, silently do nothing (like navigation)
+            self.notify("Cannot move: At grid edge", severity="warning")
+            return
 
         # Check if source pad has a sample to move
         source_pad = self.editor.get_pad(selected_pad)
