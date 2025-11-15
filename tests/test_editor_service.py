@@ -258,7 +258,7 @@ class TestEditorServiceCopyPad:
         # Should fail - target already has a sample
         with pytest.raises(
             ValueError,
-            match=r"Target pad 1 already has sample 'second'\. Set overwrite=True to replace it\."
+            match=r"Target pad 1 already has sample 'second'"
         ):
             editor.copy_pad(source_index, target_index, overwrite=False)
 
@@ -320,7 +320,7 @@ class TestEditorServiceCopyPad:
         # Should fail with default parameters (overwrite=False by default)
         with pytest.raises(
             ValueError,
-            match=r"Target pad 1 already has sample 'second'\. Set overwrite=True to replace it\."
+            match=r"Target pad 1 already has sample 'second'"
         ):
             editor.copy_pad(source_index, target_index)
 

@@ -377,8 +377,7 @@ class EditorService:
         # Check if target is occupied and overwrite is disabled
         if not overwrite and target_pad.is_assigned:
             raise ValueError(
-                f"Target pad {target_index} already has sample '{target_pad.sample.name}'. "
-                f"Set overwrite=True to replace it."
+                f"Target pad {target_index} already has sample '{target_pad.sample.name}'"
             )
 
         # Log if we're overwriting an existing sample
