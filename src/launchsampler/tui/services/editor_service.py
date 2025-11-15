@@ -36,6 +36,11 @@ class EditorService:
         """Get the total number of pads in the launchpad grid."""
         return len(self.launchpad.pads)
 
+    @property
+    def has_clipboard(self) -> bool:
+        """Check if clipboard has content."""
+        return self._clipboard is not None
+
     def _validate_pad_index(self, pad_index: int, label: str = "Pad index") -> None:
         """
         Validate that a pad index is within valid range.
@@ -468,3 +473,88 @@ class EditorService:
         self.launchpad.pads[target_index] = new_target
 
         return new_target
+
+    def cut_pad(self, pad_index: int) -> Pad:
+        """
+        Cut a pad to the clipboard buffer and clear the source.
+
+        Atomically copies the pad to clipboard and clears the source pad.
+        This is equivalent to copy_pad() followed by clear_pad().
+
+        Args:
+            pad_index: Index of pad to cut
+
+        Returns:
+            The copied Pad (now in clipboard)
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If pad is empty
+        """
+        self._validate_pad_index(pad_index)
+        pad = self.launchpad.pads[pad_index]
+
+        if not pad.is_assigned:
+            raise ValueError(f"Cannot cut empty pad {pad_index}")
+
+        # Deep copy the pad to clipboard
+        self._clipboard = pad.model_copy(deep=True)
+
+        # Clear the source pad
+        old_pad = self.launchpad.pads[pad_index]
+        new_pad = Pad.empty(old_pad.x, old_pad.y)
+        self.launchpad.pads[pad_index] = new_pad
+
+        logger.info(f"Cut pad {pad_index} ('{self._clipboard.sample.name}') to clipboard")
+        return self._clipboard
+
+    def clear_all(self) -> int:
+        """
+        Clear all pads in the launchpad.
+
+        Returns:
+            Number of pads that were cleared (had samples)
+
+        """
+        cleared_count = 0
+        for i in range(self.grid_size):
+            pad = self.launchpad.pads[i]
+            if pad.is_assigned:
+                new_pad = Pad.empty(pad.x, pad.y)
+                self.launchpad.pads[i] = new_pad
+                cleared_count += 1
+
+        logger.info(f"Cleared all pads ({cleared_count} pads had samples)")
+        return cleared_count
+
+    def clear_range(self, start_index: int, end_index: int) -> int:
+        """
+        Clear a range of pads.
+
+        Args:
+            start_index: First pad index (inclusive)
+            end_index: Last pad index (inclusive)
+
+        Returns:
+            Number of pads that were cleared (had samples)
+
+        Raises:
+            IndexError: If start_index or end_index is out of range
+            ValueError: If start_index > end_index
+        """
+        self._validate_pad_index(start_index, "Start pad index")
+        self._validate_pad_index(end_index, "End pad index")
+
+        if start_index > end_index:
+            raise ValueError(f"Start index {start_index} must be <= end index {end_index}")
+
+        cleared_count = 0
+        for i in range(start_index, end_index + 1):
+            pad = self.launchpad.pads[i]
+            if pad.is_assigned:
+                new_pad = Pad.empty(pad.x, pad.y)
+                self.launchpad.pads[i] = new_pad
+                cleared_count += 1
+
+        logger.info(f"Cleared pads {start_index}-{end_index} ({cleared_count} pads had samples)")
+        return cleared_count

@@ -517,3 +517,220 @@ class TestEditorServiceCopyPaste:
         # Second paste should have original volume, not modified
         pad2 = editor.get_pad(2)
         assert pad2.volume == 0.8  # Original default volume
+
+
+class TestEditorServiceCutPad:
+    """Test cut_pad clipboard method."""
+
+    @pytest.fixture
+    def launchpad(self):
+        """Create a fresh launchpad for each test."""
+        return Launchpad.create_empty()
+
+    @pytest.fixture
+    def config(self, temp_dir):
+        """Create test config."""
+        return AppConfig(sets_dir=temp_dir)
+
+    @pytest.fixture
+    def editor(self, launchpad, config):
+        """Create editor service."""
+        return EditorService(launchpad, config)
+
+    @pytest.mark.unit
+    def test_cut_pad_success(self, editor, sample_audio_file):
+        """Test cutting a pad to clipboard."""
+        pad_index = 5
+        editor.assign_sample(pad_index, sample_audio_file)
+        editor.set_pad_volume(pad_index, 0.7)
+        editor.set_pad_mode(pad_index, PlaybackMode.LOOP)
+
+        result = editor.cut_pad(pad_index)
+
+        # Verify clipboard contains the cut pad
+        assert result.sample.name == "test"
+        assert result.volume == 0.7
+        assert result.mode == PlaybackMode.LOOP
+
+        # Verify source pad is now empty
+        source_pad = editor.get_pad(pad_index)
+        assert not source_pad.is_assigned
+
+    @pytest.mark.unit
+    def test_cut_and_paste(self, editor, sample_audio_file):
+        """Test cutting and pasting to another location."""
+        editor.assign_sample(0, sample_audio_file)
+        editor.set_pad_volume(0, 0.9)
+
+        # Cut from pad 0
+        editor.cut_pad(0)
+
+        # Verify pad 0 is empty
+        assert not editor.get_pad(0).is_assigned
+
+        # Paste to pad 10
+        editor.paste_pad(10)
+
+        # Verify pad 10 has the sample
+        target_pad = editor.get_pad(10)
+        assert target_pad.sample.name == "test"
+        assert target_pad.volume == 0.9
+
+    @pytest.mark.unit
+    def test_cut_empty_pad(self, editor):
+        """Test that cutting empty pad raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot cut empty pad 0"):
+            editor.cut_pad(0)
+
+    @pytest.mark.unit
+    def test_cut_pad_out_of_range(self, editor):
+        """Test that invalid pad index raises IndexError."""
+        with pytest.raises(IndexError, match=r"Pad index 64 out of range \(0-63\)"):
+            editor.cut_pad(64)
+
+
+class TestEditorServiceClipboardInspection:
+    """Test clipboard inspection methods."""
+
+    @pytest.fixture
+    def launchpad(self):
+        """Create a fresh launchpad for each test."""
+        return Launchpad.create_empty()
+
+    @pytest.fixture
+    def config(self, temp_dir):
+        """Create test config."""
+        return AppConfig(sets_dir=temp_dir)
+
+    @pytest.fixture
+    def editor(self, launchpad, config):
+        """Create editor service."""
+        return EditorService(launchpad, config)
+
+    @pytest.mark.unit
+    def test_has_clipboard_empty(self, editor):
+        """Test has_clipboard returns False when empty."""
+        assert editor.has_clipboard is False
+
+    @pytest.mark.unit
+    def test_has_clipboard_after_copy(self, editor, sample_audio_file):
+        """Test has_clipboard returns True after copy."""
+        editor.assign_sample(0, sample_audio_file)
+        editor.copy_pad(0)
+        assert editor.has_clipboard is True
+
+    @pytest.mark.unit
+    def test_has_clipboard_after_cut(self, editor, sample_audio_file):
+        """Test has_clipboard returns True after cut."""
+        editor.assign_sample(0, sample_audio_file)
+        editor.cut_pad(0)
+        assert editor.has_clipboard is True
+
+
+class TestEditorServiceBulkClear:
+    """Test clear_all and clear_range methods."""
+
+    @pytest.fixture
+    def launchpad(self):
+        """Create a fresh launchpad for each test."""
+        return Launchpad.create_empty()
+
+    @pytest.fixture
+    def config(self, temp_dir):
+        """Create test config."""
+        return AppConfig(sets_dir=temp_dir)
+
+    @pytest.fixture
+    def editor(self, launchpad, config):
+        """Create editor service."""
+        return EditorService(launchpad, config)
+
+    @pytest.mark.unit
+    def test_clear_all_empty_launchpad(self, editor):
+        """Test clearing all pads when all are empty."""
+        count = editor.clear_all()
+        assert count == 0
+
+    @pytest.mark.unit
+    def test_clear_all_with_samples(self, editor, sample_audio_file):
+        """Test clearing all pads with some samples."""
+        # Assign samples to a few pads
+        editor.assign_sample(0, sample_audio_file)
+        editor.assign_sample(5, sample_audio_file)
+        editor.assign_sample(10, sample_audio_file)
+
+        count = editor.clear_all()
+
+        # Should have cleared 3 pads
+        assert count == 3
+
+        # All pads should be empty
+        for i in range(editor.grid_size):
+            assert not editor.get_pad(i).is_assigned
+
+    @pytest.mark.unit
+    def test_clear_range_success(self, editor, sample_audio_file):
+        """Test clearing a range of pads."""
+        # Assign samples to pads 0-9
+        for i in range(10):
+            editor.assign_sample(i, sample_audio_file)
+
+        # Clear pads 3-7
+        count = editor.clear_range(3, 7)
+
+        # Should have cleared 5 pads
+        assert count == 5
+
+        # Verify pads 0-2 still have samples
+        for i in range(3):
+            assert editor.get_pad(i).is_assigned
+
+        # Verify pads 3-7 are empty
+        for i in range(3, 8):
+            assert not editor.get_pad(i).is_assigned
+
+        # Verify pads 8-9 still have samples
+        for i in range(8, 10):
+            assert editor.get_pad(i).is_assigned
+
+    @pytest.mark.unit
+    def test_clear_range_single_pad(self, editor, sample_audio_file):
+        """Test clearing a range with single pad."""
+        editor.assign_sample(5, sample_audio_file)
+
+        count = editor.clear_range(5, 5)
+
+        assert count == 1
+        assert not editor.get_pad(5).is_assigned
+
+    @pytest.mark.unit
+    def test_clear_range_start_greater_than_end(self, editor):
+        """Test that start > end raises ValueError."""
+        with pytest.raises(ValueError, match=r"Start index 10 must be <= end index 5"):
+            editor.clear_range(10, 5)
+
+    @pytest.mark.unit
+    def test_clear_range_out_of_bounds(self, editor):
+        """Test that out of range indices raise IndexError."""
+        with pytest.raises(IndexError, match=r"Start pad index 64 out of range"):
+            editor.clear_range(64, 70)
+
+        with pytest.raises(IndexError, match=r"End pad index 100 out of range"):
+            editor.clear_range(0, 100)
+
+    @pytest.mark.unit
+    def test_clear_range_empty_pads(self, editor, sample_audio_file):
+        """Test clearing range that includes empty pads."""
+        # Only assign to pads 1 and 3
+        editor.assign_sample(1, sample_audio_file)
+        editor.assign_sample(3, sample_audio_file)
+
+        # Clear range 0-5 (includes empty pads 0, 2, 4, 5)
+        count = editor.clear_range(0, 5)
+
+        # Should only count the 2 that had samples
+        assert count == 2
+
+        # All should be empty now
+        for i in range(6):
+            assert not editor.get_pad(i).is_assigned
