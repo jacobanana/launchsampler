@@ -388,11 +388,11 @@ class LaunchpadSampler(App):
             # Handle selection - update grid selection state and details panel
             pad_index = pad_indices[0]
             pad = pads[0]
-            self._refresh_selected_pad_ui(pad_index, pad)
+            self._update_selected_pad_ui(pad_index, pad)
         else:
             # Update content - refresh grid and details if currently selected
             for pad_index, pad in zip(pad_indices, pads):
-                self._refresh_pad_ui(pad_index, pad)
+                self._update_pad_ui(pad_index, pad)
 
     # =================================================================
     # UI Update Helpers
@@ -459,12 +459,12 @@ class LaunchpadSampler(App):
         details = self.query_one(PadDetailsPanel)
         details.update_for_pad(pad_index, pad, audio_data=audio_data)
 
-    def _refresh_selected_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
+    def _update_selected_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
         """
-        Update UI pad details for the selected pad.
+        Update UI for pad selection.
 
         Args:
-            pad_index: Index of pad to update
+            pad_index: Index of pad to select
             pad: Pad model (fetched if None)
         """
         try:
@@ -476,11 +476,11 @@ class LaunchpadSampler(App):
             self._update_details_panel(pad_index, pad)
 
         except Exception as e:
-            logger.error(f"Error refreshing selected pad {pad_index} UI: {e}")
+            logger.error(f"Error updating selected pad {pad_index} UI: {e}")
 
-    def _refresh_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
+    def _update_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
         """
-        Update UI pad on the grid for the given pad.
+        Update UI for pad content changes.
 
         Args:
             pad_index: Index of pad to update
@@ -498,7 +498,7 @@ class LaunchpadSampler(App):
                 self._update_details_panel(pad_index, pad)
 
         except Exception as e:
-            logger.error(f"Error refreshing pad {pad_index} UI: {e}")
+            logger.error(f"Error updating pad {pad_index} UI: {e}")
 
     # =================================================================
     # Message Handlers
