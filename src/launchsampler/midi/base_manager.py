@@ -47,6 +47,7 @@ class BaseMidiManager(ABC, Generic[PortType]):
         self._port: Optional[PortType] = None
         self._port_lock = threading.Lock()
         self._no_device_warned = False
+        self._on_connection_changed: Optional[Callable[[bool, Optional[str]], None]] = None
 
     @abstractmethod
     def _get_available_ports(self) -> list[str]:
@@ -104,6 +105,15 @@ class BaseMidiManager(ABC, Generic[PortType]):
         self._monitor_thread = threading.Thread(target=self._monitor_devices, daemon=True)
         self._monitor_thread.start()
         logger.debug(f"Midi{self._get_port_type_name().capitalize()}Manager started")
+
+    def on_connection_changed(self, callback: Callable[[bool, Optional[str]], None]) -> None:
+        """
+        Register callback for connection state changes.
+
+        Args:
+            callback: Function that receives (is_connected: bool, port_name: Optional[str])
+        """
+        self._on_connection_changed = callback
 
     def stop(self) -> None:
         """Stop monitoring and close connections."""
@@ -163,13 +173,22 @@ class BaseMidiManager(ABC, Generic[PortType]):
                 with self._port_lock:
                     # If we have a port but it's no longer available
                     if self._port and self._port.name not in available_ports:
-                        logger.warning(f"MIDI {port_type} disconnected: {self._port.name}")
+                        port_name = self._port.name
+                        logger.warning(f"MIDI {port_type} disconnected: {port_name}")
                         try:
                             self._port.close()
                         except Exception:
                             pass
                         self._port = None
                         self._no_device_warned = False
+                        # Fire callback in a separate thread to avoid blocking/deadlock
+                        if self._on_connection_changed:
+                            def fire_callback():
+                                try:
+                                    self._on_connection_changed(False, None)
+                                except Exception as e:
+                                    logger.error(f"Error in connection callback: {e}")
+                            threading.Thread(target=fire_callback, daemon=True).start()
 
                     # If we don't have a port, try to find one
                     if not self._port:
@@ -199,6 +218,14 @@ class BaseMidiManager(ABC, Generic[PortType]):
         try:
             self._port = self._open_port(port_name)
             logger.info(f"Connected to MIDI {port_type}: {port_name}")
+            # Fire callback in a separate thread to avoid blocking/deadlock
+            if self._on_connection_changed:
+                def fire_callback():
+                    try:
+                        self._on_connection_changed(True, port_name)
+                    except Exception as e:
+                        logger.error(f"Error in connection callback: {e}")
+                threading.Thread(target=fire_callback, daemon=True).start()
         except Exception as e:
             logger.error(f"Failed to connect to {port_name}: {e}")
             self._port = None

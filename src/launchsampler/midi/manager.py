@@ -47,6 +47,19 @@ class MidiManager:
         """
         self._input_manager.on_message(callback)
 
+    def on_connection_changed(self, callback: Callable[[bool, Optional[str]], None]) -> None:
+        """
+        Register callback for connection state changes.
+
+        Callback is executed when device connects or disconnects.
+
+        Args:
+            callback: Function that receives (is_connected: bool, port_name: Optional[str])
+        """
+        # Register same callback for both input and output (fires twice, but that's ok)
+        self._input_manager.on_connection_changed(callback)
+        self._output_manager.on_connection_changed(callback)
+
     def send(self, message: mido.Message) -> bool:
         """
         Send MIDI message to device.

@@ -163,6 +163,7 @@ class Player(StateObserver):
             # Wire up event handlers
             self._midi.on_pad_pressed(self._on_pad_pressed)
             self._midi.on_pad_released(self._on_pad_released)
+            self._midi.on_connection_changed(self._on_midi_connection_changed)
 
             # Start controller
             self._midi.start()
@@ -295,6 +296,13 @@ class Player(StateObserver):
         # Only release audio if sample is assigned and mode supports it
         if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
             self.release_pad(pad_index)
+
+    def _on_midi_connection_changed(self, is_connected: bool, port_name: Optional[str]) -> None:
+        """Handle MIDI connection state changes."""
+        # Fire a dummy playback event to trigger status bar update
+        # Using NOTE_OFF with invalid pad index as a signal
+        if self._on_playback_change:
+            self._on_playback_change(PlaybackEvent.NOTE_OFF, -1)
 
     # =================================================================
     # StateObserver Protocol

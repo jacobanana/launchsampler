@@ -163,8 +163,8 @@ class LaunchpadSampler(App):
             except Exception as e:
                 logger.error(f"Error selecting default pad: {e}")
 
-        # Start status bar updates
-        self.set_interval(0.1, self._update_status_bar)
+        # Initial status bar update
+        self._update_status_bar()
 
     def _load_initial_set(self, set_name: Optional[str], samples_dir: Optional[Path]) -> Set:
         """Load initial set configuration."""
@@ -285,15 +285,23 @@ class LaunchpadSampler(App):
         if event == PlaybackEvent.NOTE_ON:
             self.call_from_thread(self._set_pad_midi_on_ui, pad_index, True)
         elif event == PlaybackEvent.NOTE_OFF:
-            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, False)
+            # Check for connection change signal (pad_index = -1)
+            if pad_index == -1:
+                self.call_from_thread(self._update_status_bar)
+            else:
+                self.call_from_thread(self._set_pad_midi_on_ui, pad_index, False)
         
         # Handle audio playback events (yellow background)
         elif event == PlaybackEvent.PAD_PLAYING:
             # Pad started playing - show as active
             self.call_from_thread(self._set_pad_playing_ui, pad_index, True)
+            # Update status bar for voice count
+            self.call_from_thread(self._update_status_bar)
         elif event in (PlaybackEvent.PAD_STOPPED, PlaybackEvent.PAD_FINISHED):
             # Pad stopped or finished - show as inactive
             self.call_from_thread(self._set_pad_playing_ui, pad_index, False)
+            # Update status bar for voice count
+            self.call_from_thread(self._update_status_bar)
         # PAD_TRIGGERED events don't need UI updates (playing will follow immediately)
 
     def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:

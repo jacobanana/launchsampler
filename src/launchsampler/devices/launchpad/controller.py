@@ -61,6 +61,10 @@ class LaunchpadController:
         """
         self._on_pad_released = callback
 
+    def on_connection_changed(self, callback: Callable[[bool, Optional[str]], None]) -> None:
+        """Register callback for MIDI connection state changes."""
+        self._midi.on_connection_changed(callback)
+
     def set_pad_color(self, pad_index: int, color: Color) -> bool:
         """
         Set LED color for a pad.
