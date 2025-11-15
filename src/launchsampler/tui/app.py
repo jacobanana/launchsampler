@@ -14,7 +14,7 @@ from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 
 from launchsampler.protocols import PlaybackEvent, EditEvent, EditObserver, MidiEvent
 
-from .decorators import edit_only, play_only
+from .decorators import edit_only
 from .services import EditorService
 from .widgets import (
     PadGrid,
@@ -48,8 +48,6 @@ class LaunchpadSampler(App):
     """
 
     TITLE = "Launchpad Sampler"
-    CSS_PATH = None  # Using widget DEFAULT_CSS
-
 
     BINDINGS = [
         Binding("e", "switch_mode('edit')", "Edit Mode", show=True),
