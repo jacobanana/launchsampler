@@ -93,7 +93,7 @@ class LaunchpadSampler(App):
         Binding("c", "copy_pad", "Copy", show=True),
         Binding("x", "cut_pad", "Cut", show=True),
         Binding("v", "paste_pad", "Paste", show=True),
-        Binding("d", "clear_pad", "Delete/Clear", show=True),
+        Binding("d", "delete_pad", "Delete", show=True),
         Binding("space", "toggle_test", "Test/Stop", show=False),
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
         Binding("2", "set_mode_hold", "Hold", show=False),
@@ -621,8 +621,8 @@ class LaunchpadSampler(App):
         )
 
     @edit_only
-    def action_clear_pad(self) -> None:
-        """Clear the selected pad."""
+    def action_delete_pad(self) -> None:
+        """Delete the selected pad."""
         selected_pad = self.editor.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
@@ -648,9 +648,9 @@ class LaunchpadSampler(App):
                 # Update UI
                 self._sync_pad_ui(selected_pad, pad)
 
-                self.notify("Pad cleared")
+                self.notify("Pad deleted")
             except Exception as e:
-                logger.error(f"Error clearing pad: {e}")
+                logger.error(f"Error deleting pad: {e}")
                 self.notify(f"Error: {e}", severity="error")
 
         self.push_screen(
@@ -822,7 +822,7 @@ class LaunchpadSampler(App):
 
             # Move selection to duplicated pad
             self.editor.select_pad(target_index)
-            self._refresh_pad_ui(target_index, pad)
+            self._sync_pad_ui(target_index, pad, select=True)
 
             self.notify(f"Duplicated {direction}", severity="information")
 
@@ -841,7 +841,7 @@ class LaunchpadSampler(App):
 
                             # Move selection to duplicated pad
                             self.editor.select_pad(target_index)
-                            self._refresh_pad_ui(target_index, pad)
+                            self._sync_pad_ui(target_index, pad, select=True)
 
                             self.notify(f"Duplicated {direction}", severity="information")
                         except Exception as e:
@@ -911,7 +911,7 @@ class LaunchpadSampler(App):
 
                         # Move selection to target
                         self.editor.select_pad(target_index)
-                        self._refresh_pad_ui(target_index, target_pad)
+                        self._sync_pad_ui(target_index, target_pad, select=True)
 
                         self.notify(f"Swapped {direction}", severity="information")
                     except Exception as e:
@@ -936,7 +936,7 @@ class LaunchpadSampler(App):
 
                 # Move selection to target
                 self.editor.select_pad(target_index)
-                self._refresh_pad_ui(target_index, target_pad)
+                self._sync_pad_ui(target_index, target_pad, select=True)
 
                 self.notify(f"Moved {direction}", severity="information")
             except Exception as e:
