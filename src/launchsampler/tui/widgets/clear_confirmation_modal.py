@@ -79,6 +79,8 @@ class ClearConfirmationModal(ModalScreen[bool]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "clear-btn":
+            event.stop()
             self.dismiss(True)
         elif event.button.id == "cancel-btn":
+            event.stop()
             self.dismiss(False)
