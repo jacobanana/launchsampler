@@ -15,7 +15,14 @@ from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 from launchsampler.protocols import PlaybackEvent
 
 from .services import EditorService
-from .widgets import PadGrid, PadDetailsPanel, StatusBar, MoveConfirmationModal, ClearConfirmationModal
+from .widgets import (
+    PadGrid,
+    PadDetailsPanel,
+    StatusBar,
+    MoveConfirmationModal,
+    ClearConfirmationModal,
+    PasteConfirmationModal,
+)
 from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
 
 
@@ -50,6 +57,9 @@ class LaunchpadSampler(App):
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
         Binding("c", "clear_pad", "Clear", show=False),
+        Binding("ctrl+c", "copy_pad", "Copy", show=True),
+        Binding("ctrl+x", "cut_pad", "Cut", show=True),
+        Binding("ctrl+v", "paste_pad", "Paste", show=True),
         Binding("space", "toggle_test", "Test/Stop", show=False),
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
         Binding("2", "set_mode_hold", "Hold", show=False),
@@ -617,6 +627,94 @@ class LaunchpadSampler(App):
             ClearConfirmationModal(selected_pad, pad.sample.name),
             handle_confirmation
         )
+
+    def action_copy_pad(self) -> None:
+        """Copy selected pad to clipboard."""
+        if self._sampler_mode != "edit":
+            return
+
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        try:
+            pad = self.editor.copy_pad(selected_pad)
+            self.notify(f"Copied: {pad.sample.name}", severity="information")
+        except ValueError as e:
+            self.notify(str(e), severity="error")
+
+    def action_cut_pad(self) -> None:
+        """Cut selected pad to clipboard."""
+        if self._sampler_mode != "edit":
+            return
+
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        try:
+            pad = self.editor.cut_pad(selected_pad)
+
+            # Update audio engine - pad is now empty
+            self._reload_pad(selected_pad)
+
+            # Update UI
+            self._sync_pad_ui(selected_pad, self.editor.get_pad(selected_pad))
+
+            self.notify(f"Cut: {pad.sample.name}", severity="information")
+        except ValueError as e:
+            self.notify(str(e), severity="error")
+
+    def action_paste_pad(self) -> None:
+        """Paste clipboard to selected pad."""
+        if self._sampler_mode != "edit":
+            return
+
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        if not self.editor.has_clipboard:
+            self.notify("Clipboard is empty", severity="warning")
+            return
+
+        try:
+            # Try paste with overwrite=False first
+            pad = self.editor.paste_pad(selected_pad, overwrite=False)
+
+            # Success - update audio and UI
+            self._reload_pad(selected_pad)
+            self._sync_pad_ui(selected_pad, pad)
+
+            self.notify(f"Pasted: {pad.sample.name}", severity="information")
+
+        except ValueError as e:
+            # Check if it's because target is occupied
+            if "already has sample" in str(e):
+                # Show confirmation modal
+                target_pad = self.editor.get_pad(selected_pad)
+
+                def handle_paste_confirm(overwrite: bool) -> None:
+                    if overwrite:
+                        try:
+                            pad = self.editor.paste_pad(selected_pad, overwrite=True)
+                            self._reload_pad(selected_pad)
+                            self._sync_pad_ui(selected_pad, pad)
+                            self.notify(f"Pasted: {pad.sample.name}", severity="information")
+                        except Exception as e:
+                            logger.error(f"Error pasting: {e}")
+                            self.notify(f"Error: {e}", severity="error")
+
+                self.push_screen(
+                    PasteConfirmationModal(selected_pad, target_pad.sample.name),
+                    handle_paste_confirm
+                )
+            else:
+                # Some other error
+                self.notify(str(e), severity="error")
 
     def action_test_pad(self) -> None:
         """Test the selected pad (works in both modes)."""
