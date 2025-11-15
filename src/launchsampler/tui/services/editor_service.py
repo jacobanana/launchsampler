@@ -341,7 +341,7 @@ class EditorService:
 
         return (source_pad, target_pad)
 
-    def copy_pad(self, source_index: int, target_index: int, overwrite: bool = True) -> Pad:
+    def copy_pad(self, source_index: int, target_index: int, overwrite: bool = False) -> Pad:
         """
         Copy a sample from source pad to target pad.
 
@@ -352,8 +352,8 @@ class EditorService:
         Args:
             source_index: Index of source pad
             target_index: Index of target pad
-            overwrite: If False, raise ValueError if target already has a sample.
-                      If True (default), silently replace target pad contents.
+            overwrite: If False (default), raise ValueError if target already has a sample.
+                      If True, replace target pad contents even if occupied.
 
         Returns:
             The new target Pad

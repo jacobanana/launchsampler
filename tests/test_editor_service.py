@@ -298,7 +298,7 @@ class TestEditorServiceCopyPad:
 
     @pytest.mark.unit
     def test_copy_pad_default_overwrite_behavior(self, editor, sample_audio_file, temp_dir):
-        """Test that overwrite defaults to True."""
+        """Test that overwrite defaults to False (safe mode)."""
         import numpy as np
         import soundfile as sf
 
@@ -317,9 +317,13 @@ class TestEditorServiceCopyPad:
         editor.assign_sample(source_index, sample_audio_file)
         editor.assign_sample(target_index, second_file)
 
-        # Should succeed with default parameters (overwrite=True by default)
-        result = editor.copy_pad(source_index, target_index)
+        # Should fail with default parameters (overwrite=False by default)
+        with pytest.raises(
+            ValueError,
+            match=r"Target pad 1 already has sample 'second'\. Set overwrite=True to replace it\."
+        ):
+            editor.copy_pad(source_index, target_index)
 
-        # Verify target was overwritten
+        # Verify target was NOT modified
         target_pad = editor.get_pad(target_index)
-        assert target_pad.sample.name == "test"
+        assert target_pad.sample.name == "second"
