@@ -17,22 +17,26 @@ from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Set, PlaybackMode
-from launchsampler.protocols import PlaybackEvent, StateObserver
+from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver
 
 logger = logging.getLogger(__name__)
 
 
-class Player(StateObserver):
+class Player(StateObserver, EditObserver):
     """
     Core player for Launchpad sampling.
 
     This class manages audio and MIDI without any UI dependencies.
     It can be used in any application (TUI, GUI, CLI, headless).
 
+    Implements both StateObserver (for playback events from audio engine)
+    and EditObserver (for editing events from editor service).
+
     Responsibilities:
     - Audio engine lifecycle
     - MIDI controller lifecycle
     - Playback state observation
+    - Edit event observation and audio sync
     - Set loading into audio engine
     - Trigger routing
 
@@ -316,6 +320,73 @@ class Player(StateObserver):
         """
         if self._on_playback_change:
             self._on_playback_change(event, pad_index)
+
+    # =================================================================
+    # EditObserver Protocol
+    # =================================================================
+
+    def on_edit_event(
+        self, 
+        event: EditEvent, 
+        pad_indices: list[int], 
+        pads: list
+    ) -> None:
+        """
+        Handle editing events and sync audio engine.
+        
+        This is called from the UI thread when editing operations occur.
+        Automatically synchronizes the audio engine with the new pad states.
+        
+        Args:
+            event: The type of editing event
+            pad_indices: List of affected pad indices
+            pads: List of affected pad states (post-edit)
+        """
+        if not self._engine:
+            return
+        
+        logger.debug(f"Player received edit event: {event.value} for pads {pad_indices}")
+        
+        for pad_index, pad in zip(pad_indices, pads):
+            if event in (
+                EditEvent.PAD_ASSIGNED,
+                EditEvent.PAD_DUPLICATED,
+                EditEvent.PAD_MODE_CHANGED
+            ):
+                # Reload sample into engine
+                if pad.is_assigned:
+                    logger.info(f"Loading sample '{pad.sample.name}' into pad {pad_index} (event: {event.value})")
+                    self._engine.load_sample(pad_index, pad)
+                else:
+                    logger.info(f"Unloading pad {pad_index} (event: {event.value})")
+                    self._engine.unload_sample(pad_index)
+            
+            elif event == EditEvent.PAD_MOVED:
+                # For moves, reload both pads (source and target)
+                if pad.is_assigned:
+                    logger.info(f"Loading sample '{pad.sample.name}' into pad {pad_index} (moved)")
+                    self._engine.load_sample(pad_index, pad)
+                else:
+                    logger.info(f"Unloading pad {pad_index} (moved)")
+                    self._engine.unload_sample(pad_index)
+            
+            elif event == EditEvent.PAD_CLEARED:
+                # Unload sample
+                logger.info(f"Unloading pad {pad_index} (cleared)")
+                self._engine.unload_sample(pad_index)
+            
+            elif event == EditEvent.PAD_VOLUME_CHANGED:
+                # Update volume without reloading (more efficient)
+                logger.debug(f"Updating volume for pad {pad_index} to {pad.volume}")
+                self._engine.update_pad_volume(pad_index, pad.volume)
+            
+            elif event == EditEvent.PADS_CLEARED:
+                # Multiple pads cleared - reload each
+                logger.info(f"Unloading multiple pads: {pad_indices}")
+                for idx, p in zip(pad_indices, pads):
+                    self._engine.unload_sample(idx)
+            
+            # Note: PAD_NAME_CHANGED doesn't affect audio, no action needed
 
     # =================================================================
     # Callback Registration

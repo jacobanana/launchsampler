@@ -2,9 +2,11 @@
 
 import logging
 from pathlib import Path
+from threading import Lock
 from typing import Optional
 
 from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
+from launchsampler.protocols import EditEvent, EditObserver
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,10 @@ class EditorService:
         self.config = config
         self.selected_pad_index: Optional[int] = None
         self._clipboard: Optional[Pad] = None
+        
+        # Event system
+        self._observers: list[EditObserver] = []
+        self._event_lock = Lock()
 
     @property
     def grid_size(self) -> int:
@@ -40,6 +46,69 @@ class EditorService:
     def has_clipboard(self) -> bool:
         """Check if clipboard has content."""
         return self._clipboard is not None
+
+    # =================================================================
+    # Event System
+    # =================================================================
+
+    def register_observer(self, observer: EditObserver) -> None:
+        """
+        Register an observer to receive edit events.
+        
+        Args:
+            observer: Object implementing EditObserver protocol
+        """
+        with self._event_lock:
+            if observer not in self._observers:
+                self._observers.append(observer)
+                logger.debug(f"Registered edit observer: {observer}")
+
+    def unregister_observer(self, observer: EditObserver) -> None:
+        """
+        Unregister an observer.
+        
+        Args:
+            observer: Previously registered observer
+        """
+        with self._event_lock:
+            if observer in self._observers:
+                self._observers.remove(observer)
+                logger.debug(f"Unregistered edit observer: {observer}")
+
+    def _notify_observers(
+        self, 
+        event: EditEvent, 
+        pad_indices: list[int], 
+        pads: list[Pad]
+    ) -> None:
+        """
+        Notify all registered observers of an edit event.
+        
+        Args:
+            event: The editing event that occurred
+            pad_indices: List of affected pad indices
+            pads: List of affected pad states (post-edit)
+            
+        Note:
+            Catches and logs exceptions from observers to prevent
+            one bad observer from breaking others.
+        """
+        with self._event_lock:
+            observers = list(self._observers)  # Copy to avoid lock during callbacks
+        
+        for observer in observers:
+            try:
+                observer.on_edit_event(event, pad_indices, pads)
+            except Exception as e:
+                logger.error(
+                    f"Error notifying observer {observer} of {event.value} "
+                    f"for pads {pad_indices}: {e}",
+                    exc_info=True
+                )
+
+    # =================================================================
+    # Validation
+    # =================================================================
 
     def _validate_pad_index(self, pad_index: int, label: str = "Pad index") -> None:
         """
@@ -120,6 +189,9 @@ class EditorService:
             pad.mode = PlaybackMode.ONE_SHOT
             pad.color = pad.mode.get_default_color()
 
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_ASSIGNED, [pad_index], [pad])
+
         logger.info(f"Assigned sample '{sample.name}' to pad {pad_index}")
         return pad
 
@@ -143,6 +215,9 @@ class EditorService:
         # Replace with empty pad
         new_pad = Pad.empty(old_pad.x, old_pad.y)
         self.launchpad.pads[pad_index] = new_pad
+
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_CLEARED, [pad_index], [new_pad])
 
         logger.info(f"Cleared pad {pad_index}")
         return new_pad
@@ -171,6 +246,9 @@ class EditorService:
         pad.mode = mode
         pad.color = mode.get_default_color()
 
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_MODE_CHANGED, [pad_index], [pad])
+
         logger.info(f"Set pad {pad_index} mode to {mode.value}")
         return pad
 
@@ -195,6 +273,9 @@ class EditorService:
 
         pad = self.launchpad.pads[pad_index]
         pad.volume = volume
+
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_VOLUME_CHANGED, [pad_index], [pad])
 
         logger.info(f"Set pad {pad_index} volume to {volume:.0%}")
         return pad
@@ -224,6 +305,9 @@ class EditorService:
             raise ValueError(f"Cannot set name on empty pad {pad_index}")
 
         pad.sample.name = name.strip()
+
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_NAME_CHANGED, [pad_index], [pad])
 
         logger.info(f"Set pad {pad_index} sample name to '{name}'")
         return pad
@@ -345,6 +429,13 @@ class EditorService:
 
             logger.info(f"Moved sample from pad {source_index} to {target_index}")
 
+        # Notify observers about both affected pads
+        self._notify_observers(
+            EditEvent.PAD_MOVED,
+            [source_index, target_index],
+            [source_pad, target_pad]
+        )
+
         return (source_pad, target_pad)
 
     def duplicate_pad(self, source_index: int, target_index: int, overwrite: bool = False) -> Pad:
@@ -398,6 +489,9 @@ class EditorService:
         # Deep copy entire source pad but preserve target position
         new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
         self.launchpad.pads[target_index] = new_target
+
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_DUPLICATED, [target_index], [new_target])
 
         return new_target
 
@@ -472,6 +566,9 @@ class EditorService:
         new_target = self._clipboard.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
         self.launchpad.pads[target_index] = new_target
 
+        # Notify observers (treat paste as assignment to target)
+        self._notify_observers(EditEvent.PAD_ASSIGNED, [target_index], [new_target])
+
         return new_target
 
     def cut_pad(self, pad_index: int) -> Pad:
@@ -504,6 +601,9 @@ class EditorService:
         old_pad = self.launchpad.pads[pad_index]
         new_pad = Pad.empty(old_pad.x, old_pad.y)
         self.launchpad.pads[pad_index] = new_pad
+
+        # Notify observers (source pad is now cleared)
+        self._notify_observers(EditEvent.PAD_CLEARED, [pad_index], [new_pad])
 
         logger.info(f"Cut pad {pad_index} ('{self._clipboard.sample.name}') to clipboard")
         return self._clipboard

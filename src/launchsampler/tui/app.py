@@ -13,7 +13,7 @@ from textual.binding import Binding
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 
-from launchsampler.protocols import PlaybackEvent
+from launchsampler.protocols import PlaybackEvent, EditEvent, EditObserver
 
 from .services import EditorService
 from .widgets import (
@@ -70,6 +70,8 @@ class LaunchpadSampler(App):
     This is a THIN UI layer that delegates to:
     - Player: Audio/MIDI/playback logic
     - EditorService: Editing operations
+
+    Implements EditObserver protocol (duck typing) to automatically sync UI when edits occur.
 
     Provides two modes:
     - Edit Mode: Build sets, assign samples, test with preview audio
@@ -203,6 +205,10 @@ class LaunchpadSampler(App):
 
         # Register for playback events
         self.player.set_playback_callback(self._on_playback_event)
+
+        # Register as observer for editing events
+        self.editor.register_observer(self.player)  # Player observes edits for audio sync
+        self.editor.register_observer(self)          # App observes edits for UI sync
 
         # Set initial mode (UI state only)
         self._set_mode(self._start_mode, notify=False)
@@ -401,6 +407,57 @@ class LaunchpadSampler(App):
             pass
 
     # =================================================================
+    # EditObserver Protocol
+    # =================================================================
+
+    def on_edit_event(
+        self, 
+        event: EditEvent, 
+        pad_indices: list[int], 
+        pads: list[Pad]
+    ) -> None:
+        """
+        Handle editing events and update UI.
+        
+        This is called from the UI thread when editing operations occur.
+        Automatically synchronizes the UI with the new pad states.
+        
+        Args:
+            event: The type of editing event
+            pad_indices: List of affected pad indices
+            pads: List of affected pad states (post-edit)
+        """
+        logger.debug(f"App received edit event: {event.value} for pads {pad_indices}")
+        
+        # Update UI for each affected pad
+        for pad_index, pad in zip(pad_indices, pads):
+            self._update_pad_ui(pad_index, pad)
+
+    def _update_pad_ui(self, pad_index: int, pad: Pad) -> None:
+        """
+        Update UI elements for a specific pad.
+        
+        Args:
+            pad_index: Index of pad to update
+            pad: Updated pad model
+        """
+        try:
+            # Update grid
+            grid = self.query_one(PadGrid)
+            grid.update_pad(pad_index, pad)
+            
+            # Update details panel if this pad is selected
+            if pad_index == self.editor.selected_pad_index:
+                audio_data = None
+                if self.player._engine and pad.is_assigned:
+                    audio_data = self.player._engine.get_audio_data(pad_index)
+                
+                details = self.query_one(PadDetailsPanel)
+                details.update_for_pad(pad_index, pad, audio_data=audio_data)
+        except Exception as e:
+            logger.error(f"Error updating pad {pad_index} UI: {e}")
+
+    # =================================================================
     # Event Handlers
     # =================================================================
 
@@ -452,15 +509,8 @@ class LaunchpadSampler(App):
     def on_pad_details_panel_volume_changed(self, event: PadDetailsPanel.VolumeChanged) -> None:
         """Handle volume change from details panel."""
         try:
-            # Update through editor service
+            # Update through editor service (events handle audio/UI sync automatically)
             pad = self.editor.set_pad_volume(event.pad_index, event.volume)
-
-            # Update in audio engine via player
-            if self.player._engine:
-                self.player._engine.update_pad_volume(event.pad_index, event.volume)
-
-            # Refresh UI
-            self._refresh_pad_ui(event.pad_index, pad)
 
         except Exception as e:
             logger.error(f"Error updating volume: {e}")
@@ -470,11 +520,8 @@ class LaunchpadSampler(App):
     def on_pad_details_panel_name_changed(self, event: PadDetailsPanel.NameChanged) -> None:
         """Handle name change from details panel."""
         try:
-            # Update through editor service
+            # Update through editor service (events handle UI sync automatically)
             pad = self.editor.set_sample_name(event.pad_index, event.name)
-
-            # Refresh UI
-            self._refresh_pad_ui(event.pad_index, pad)
 
         except Exception as e:
             logger.error(f"Error updating name: {e}")
@@ -544,16 +591,8 @@ class LaunchpadSampler(App):
         """
         try:
             logger.info(f"Executing pad move from {source_index} to {target_index} with swap={swap}")
-            # Perform the move
+            # Perform the move (events handle audio/UI sync automatically)
             source_pad, target_pad = self.editor.move_pad(source_index, target_index, swap=swap)
-
-            # Reload both pads in audio engine (if running)
-            self._reload_pad(source_index)
-            self._reload_pad(target_index)
-
-            # Refresh UI for both pads
-            self._refresh_pad_ui(source_index, source_pad)
-            self._refresh_pad_ui(target_index, target_pad)
 
             # Update selection based on operation type
             if swap:
@@ -574,16 +613,6 @@ class LaunchpadSampler(App):
         except Exception as e:
             logger.error(f"Error executing pad move: {e}")
             self.notify(f"Error moving pad: {e}", severity="error")
-
-    def _refresh_pad_ui(self, pad_index: int, pad: Pad) -> None:
-        """
-        Refresh UI elements for a specific pad.
-
-        Args:
-            pad_index: Index of pad to refresh
-            pad: Updated pad model
-        """
-        self._sync_pad_ui(pad_index, pad)
 
     # =================================================================
     # Actions
@@ -606,13 +635,8 @@ class LaunchpadSampler(App):
         def handle_file(file_path: Optional[Path]) -> None:
             if file_path:
                 try:
+                    # Assign sample (events handle audio/UI sync automatically)
                     pad = self.editor.assign_sample(selected_pad, file_path)
-
-                    # Reload in engine
-                    self._reload_pad(selected_pad)
-
-                    # Update UI
-                    self._sync_pad_ui(selected_pad, pad)
 
                     # Safe to access sample.name after assign_sample
                     if pad.sample:
@@ -648,13 +672,8 @@ class LaunchpadSampler(App):
                 return
 
             try:
+                # Clear pad (events handle audio/UI sync automatically)
                 pad = self.editor.clear_pad(selected_pad)
-
-                # Unload from engine
-                self._reload_pad(selected_pad)
-
-                # Update UI
-                self._sync_pad_ui(selected_pad, pad)
 
                 self.notify("Pad deleted")
             except Exception as e:
@@ -694,13 +713,8 @@ class LaunchpadSampler(App):
                 self.player.stop_pad(selected_pad)
                 self._set_pad_playing_ui(selected_pad, False)
 
+            # Cut pad (events handle audio/UI sync automatically)
             pad = self.editor.cut_pad(selected_pad)
-
-            # Update audio engine - pad is now empty
-            self._reload_pad(selected_pad)
-
-            # Update UI
-            self._sync_pad_ui(selected_pad, self.editor.get_pad(selected_pad))
 
             self.notify(f"Cut: {pad.sample.name}", severity="information")
         except ValueError as e:
@@ -719,12 +733,8 @@ class LaunchpadSampler(App):
             return
 
         try:
-            # Try paste with overwrite=False first
+            # Try paste with overwrite=False first (events handle audio/UI sync automatically)
             pad = self.editor.paste_pad(selected_pad, overwrite=False)
-
-            # Success - update audio and UI
-            self._reload_pad(selected_pad)
-            self._sync_pad_ui(selected_pad, pad)
 
             self.notify(f"Pasted: {pad.sample.name}", severity="information")
 
@@ -737,9 +747,8 @@ class LaunchpadSampler(App):
                 def handle_paste_confirm(overwrite: bool) -> None:
                     if overwrite:
                         try:
+                            # Paste (events handle audio/UI sync automatically)
                             pad = self.editor.paste_pad(selected_pad, overwrite=True)
-                            self._reload_pad(selected_pad)
-                            self._sync_pad_ui(selected_pad, pad)
                             self.notify(f"Pasted: {pad.sample.name}", severity="information")
                         except Exception as e:
                             logger.error(f"Error pasting: {e}")
@@ -826,12 +835,8 @@ class LaunchpadSampler(App):
             return
 
         try:
-            # Try duplicate with overwrite=False first
+            # Try duplicate with overwrite=False first (events handle audio/UI sync automatically)
             pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
-
-            # Success - update audio and UI
-            self._reload_pad(target_index)
-            self._sync_pad_ui(target_index, pad)
 
             # Move selection to duplicated pad
             self.editor.select_pad(target_index)
@@ -848,9 +853,8 @@ class LaunchpadSampler(App):
                 def handle_duplicate_confirm(overwrite: bool) -> None:
                     if overwrite:
                         try:
+                            # Duplicate (events handle audio/UI sync automatically)
                             pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
-                            self._reload_pad(target_index)
-                            self._sync_pad_ui(target_index, pad)
 
                             # Move selection to duplicated pad
                             self.editor.select_pad(target_index)
@@ -923,19 +927,14 @@ class LaunchpadSampler(App):
                         if target_was_playing:
                             self.player.stop_pad(target_index)
 
+                        # Move/swap (events handle audio/UI sync automatically)
                         source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=True)
-
-                        # Update both pads in audio engine
-                        self._reload_pad(selected_pad)
-                        self._reload_pad(target_index)
 
                         # Update UI to clear playing indicators
                         if source_was_playing:
                             self._set_pad_playing_ui(selected_pad, False)
                         if target_was_playing:
                             self._set_pad_playing_ui(target_index, False)
-                        self._sync_pad_ui(selected_pad, source_pad)
-                        self._sync_pad_ui(target_index, target_pad)
 
                         # Move selection to target
                         self.editor.select_pad(target_index)
@@ -961,17 +960,12 @@ class LaunchpadSampler(App):
                     self.player.stop_pad(selected_pad)
                     logger.info(f"Stopped playback on pad {selected_pad}")
 
+                # Move (events handle audio/UI sync automatically)
                 source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=False)
-
-                # Update both pads in audio engine
-                self._reload_pad(selected_pad)  # Now empty - will unload
-                self._reload_pad(target_index)  # Now has the sample - will load
 
                 # Update UI to clear playing indicator if it was playing
                 if was_playing:
                     self._set_pad_playing_ui(selected_pad, False)
-                self._sync_pad_ui(selected_pad, source_pad)
-                self._sync_pad_ui(target_index, target_pad)
 
                 # Move selection to target
                 self.editor.select_pad(target_index)
@@ -1120,13 +1114,8 @@ class LaunchpadSampler(App):
             return
 
         try:
+            # Set mode (events handle audio/UI sync automatically)
             pad = self.editor.set_pad_mode(selected_pad, mode)
-
-            # Reload in engine
-            self._reload_pad(selected_pad)
-
-            # Update UI
-            self._sync_pad_ui(selected_pad, pad)
 
         except Exception as e:
             logger.error(f"Error setting mode: {e}")
@@ -1219,30 +1208,6 @@ class LaunchpadSampler(App):
     # =================================================================
     # UI Updates
     # =================================================================
-
-    def _reload_pad(self, pad_index: int) -> None:
-        """
-        Reload a pad in the audio engine after it has been modified.
-
-        This is called after assigning/clearing samples or changing pad modes.
-
-        Args:
-            pad_index: Index of pad to reload
-        """
-        if not self.player._engine:
-            return
-
-        pad = self.editor.get_pad(pad_index)
-
-        if pad.is_assigned:
-            # Reload the sample into the engine
-            logger.info(f"_reload_pad: Loading sample '{pad.sample.name}' into pad {pad_index}")
-            result = self.player._engine.load_sample(pad_index, pad)
-            logger.info(f"_reload_pad: Load result for pad {pad_index}: {result}")
-        else:
-            # Unload the sample from the engine
-            logger.info(f"_reload_pad: Unloading pad {pad_index}")
-            self.player._engine.unload_sample(pad_index)
 
     def _sync_pad_ui(self, pad_index: int, pad: Optional[Pad] = None, *, select: bool = False) -> None:
         """
