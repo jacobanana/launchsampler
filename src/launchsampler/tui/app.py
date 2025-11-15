@@ -69,6 +69,14 @@ class LaunchpadSampler(App):
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
         Binding("right", "navigate_right", "Right", show=False),
+        Binding("alt+up", "duplicate_up", "Duplicate Up", show=False),
+        Binding("alt+down", "duplicate_down", "Duplicate Down", show=False),
+        Binding("alt+left", "duplicate_left", "Duplicate Left", show=False),
+        Binding("alt+right", "duplicate_right", "Duplicate Right", show=False),
+        Binding("ctrl+up", "move_up", "Move Up", show=False),
+        Binding("ctrl+down", "move_down", "Move Down", show=False),
+        Binding("ctrl+left", "move_left", "Move Left", show=False),
+        Binding("ctrl+right", "move_right", "Move Right", show=False),
     ]
 
     def __init__(
@@ -715,6 +723,196 @@ class LaunchpadSampler(App):
             else:
                 # Some other error
                 self.notify(str(e), severity="error")
+
+    def _get_directional_target(self, source_index: int, direction: str) -> Optional[int]:
+        """Get target pad index from source + direction.
+
+        Args:
+            source_index: Current pad index
+            direction: One of "up", "down", "left", "right"
+
+        Returns:
+            Target pad index, or None if already at edge
+        """
+        x, y = self.current_set.launchpad.note_to_xy(source_index)
+
+        if direction == "up":
+            y = y - 1
+        elif direction == "down":
+            y = y + 1
+        elif direction == "left":
+            x = x - 1
+        elif direction == "right":
+            x = x + 1
+        else:
+            return None
+
+        # Check if we're within bounds
+        if not (0 <= x < 8 and 0 <= y < 8):
+            return None
+
+        target = self.current_set.launchpad.xy_to_note(x, y)
+        return target if target != source_index else None
+
+    # Duplicate directional operations (Alt+Arrow)
+
+    def action_duplicate_up(self) -> None:
+        """Duplicate selected pad upward."""
+        self._duplicate_directional("up")
+
+    def action_duplicate_down(self) -> None:
+        """Duplicate selected pad downward."""
+        self._duplicate_directional("down")
+
+    def action_duplicate_left(self) -> None:
+        """Duplicate selected pad to the left."""
+        self._duplicate_directional("left")
+
+    def action_duplicate_right(self) -> None:
+        """Duplicate selected pad to the right."""
+        self._duplicate_directional("right")
+
+    def _duplicate_directional(self, direction: str) -> None:
+        """Duplicate pad in given direction."""
+        if self._sampler_mode != "edit":
+            return
+
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        target_index = self._get_directional_target(selected_pad, direction)
+        if target_index is None:
+            self.notify("Already at edge", severity="warning")
+            return
+
+        try:
+            # Try duplicate with overwrite=False first
+            pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
+
+            # Success - update audio and UI
+            self._reload_pad(target_index)
+            self._sync_pad_ui(target_index, pad)
+
+            # Move selection to duplicated pad
+            self.editor.select_pad(target_index)
+            self._refresh_pad_ui()
+
+            self.notify(f"Duplicated {direction}", severity="information")
+
+        except ValueError as e:
+            # Check if it's because target is occupied
+            if "already has sample" in str(e):
+                # Show confirmation modal
+                target_pad = self.editor.get_pad(target_index)
+
+                def handle_duplicate_confirm(overwrite: bool) -> None:
+                    if overwrite:
+                        try:
+                            pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
+                            self._reload_pad(target_index)
+                            self._sync_pad_ui(target_index, pad)
+
+                            # Move selection to duplicated pad
+                            self.editor.select_pad(target_index)
+                            self._refresh_pad_ui()
+
+                            self.notify(f"Duplicated {direction}", severity="information")
+                        except Exception as e:
+                            logger.error(f"Error duplicating: {e}")
+                            self.notify(f"Error: {e}", severity="error")
+
+                from launchsampler.tui.widgets.paste_confirmation_modal import PasteConfirmationModal
+                self.push_screen(
+                    PasteConfirmationModal(target_index, target_pad.sample.name),
+                    handle_duplicate_confirm
+                )
+            else:
+                # Some other error
+                self.notify(str(e), severity="error")
+
+    # Move directional operations (Ctrl+Arrow)
+
+    def action_move_up(self) -> None:
+        """Move selected pad upward."""
+        self._move_directional("up")
+
+    def action_move_down(self) -> None:
+        """Move selected pad downward."""
+        self._move_directional("down")
+
+    def action_move_left(self) -> None:
+        """Move selected pad to the left."""
+        self._move_directional("left")
+
+    def action_move_right(self) -> None:
+        """Move selected pad to the right."""
+        self._move_directional("right")
+
+    def _move_directional(self, direction: str) -> None:
+        """Move pad in given direction."""
+        if self._sampler_mode != "edit":
+            return
+
+        selected_pad = self.editor.selected_pad_index
+        if selected_pad is None:
+            self.notify("Select a pad first", severity="warning")
+            return
+
+        target_index = self._get_directional_target(selected_pad, direction)
+        if target_index is None:
+            self.notify("Already at edge", severity="warning")
+            return
+
+        target_pad = self.editor.get_pad(target_index)
+
+        # If target is occupied, show swap confirmation
+        if target_pad.is_assigned:
+            def handle_move_confirm(swap: bool) -> None:
+                if swap:
+                    try:
+                        source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=True)
+
+                        # Update both pads in audio and UI
+                        self._reload_pad(selected_pad)
+                        self._reload_pad(target_index)
+                        self._sync_pad_ui(selected_pad, source_pad)
+                        self._sync_pad_ui(target_index, target_pad)
+
+                        # Move selection to target
+                        self.editor.select_pad(target_index)
+                        self._refresh_pad_ui()
+
+                        self.notify(f"Swapped {direction}", severity="information")
+                    except Exception as e:
+                        logger.error(f"Error moving: {e}")
+                        self.notify(f"Error: {e}", severity="error")
+
+            from launchsampler.tui.widgets.move_confirmation_modal import MoveConfirmationModal
+            self.push_screen(
+                MoveConfirmationModal(selected_pad, target_index),
+                handle_move_confirm
+            )
+        else:
+            # Move to empty target
+            try:
+                source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=False)
+
+                # Update both pads in audio and UI
+                self._reload_pad(selected_pad)
+                self._reload_pad(target_index)
+                self._sync_pad_ui(selected_pad, source_pad)
+                self._sync_pad_ui(target_index, target_pad)
+
+                # Move selection to target
+                self.editor.select_pad(target_index)
+                self._refresh_pad_ui()
+
+                self.notify(f"Moved {direction}", severity="information")
+            except Exception as e:
+                logger.error(f"Error moving: {e}")
+                self.notify(f"Error: {e}", severity="error")
 
     def action_test_pad(self) -> None:
         """Test the selected pad (works in both modes)."""
