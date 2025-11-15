@@ -90,10 +90,10 @@ class LaunchpadSampler(App):
         Binding("ctrl+l", "open_directory", "Load from Directory", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
-        Binding("c", "clear_pad", "Clear", show=False),
-        Binding("ctrl+c", "copy_pad", "Copy", show=True),
-        Binding("ctrl+x", "cut_pad", "Cut", show=True),
-        Binding("ctrl+v", "paste_pad", "Paste", show=True),
+        Binding("c", "copy_pad", "Copy", show=True),
+        Binding("x", "cut_pad", "Cut", show=True),
+        Binding("v", "paste_pad", "Paste", show=True),
+        Binding("d", "clear_pad", "Delete/Clear", show=True),
         Binding("space", "toggle_test", "Test/Stop", show=False),
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
         Binding("2", "set_mode_hold", "Hold", show=False),
@@ -822,7 +822,7 @@ class LaunchpadSampler(App):
 
             # Move selection to duplicated pad
             self.editor.select_pad(target_index)
-            self._refresh_pad_ui()
+            self._refresh_pad_ui(target_index, pad)
 
             self.notify(f"Duplicated {direction}", severity="information")
 
@@ -841,7 +841,7 @@ class LaunchpadSampler(App):
 
                             # Move selection to duplicated pad
                             self.editor.select_pad(target_index)
-                            self._refresh_pad_ui()
+                            self._refresh_pad_ui(target_index, pad)
 
                             self.notify(f"Duplicated {direction}", severity="information")
                         except Exception as e:
@@ -911,7 +911,7 @@ class LaunchpadSampler(App):
 
                         # Move selection to target
                         self.editor.select_pad(target_index)
-                        self._refresh_pad_ui()
+                        self._refresh_pad_ui(target_index, target_pad)
 
                         self.notify(f"Swapped {direction}", severity="information")
                     except Exception as e:
@@ -920,7 +920,7 @@ class LaunchpadSampler(App):
 
             from launchsampler.tui.widgets.move_confirmation_modal import MoveConfirmationModal
             self.push_screen(
-                MoveConfirmationModal(selected_pad, target_index),
+                MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
                 handle_move_confirm
             )
         else:
@@ -936,7 +936,7 @@ class LaunchpadSampler(App):
 
                 # Move selection to target
                 self.editor.select_pad(target_index)
-                self._refresh_pad_ui()
+                self._refresh_pad_ui(target_index, target_pad)
 
                 self.notify(f"Moved {direction}", severity="information")
             except Exception as e:
