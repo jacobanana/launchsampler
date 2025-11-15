@@ -85,7 +85,7 @@ class LaunchpadSampler(App):
         config: AppConfig,
         set_name: Optional[str] = None,
         samples_dir: Optional[Path] = None,
-        start_mode: str = "edit"
+        start_mode: str = "play"
     ):
         """
         Initialize the application.
@@ -113,6 +113,39 @@ class LaunchpadSampler(App):
     def launchpad(self) -> Launchpad:
         """Get the current launchpad (for backward compatibility)."""
         return self.current_set.launchpad
+
+    def compose(self) -> ComposeResult:
+        """Create the main layout."""
+        yield Header(show_clock=True)
+
+        with Horizontal():
+            yield PadGrid(self.launchpad)
+            yield PadDetailsPanel()
+
+        yield StatusBar()
+        yield Footer()
+
+    def on_mount(self) -> None:
+        """Initialize the app after mounting."""
+        # Start player with initial set
+        if not self.player.start(initial_set=self.current_set):
+            self.notify("Failed to start player - app may not function correctly", severity="error")
+
+        # Register for MIDI events (controller input)
+        self.player.set_midi_callback(self._on_midi_event)
+        
+        # Register for playback events (audio engine)
+        self.player.set_playback_callback(self._on_playback_event)
+
+        # Register as observer for editing events
+        self.editor.register_observer(self.player)  # Player observes edits for audio sync
+        self.editor.register_observer(self)          # App observes edits for UI sync
+
+        # Set initial mode (UI state only)
+        self._set_mode(self._start_mode)
+
+        # Initial status bar update
+        self._update_status_bar()
 
     def _load_set(self, new_set: Set) -> None:
         """
@@ -151,46 +184,43 @@ class LaunchpadSampler(App):
 
         logger.info(f"Loaded set: {self.set_name} with {len(new_set.launchpad.assigned_pads)} samples")
 
-    def compose(self) -> ComposeResult:
-        """Create the main layout."""
-        yield Header(show_clock=True)
+    def _load_set_from_directory(self, samples_dir: Path) -> Set:
+        """
+        Load a set from a directory of samples.
 
-        with Horizontal():
-            yield PadGrid(self.launchpad)
-            yield PadDetailsPanel()
+        Args:
+            samples_dir: Directory containing sample files
+        """
+        name = samples_dir.name
 
-        yield StatusBar()
-        yield Footer()
+        try:
+            set_obj = Set.from_sample_directory(
+                samples_dir=samples_dir,
+                name=name,
+                auto_configure=True
+            )
+            logger.info(f"Loaded {len(set_obj.launchpad.assigned_pads)} samples from {samples_dir}")
+            return set_obj
+        except ValueError as e:
+            logger.error(f"Error loading samples: {e}")
+            return Set.create_empty(name)
 
-    def on_mount(self) -> None:
-        """Initialize the app after mounting."""
-        # Start player with initial set
-        if not self.player.start(initial_set=self.current_set):
-            self.notify("Failed to start player - app may not function correctly", severity="error")
+    def _load_set_from_file(self, name: str) -> Set:
+        """
+        Load a set from a saved set file.
 
-        # Register for MIDI events (controller input)
-        self.player.set_midi_callback(self._on_midi_event)
-        
-        # Register for playback events (audio engine)
-        self.player.set_playback_callback(self._on_playback_event)
-
-        # Register as observer for editing events
-        self.editor.register_observer(self.player)  # Player observes edits for audio sync
-        self.editor.register_observer(self)          # App observes edits for UI sync
-
-        # Set initial mode (UI state only)
-        self._set_mode(self._start_mode, notify=False)
-
-        # Select default pad only in edit mode
-        if self._start_mode == "edit":
+        Args:
+            name: Name of the set file (without extension)
+        """
+        set_path = self.config.sets_dir / f"{name}.json"
+        if set_path.exists():
             try:
-                self.editor.select_pad(0)
-                self._sync_pad_ui(0, select=True)
+                set_obj = Set.load_from_file(set_path)
+                logger.info(f"Loaded set: {set_obj.name}")
+                return set_obj
             except Exception as e:
-                logger.error(f"Error selecting default pad: {e}")
+                logger.error(f"Error loading set: {e}")
 
-        # Initial status bar update
-        self._update_status_bar()
 
     def _load_initial_set(self, set_name: Optional[str], samples_dir: Optional[Path]) -> Set:
         """Load initial set configuration."""
@@ -198,28 +228,11 @@ class LaunchpadSampler(App):
 
         # Priority 1: Load from samples directory if provided
         if samples_dir:
-            try:
-                set_obj = Set.from_sample_directory(
-                    samples_dir=samples_dir,
-                    name=name,
-                    auto_configure=True
-                )
-                logger.info(f"Loaded {len(set_obj.launchpad.assigned_pads)} samples from {samples_dir}")
-                return set_obj
-            except ValueError as e:
-                logger.error(f"Error loading samples: {e}")
-                return Set.create_empty(name)
+            return self._load_set_from_directory(samples_dir)
 
         # Priority 2: Load from saved set file
         if name and name != "untitled":
-            set_path = self.config.sets_dir / f"{name}.json"
-            if set_path.exists():
-                try:
-                    set_obj = Set.load_from_file(set_path)
-                    logger.info(f"Loaded set: {set_obj.name}")
-                    return set_obj
-                except Exception as e:
-                    logger.error(f"Error loading set: {e}")
+            return self._load_set_from_file(name)
 
         # Fall back to empty set
         logger.info("Created empty set")
@@ -238,7 +251,7 @@ class LaunchpadSampler(App):
         """
         self._set_mode(mode)
 
-    def _set_mode(self, mode: str, notify: bool = True) -> bool:
+    def _set_mode(self, mode: str) -> bool:
         """
         Set the mode to edit or play.
 
@@ -286,13 +299,6 @@ class LaunchpadSampler(App):
 
         # Update status bar
         self._update_status_bar()
-
-        # Show notification
-        if notify:
-            if mode == "edit":
-                self.notify("✏ EDIT MODE - Editing enabled", timeout=2)
-            else:
-                self.notify("▶ PLAY MODE - Editing locked", timeout=2)
 
         logger.info(f"Switched to {mode} mode")
         return True
