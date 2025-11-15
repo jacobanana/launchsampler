@@ -138,7 +138,7 @@ class LaunchpadSampler(App):
             self.player._midi.register_observer(self)
         
         # Register for playback events (audio engine -> yellow backgrounds)
-        self.player.set_playback_callback(self._on_playback_event)
+        self.player.set_playback_callback(self.on_playback_event)
 
         # Register as observer for editing events
         self.editor.register_observer(self.player)  # Player observes edits for audio sync
@@ -336,7 +336,7 @@ class LaunchpadSampler(App):
     # Playback Events handling
     # =================================================================
 
-    def _on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
+    def on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
         """
         Handle playback events from audio engine.
 
@@ -602,7 +602,7 @@ class LaunchpadSampler(App):
 
                     # Perform the move with user's choice
                     logger.info(f"Executing move with swap={swap}")
-                    self._execute_pad_move(source_index, target_index, swap)
+                    self._perform_pad_move(source_index, target_index, swap)
 
                 self.push_screen(
                     MoveConfirmationModal(
@@ -616,19 +616,19 @@ class LaunchpadSampler(App):
             else:
                 # Target is empty - just move
                 logger.info(f"Target pad {target_index} is empty, moving directly")
-                self._execute_pad_move(source_index, target_index, swap=False)
+                self._perform_pad_move(source_index, target_index, swap=False)
 
         except Exception as e:
             logger.error(f"Error moving pad: {e}")
             self.notify(f"Error moving pad: {e}", severity="error")
 
     ## =================================================================
-    # Pad Move Execution
+    # Pad Move Helper
     ## =================================================================
 
-    def _execute_pad_move(self, source_index: int, target_index: int, swap: bool) -> None:
+    def _perform_pad_move(self, source_index: int, target_index: int, swap: bool) -> None:
         """
-        Execute the actual pad move operation.
+        Perform pad move operation after confirmation.
 
         Args:
             source_index: Index of source pad
