@@ -327,3 +327,193 @@ class TestEditorServiceDuplicatePad:
         # Verify target was NOT modified
         target_pad = editor.get_pad(target_index)
         assert target_pad.sample.name == "second"
+
+
+class TestEditorServiceCopyPaste:
+    """Test copy_pad and paste_pad clipboard methods."""
+
+    @pytest.fixture
+    def launchpad(self):
+        """Create a fresh launchpad for each test."""
+        return Launchpad.create_empty()
+
+    @pytest.fixture
+    def config(self, temp_dir):
+        """Create test config."""
+        return AppConfig(sets_dir=temp_dir)
+
+    @pytest.fixture
+    def editor(self, launchpad, config):
+        """Create editor service."""
+        return EditorService(launchpad, config)
+
+    @pytest.mark.unit
+    def test_copy_pad_success(self, editor, sample_audio_file):
+        """Test copying a pad to clipboard."""
+        pad_index = 5
+        editor.assign_sample(pad_index, sample_audio_file)
+        editor.set_pad_volume(pad_index, 0.7)
+        editor.set_pad_mode(pad_index, PlaybackMode.LOOP)
+
+        result = editor.copy_pad(pad_index)
+
+        # Verify clipboard contains the copied pad
+        assert result.sample.name == "test"
+        assert result.volume == 0.7
+        assert result.mode == PlaybackMode.LOOP
+
+    @pytest.mark.unit
+    def test_copy_empty_pad(self, editor):
+        """Test that copying empty pad raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot copy empty pad 0"):
+            editor.copy_pad(0)
+
+    @pytest.mark.unit
+    def test_copy_pad_out_of_range(self, editor):
+        """Test that invalid pad index raises IndexError."""
+        with pytest.raises(IndexError, match=r"Pad index 64 out of range \(0-63\)"):
+            editor.copy_pad(64)
+
+    @pytest.mark.unit
+    def test_paste_pad_success(self, editor, sample_audio_file):
+        """Test pasting from clipboard to empty target."""
+        source_index = 0
+        target_index = 5
+
+        editor.assign_sample(source_index, sample_audio_file)
+        editor.set_pad_volume(source_index, 0.8)
+        editor.copy_pad(source_index)
+
+        result = editor.paste_pad(target_index)
+
+        # Verify target has clipboard contents
+        target_pad = editor.get_pad(target_index)
+        assert target_pad.sample.name == "test"
+        assert target_pad.volume == 0.8
+        assert target_pad.x == 5  # Position preserved
+        assert target_pad.y == 0
+        assert result == target_pad
+
+    @pytest.mark.unit
+    def test_paste_empty_clipboard(self, editor):
+        """Test that pasting with empty clipboard raises ValueError."""
+        with pytest.raises(ValueError, match="Clipboard is empty. Copy a pad first."):
+            editor.paste_pad(5)
+
+    @pytest.mark.unit
+    def test_paste_overwrite_false_occupied_target(self, editor, sample_audio_file, temp_dir):
+        """Test pasting with overwrite=False to occupied target raises ValueError."""
+        import numpy as np
+        import soundfile as sf
+
+        # Create second audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        second_file = temp_dir / "second.wav"
+        sf.write(str(second_file), audio_data, sample_rate)
+
+        # Copy pad 0
+        editor.assign_sample(0, sample_audio_file)
+        editor.copy_pad(0)
+
+        # Assign to target
+        editor.assign_sample(5, second_file)
+
+        # Should fail - target occupied
+        with pytest.raises(
+            ValueError,
+            match=r"Target pad 5 already has sample 'second'"
+        ):
+            editor.paste_pad(5, overwrite=False)
+
+    @pytest.mark.unit
+    def test_paste_overwrite_true_occupied_target(self, editor, sample_audio_file, temp_dir):
+        """Test pasting with overwrite=True to occupied target succeeds."""
+        import numpy as np
+        import soundfile as sf
+
+        # Create second audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        second_file = temp_dir / "second.wav"
+        sf.write(str(second_file), audio_data, sample_rate)
+
+        # Copy pad 0
+        editor.assign_sample(0, sample_audio_file)
+        editor.copy_pad(0)
+
+        # Assign to target
+        editor.assign_sample(5, second_file)
+
+        # Should succeed
+        result = editor.paste_pad(5, overwrite=True)
+
+        target_pad = editor.get_pad(5)
+        assert target_pad.sample.name == "test"
+        assert result == target_pad
+
+    @pytest.mark.unit
+    def test_paste_multiple_times(self, editor, sample_audio_file):
+        """Test that clipboard can be pasted multiple times."""
+        editor.assign_sample(0, sample_audio_file)
+        editor.set_pad_volume(0, 0.6)
+        editor.copy_pad(0)
+
+        # Paste to multiple targets
+        editor.paste_pad(1)
+        editor.paste_pad(2)
+        editor.paste_pad(3)
+
+        # All targets should have the same sample
+        for i in [1, 2, 3]:
+            pad = editor.get_pad(i)
+            assert pad.sample.name == "test"
+            assert pad.volume == 0.6
+
+    @pytest.mark.unit
+    def test_copy_overwrites_clipboard(self, editor, sample_audio_file, temp_dir):
+        """Test that copying a new pad overwrites clipboard."""
+        import numpy as np
+        import soundfile as sf
+
+        # Create second audio file
+        sample_rate = 44100
+        duration = 0.1
+        t = np.linspace(0, duration, int(sample_rate * duration), dtype=np.float32)
+        audio_data = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+        second_file = temp_dir / "second.wav"
+        sf.write(str(second_file), audio_data, sample_rate)
+
+        # Copy first pad
+        editor.assign_sample(0, sample_audio_file)
+        editor.copy_pad(0)
+
+        # Copy second pad (overwrites clipboard)
+        editor.assign_sample(1, second_file)
+        editor.copy_pad(1)
+
+        # Paste should use second pad
+        editor.paste_pad(5)
+        target_pad = editor.get_pad(5)
+        assert target_pad.sample.name == "second"
+
+    @pytest.mark.unit
+    def test_paste_creates_independent_copy(self, editor, sample_audio_file):
+        """Test that pasted pad is independent from clipboard."""
+        editor.assign_sample(0, sample_audio_file)
+        editor.copy_pad(0)
+        editor.paste_pad(1)
+
+        # Modify target
+        editor.set_pad_volume(1, 0.3)
+
+        # Copy again and paste to another location
+        editor.paste_pad(2)
+
+        # Second paste should have original volume, not modified
+        pad2 = editor.get_pad(2)
+        assert pad2.volume == 0.8  # Original default volume

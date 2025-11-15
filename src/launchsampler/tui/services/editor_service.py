@@ -29,6 +29,7 @@ class EditorService:
         self.launchpad = launchpad
         self.config = config
         self.selected_pad_index: Optional[int] = None
+        self._clipboard: Optional[Pad] = None
 
     @property
     def grid_size(self) -> int:
@@ -391,6 +392,79 @@ class EditorService:
 
         # Deep copy entire source pad but preserve target position
         new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
+        self.launchpad.pads[target_index] = new_target
+
+        return new_target
+
+    def copy_pad(self, pad_index: int) -> Pad:
+        """
+        Copy a pad to the clipboard buffer.
+
+        Creates a deep copy of the pad and stores it in an internal buffer
+        for later pasting.
+
+        Args:
+            pad_index: Index of pad to copy
+
+        Returns:
+            The copied Pad
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If pad is empty
+        """
+        self._validate_pad_index(pad_index)
+        pad = self.launchpad.pads[pad_index]
+
+        if not pad.is_assigned:
+            raise ValueError(f"Cannot copy empty pad {pad_index}")
+
+        # Deep copy the pad to clipboard
+        self._clipboard = pad.model_copy(deep=True)
+
+        logger.info(f"Copied pad {pad_index} ('{pad.sample.name}') to clipboard")
+        return self._clipboard
+
+    def paste_pad(self, target_index: int, overwrite: bool = False) -> Pad:
+        """
+        Paste the clipboard buffer to a target pad.
+
+        Args:
+            target_index: Index of pad to paste to
+            overwrite: If False (default), raise ValueError if target already has a sample.
+                      If True, replace target pad contents even if occupied.
+
+        Returns:
+            The new target Pad
+
+        Raises:
+            IndexError: If target_index is out of range
+            ValueError: If clipboard is empty or target is occupied and overwrite=False
+        """
+        self._validate_pad_index(target_index, "Target pad index")
+
+        if self._clipboard is None:
+            raise ValueError("Clipboard is empty. Copy a pad first.")
+
+        target_pad = self.launchpad.pads[target_index]
+
+        # Check if target is occupied and overwrite is disabled
+        if not overwrite and target_pad.is_assigned:
+            raise ValueError(
+                f"Target pad {target_index} already has sample '{target_pad.sample.name}'"
+            )
+
+        # Log if we're overwriting an existing sample
+        if target_pad.is_assigned:
+            logger.info(
+                f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
+                f"with paste from clipboard ('{self._clipboard.sample.name}')"
+            )
+        else:
+            logger.info(f"Pasted sample '{self._clipboard.sample.name}' from clipboard to pad {target_index}")
+
+        # Deep copy clipboard to target, preserving target position
+        new_target = self._clipboard.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
         self.launchpad.pads[target_index] = new_target
 
         return new_target
