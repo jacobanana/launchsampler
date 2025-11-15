@@ -341,12 +341,12 @@ class EditorService:
 
         return (source_pad, target_pad)
 
-    def copy_pad(self, source_index: int, target_index: int, overwrite: bool = False) -> Pad:
+    def duplicate_pad(self, source_index: int, target_index: int, overwrite: bool = False) -> Pad:
         """
-        Copy a sample from source pad to target pad.
+        Duplicate a sample from source pad to target pad.
 
         Creates a complete deep copy of the source pad, preserving only
-        the target's position. This ensures all properties are copied
+        the target's position. This ensures all properties are duplicated
         without needing to handle them individually.
 
         Args:
@@ -384,10 +384,10 @@ class EditorService:
         if target_pad.is_assigned:
             logger.info(
                 f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
-                f"with copy from pad {source_index} ('{source_pad.sample.name}')"
+                f"with duplicate from pad {source_index} ('{source_pad.sample.name}')"
             )
         else:
-            logger.info(f"Copied sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}")
+            logger.info(f"Duplicated sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}")
 
         # Deep copy entire source pad but preserve target position
         new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
