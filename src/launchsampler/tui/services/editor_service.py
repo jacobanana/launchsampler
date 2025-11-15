@@ -35,6 +35,20 @@ class EditorService:
         """Get the total number of pads in the launchpad grid."""
         return len(self.launchpad.pads)
 
+    def _validate_pad_index(self, pad_index: int, label: str = "Pad index") -> None:
+        """
+        Validate that a pad index is within valid range.
+
+        Args:
+            pad_index: The index to validate
+            label: Description for error message (e.g., "Source pad index")
+
+        Raises:
+            IndexError: If pad_index is out of range
+        """
+        if not 0 <= pad_index < self.grid_size:
+            raise IndexError(f"{label} {pad_index} out of range (0-{self.grid_size-1})")
+
     def select_pad(self, pad_index: int) -> Pad:
         """
         Select a pad and return its state.
@@ -48,9 +62,7 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         self.selected_pad_index = pad_index
         return self.launchpad.pads[pad_index]
 
@@ -67,9 +79,7 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         return self.launchpad.pads[pad_index]
 
     def assign_sample(self, pad_index: int, sample_path: Path) -> Pad:
@@ -87,9 +97,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If sample file doesn't exist
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         if not sample_path.exists():
             raise ValueError(f"Sample file not found: {sample_path}")
 
@@ -122,9 +130,7 @@ class EditorService:
         Raises:
             IndexError: If pad_index is out of range
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         # Get current pad position
         old_pad = self.launchpad.pads[pad_index]
 
@@ -150,9 +156,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If pad has no sample assigned
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         pad = self.launchpad.pads[pad_index]
 
         if not pad.is_assigned:
@@ -179,9 +183,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If volume is out of range
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         if not 0.0 <= volume <= 1.0:
             raise ValueError(f"Volume {volume} out of range (0.0-1.0)")
 
@@ -206,9 +208,7 @@ class EditorService:
             IndexError: If pad_index is out of range
             ValueError: If pad has no sample assigned or name is empty
         """
-        if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"Pad index {pad_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(pad_index)
         if not name or not name.strip():
             raise ValueError("Sample name cannot be empty")
 
@@ -291,12 +291,8 @@ class EditorService:
             IndexError: If pad indices are out of range
             ValueError: If source pad is empty
         """
-        if not 0 <= source_index < self.grid_size:
-            raise IndexError(f"Source pad index {source_index} out of range (0-{self.grid_size-1})")
-
-        if not 0 <= target_index < self.grid_size:
-            raise IndexError(f"Target pad index {target_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(source_index, "Source pad index")
+        self._validate_pad_index(target_index, "Target pad index")
         if source_index == target_index:
             raise ValueError("Source and target pads must be different")
 
@@ -364,12 +360,8 @@ class EditorService:
             IndexError: If pad indices are out of range
             ValueError: If source pad is empty or indices are the same
         """
-        if not 0 <= source_index < self.grid_size:
-            raise IndexError(f"Source pad index {source_index} out of range (0-{self.grid_size-1})")
-
-        if not 0 <= target_index < self.grid_size:
-            raise IndexError(f"Target pad index {target_index} out of range (0-{self.grid_size-1})")
-
+        self._validate_pad_index(source_index, "Source pad index")
+        self._validate_pad_index(target_index, "Target pad index")
         if source_index == target_index:
             raise ValueError("Source and target pads must be different")
 
