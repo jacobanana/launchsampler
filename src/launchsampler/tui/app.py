@@ -732,27 +732,32 @@ class LaunchpadSampler(App):
             direction: One of "up", "down", "left", "right"
 
         Returns:
-            Target pad index, or None if already at edge
+            Target pad index, or None if at edge (cannot move in that direction)
         """
         x, y = self.current_set.launchpad.note_to_xy(source_index)
 
+        # Check bounds BEFORE calculating target (like navigation does)
         if direction == "up":
-            y = y - 1
-        elif direction == "down":
+            if y >= 7:  # Already at top
+                return None
             y = y + 1
+        elif direction == "down":
+            if y <= 0:  # Already at bottom
+                return None
+            y = y - 1
         elif direction == "left":
+            if x <= 0:  # Already at left edge
+                return None
             x = x - 1
         elif direction == "right":
+            if x >= 7:  # Already at right edge
+                return None
             x = x + 1
         else:
             return None
 
-        # Check if we're within bounds
-        if not (0 <= x < 8 and 0 <= y < 8):
-            return None
-
         target = self.current_set.launchpad.xy_to_note(x, y)
-        return target if target != source_index else None
+        return target
 
     # Duplicate directional operations (Alt+Arrow)
 
@@ -784,8 +789,7 @@ class LaunchpadSampler(App):
 
         target_index = self._get_directional_target(selected_pad, direction)
         if target_index is None:
-            self.notify("Already at edge", severity="warning")
-            return
+            return  # At edge, silently do nothing (like navigation)
 
         try:
             # Try duplicate with overwrite=False first
@@ -862,8 +866,7 @@ class LaunchpadSampler(App):
 
         target_index = self._get_directional_target(selected_pad, direction)
         if target_index is None:
-            self.notify("Already at edge", severity="warning")
-            return
+            return  # At edge, silently do nothing (like navigation)
 
         target_pad = self.editor.get_pad(target_index)
 
