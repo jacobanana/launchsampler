@@ -1087,8 +1087,6 @@ class LaunchpadSampler(App):
             self.editor.select_pad(target_index)
             # Selection event will sync UI automatically
 
-            self.notify(f"Duplicated {direction}", severity="information")
-
         except ValueError as e:
             # Check if it's because target is occupied
             if "already has sample" in str(e):
@@ -1104,7 +1102,6 @@ class LaunchpadSampler(App):
                             # Move selection to duplicated pad
                             self.editor.select_pad(target_index)  # Event system handles UI sync
 
-                            self.notify(f"Duplicated {direction}", severity="information")
                         except Exception as e:
                             logger.error(f"Error duplicating: {e}")
                             self.notify(f"Error: {e}", severity="error")
@@ -1146,33 +1143,24 @@ class LaunchpadSampler(App):
                     return
                 
                 swap = (action == "swap")
-                try:
-                    # Check if pads are playing and stop them
-                    source_was_playing = self.player.is_pad_playing(selected_pad)
-                    target_was_playing = self.player.is_pad_playing(target_index)
+                
+                # Stop playback if pads are playing
+                source_was_playing = self.player.is_pad_playing(selected_pad)
+                target_was_playing = self.player.is_pad_playing(target_index)
 
-                    if source_was_playing:
-                        self.player.stop_pad(selected_pad)
-                    if target_was_playing:
-                        self.player.stop_pad(target_index)
+                if source_was_playing:
+                    self.player.stop_pad(selected_pad)
+                if target_was_playing:
+                    self.player.stop_pad(target_index)
 
-                    # Move/swap (events handle audio/UI sync automatically)
-                    source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=swap)
+                # Perform the move operation
+                self._perform_pad_move(selected_pad, target_index, swap)
 
-                    # Update UI to clear playing indicators
-                    if source_was_playing:
-                        self._set_pad_playing_ui(selected_pad, False)
-                    if target_was_playing:
-                        self._set_pad_playing_ui(target_index, False)
-
-                    # Move selection to target
-                    self.editor.select_pad(target_index)  # Event system handles UI sync
-
-                    action_name = "Swapped" if swap else "Moved"
-                    self.notify(f"{action_name} {direction}", severity="information")
-                except Exception as e:
-                    logger.error(f"Error moving: {e}")
-                    self.notify(f"Error: {e}", severity="error")
+                # Update UI to clear playing indicators
+                if source_was_playing:
+                    self._set_pad_playing_ui(selected_pad, False)
+                if target_was_playing:
+                    self._set_pad_playing_ui(target_index, False)
 
             self.push_screen(
                 MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
@@ -1180,26 +1168,17 @@ class LaunchpadSampler(App):
             )
         else:
             # Move to empty target
-            try:
-                # Stop playback if source pad is playing
-                was_playing = self.player.is_pad_playing(selected_pad)
-                logger.info(f"Move operation: source={selected_pad}, target={target_index}, was_playing={was_playing}")
-                if was_playing:
-                    self.player.stop_pad(selected_pad)
-                    logger.info(f"Stopped playback on pad {selected_pad}")
+            # Stop playback if source pad is playing
+            was_playing = self.player.is_pad_playing(selected_pad)
+            if was_playing:
+                self.player.stop_pad(selected_pad)
 
-                # Move (events handle audio/UI sync automatically)
-                source_pad, target_pad = self.editor.move_pad(selected_pad, target_index, swap=False)
+            # Perform the move operation
+            self._perform_pad_move(selected_pad, target_index, swap=False)
 
-                # Update UI to clear playing indicator if it was playing
-                if was_playing:
-                    self._set_pad_playing_ui(selected_pad, False)
-
-                # Move selection to target
-                self.editor.select_pad(target_index)  # Event system handles UI sync
-            except Exception as e:
-                logger.error(f"Error moving: {e}")
-                self.notify(f"Error: {e}", severity="error")
+            # Update UI to clear playing indicator if it was playing
+            if was_playing:
+                self._set_pad_playing_ui(selected_pad, False)
 
     def _perform_pad_move(self, source_index: int, target_index: int, swap: bool) -> None:
         """
@@ -1225,10 +1204,6 @@ class LaunchpadSampler(App):
 
             # Update editor's selected pad (event system handles UI sync)
             self.editor.select_pad(new_selection)
-
-            # Show success message
-            action = "Swapped" if swap else "Moved"
-            self.notify(f"{action} pad {source_index} to {target_index}", severity="information")
 
         except Exception as e:
             logger.error(f"Error executing pad move: {e}")
