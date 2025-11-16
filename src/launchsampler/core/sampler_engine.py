@@ -50,13 +50,20 @@ class SamplerEngine:
               (affects at most one 5ms audio block)
     """
 
-    def __init__(self, audio_device: AudioDevice, num_pads: int = 64):
+    def __init__(
+        self,
+        audio_device: AudioDevice,
+        num_pads: int = 64,
+        state_machine: Optional[SamplerStateMachine] = None
+    ):
         """
         Initialize sampler engine.
 
         Args:
             audio_device: Configured AudioDevice instance
             num_pads: Number of pads to manage (default: 64 for Launchpad)
+            state_machine: Optional shared state machine for dependency injection.
+                          If None, creates a new instance (for backward compatibility).
         """
         self._device = audio_device
         self._num_pads = num_pads
@@ -68,8 +75,8 @@ class SamplerEngine:
         self._playback_states: Dict[int, PlaybackState] = {}  # pad_index -> PlaybackState
         self._master_volume = 1.0
 
-        # State machine for event dispatch
-        self._state_machine = SamplerStateMachine()
+        # State machine for event dispatch (injected or created)
+        self._state_machine = state_machine or SamplerStateMachine()
 
         # Thread safety
         self._lock = Lock()  # Only for sample loading/unloading, not for triggers

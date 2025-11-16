@@ -15,6 +15,7 @@ import logging
 
 from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
+from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Set, PlaybackMode
 from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
@@ -50,15 +51,20 @@ class Player(StateObserver, EditObserver, MidiObserver):
     - File browsing
     """
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, state_machine: Optional[SamplerStateMachine] = None):
         """
         Initialize player.
 
         Args:
             config: Application configuration
+            state_machine: Optional shared state machine for dependency injection.
+                          If None, creates a new instance (for backward compatibility).
         """
         self.config = config
         self.current_set: Optional[Set] = None
+
+        # State machine (injected or created)
+        self._state_machine = state_machine or SamplerStateMachine()
 
         # Audio components
         self._audio_device: Optional[AudioDevice] = None
@@ -132,10 +138,11 @@ class Player(StateObserver, EditObserver, MidiObserver):
                 low_latency=True
             )
 
-            # Create engine
+            # Create engine with injected state machine
             self._engine = SamplerEngine(
                 audio_device=self._audio_device,
-                num_pads=LaunchpadDevice.NUM_PADS
+                num_pads=LaunchpadDevice.NUM_PADS,
+                state_machine=self._state_machine
             )
 
             # Register as observer

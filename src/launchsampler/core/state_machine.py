@@ -59,7 +59,8 @@ class SamplerStateMachine:
         """
         with self._lock:
             self._triggered_pads.add(pad_index)
-            self._notify_observers(PlaybackEvent.PAD_TRIGGERED, pad_index)
+        # Notify observers AFTER releasing lock to avoid deadlock
+        self._notify_observers(PlaybackEvent.PAD_TRIGGERED, pad_index)
 
     def notify_pad_playing(self, pad_index: int) -> None:
         """
@@ -71,7 +72,8 @@ class SamplerStateMachine:
         with self._lock:
             self._triggered_pads.discard(pad_index)
             self._playing_pads.add(pad_index)
-            self._notify_observers(PlaybackEvent.PAD_PLAYING, pad_index)
+        # Notify observers AFTER releasing lock to avoid deadlock
+        self._notify_observers(PlaybackEvent.PAD_PLAYING, pad_index)
 
     def notify_pad_stopped(self, pad_index: int) -> None:
         """
@@ -85,8 +87,9 @@ class SamplerStateMachine:
             self._triggered_pads.discard(pad_index)
             self._playing_pads.discard(pad_index)
 
-            if was_playing:
-                self._notify_observers(PlaybackEvent.PAD_STOPPED, pad_index)
+        # Notify observers AFTER releasing lock to avoid deadlock
+        if was_playing:
+            self._notify_observers(PlaybackEvent.PAD_STOPPED, pad_index)
 
     def notify_pad_finished(self, pad_index: int) -> None:
         """
@@ -99,8 +102,9 @@ class SamplerStateMachine:
             was_playing = pad_index in self._playing_pads
             self._playing_pads.discard(pad_index)
 
-            if was_playing:
-                self._notify_observers(PlaybackEvent.PAD_FINISHED, pad_index)
+        # Notify observers AFTER releasing lock to avoid deadlock
+        if was_playing:
+            self._notify_observers(PlaybackEvent.PAD_FINISHED, pad_index)
 
     def is_pad_playing(self, pad_index: int) -> bool:
         """
@@ -134,7 +138,8 @@ class SamplerStateMachine:
             pad_index: Index of the pad involved
 
         Note:
-            Called while holding self._lock. ObserverManager has its own separate lock
-            to avoid deadlock. ObserverManager handles exception catching and logging automatically.
+            Called AFTER releasing self._lock to prevent deadlock. This allows observers
+            to safely query the state machine (e.g., is_pad_playing, get_playing_pads)
+            during event handling. ObserverManager handles exception catching and logging automatically.
         """
         self._observers.notify('on_playback_event', event, pad_index)

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from launchsampler.core.player import Player
+from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
 from launchsampler.services import EditorService, SetManagerService
@@ -66,6 +67,9 @@ class LaunchpadSamplerApp:
         self.launchpad: Launchpad = Launchpad.create_empty()
         self.current_set: Set = Set.create_empty("Untitled")
 
+        # Shared state machine - created once and injected into components
+        self.state_machine = SamplerStateMachine()
+
         # Initial load parameters
         self._initial_set_name = set_name
         self._initial_samples_dir = samples_dir
@@ -115,7 +119,8 @@ class LaunchpadSamplerApp:
         logger.info("Initializing LaunchpadSamplerApp services")
 
         self.set_manager = SetManagerService(self.config)
-        self.player = Player(self.config)
+        # Inject shared state machine into Player
+        self.player = Player(self.config, state_machine=self.state_machine)
 
         # Setup Editor and register player as edit observer (for audio sync)
         self.editor = EditorService(self.config)

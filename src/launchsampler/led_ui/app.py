@@ -49,7 +49,8 @@ class LaunchpadLEDUI(UIAdapter):
         self.controller = None  # Will be set in register_with_services()
 
         # Create LED service (observer) - controller will be set later
-        self.service = LEDService(None, orchestrator)
+        # Pass the shared state machine from orchestrator
+        self.service = LEDService(None, orchestrator, orchestrator.state_machine)
 
         # Register service with orchestrator services
         self._register_with_services()

@@ -3,6 +3,7 @@
 import logging
 from typing import TYPE_CHECKING, Optional
 
+from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices.launchpad import LaunchpadController
 from launchsampler.models import Color
 from launchsampler.protocols import (
@@ -43,18 +44,18 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
     - Playing pad: Pulsing yellow (overrides mode color)
     """
 
-    def __init__(self, controller: Optional[LaunchpadController], orchestrator):
+    def __init__(self, controller: Optional[LaunchpadController], orchestrator, state_machine: SamplerStateMachine):
         """
         Initialize the LED service.
 
         Args:
             controller: The Launchpad controller instance (may be None initially)
             orchestrator: The LaunchpadSamplerApp orchestrator
+            state_machine: Shared state machine for querying playback state
         """
         self.controller = controller
         self.orchestrator = orchestrator
-        self._current_pads: list[Optional["Pad"]] = [None] * 64
-        self._playing_pads: set[int] = set()
+        self.state_machine = state_machine
         logger.info("LEDService initialized")
 
     # =================================================================
@@ -91,8 +92,6 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
         Updates all 64 pad LEDs to reflect the current state.
         """
         try:
-            # Get all pads from orchestrator
-            self._current_pads = list(self.orchestrator.launchpad.pads)
             # Update all LEDs
             self._update_all_leds()
             # Light up panic button
@@ -126,9 +125,8 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
         logger.debug(f"LEDService received edit event: {event.value} for pads {pad_indices}")
 
         try:
-            # Update internal state and LEDs
+            # Update LEDs for edited pads
             for pad_index, pad in zip(pad_indices, pads):
-                self._current_pads[pad_index] = pad
                 self._update_pad_led(pad_index, pad)
 
         except Exception as e:
@@ -185,12 +183,10 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
         try:
             if event == PlaybackEvent.PAD_PLAYING:
                 # Pad started playing - show pulsing yellow
-                self._playing_pads.add(pad_index)
                 self._set_pad_playing_led(pad_index, True)
 
             elif event in (PlaybackEvent.PAD_STOPPED, PlaybackEvent.PAD_FINISHED):
                 # Pad stopped or finished - restore normal color
-                self._playing_pads.discard(pad_index)
                 self._set_pad_playing_led(pad_index, False)
 
         except Exception as e:
@@ -206,25 +202,28 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             logger.warning("Cannot update LEDs: Controller not available or not connected")
             return
 
-        # Sync playing pads state from the player
-        self._sync_playing_pads()
+        # Get playing pads from state machine (single source of truth)
+        playing_pads = set(self.state_machine.get_playing_pads())
+
+        # Get all pads from orchestrator (single source of truth)
+        all_pads = self.orchestrator.launchpad.pads
 
         # Build bulk update list
         updates = []
         for i in range(64):
             # Check if pad is currently playing
-            if i in self._playing_pads:
+            if i in playing_pads:
                 # Playing pads get pulsing yellow (set individually, not in bulk)
                 continue  # Skip bulk update, will be set with pulsing after
 
-            pad = self._current_pads[i]
-            if pad:
+            pad = all_pads[i]
+            if pad.is_assigned:
                 # Get color from centralized color scheme
                 # This will return mode-specific colors for assigned pads
                 color = get_pad_led_color(pad, is_playing=False)
                 updates.append((i, color))
             else:
-                # Pad is None, turn off
+                # Pad is empty, turn off
                 updates.append((i, Color.off()))
 
         # Send bulk update for non-playing pads
@@ -233,21 +232,11 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             logger.info(f"Updated {len(updates)} non-playing LEDs")
 
         # Set playing pads with animation
-        for pad_index in self._playing_pads:
-            pad = self._current_pads[pad_index]
+        for pad_index in playing_pads:
+            pad = all_pads[pad_index]
             palette_color = get_pad_led_palette_index(pad, is_playing=True)
             self.controller.set_pad_pulsing(pad_index, palette_color)
             logger.debug(f"Set playing animation for pad {pad_index}")
-
-    def _sync_playing_pads(self) -> None:
-        """Sync the playing pads state from the orchestrator's player."""
-        try:
-            if self.orchestrator.player and self.orchestrator.player._engine:
-                playing_pads = self.orchestrator.player.get_playing_pads()
-                self._playing_pads = set(playing_pads)
-                logger.debug(f"Synced playing pads: {self._playing_pads}")
-        except Exception as e:
-            logger.error(f"Error syncing playing pads: {e}")
 
     def _update_pad_led(self, pad_index: int, pad: "Pad") -> None:
         """
@@ -262,7 +251,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             return
 
         # If pad is playing, don't override the playing animation
-        if pad_index in self._playing_pads:
+        if self.state_machine.is_pad_playing(pad_index):
             return
 
         # Set color from centralized color scheme
@@ -283,13 +272,13 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
 
         if is_playing:
             # Pulse with playing color (centralized from ui_colors)
-            pad = self._current_pads[pad_index]
+            pad = self.orchestrator.launchpad.pads[pad_index]
             palette_color = get_pad_led_palette_index(pad, is_playing=True)
             self.controller.set_pad_pulsing(pad_index, palette_color)
         else:
             # Restore normal color
-            pad = self._current_pads[pad_index]
-            if pad:
+            pad = self.orchestrator.launchpad.pads[pad_index]
+            if pad.is_assigned:
                 self._update_pad_led(pad_index, pad)
             else:
                 self.controller.set_pad_color(pad_index, Color.off())
