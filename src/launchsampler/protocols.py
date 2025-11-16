@@ -27,7 +27,7 @@ class PlaybackEvent(Enum):
 
 class EditEvent(Enum):
     """Events that occur during editing operations."""
-    
+
     PAD_ASSIGNED = "pad_assigned"           # Sample assigned to pad
     PAD_CLEARED = "pad_cleared"             # Pad sample removed
     PAD_MOVED = "pad_moved"                 # Pad moved/swapped
@@ -37,7 +37,6 @@ class EditEvent(Enum):
     PAD_NAME_CHANGED = "pad_name_changed"   # Sample name changed
     PAD_SELECTED = "pad_selected"           # Pad selection changed
     PADS_CLEARED = "pads_cleared"           # Multiple pads cleared
-    SET_LOADED = "set_loaded"               # New set loaded
 
 
 @runtime_checkable
