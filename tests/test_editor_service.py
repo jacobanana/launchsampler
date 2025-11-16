@@ -24,16 +24,9 @@ class TestEditorServiceDuplicatePad:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def mock_app(self, launchpad):
-        """Create a mock app with launchpad."""
-        app = Mock()
-        app.launchpad = launchpad
-        return app
-
-    @pytest.fixture
-    def editor(self, mock_app, config):
+    def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(mock_app, config)
+        return EditorService(launchpad, config)
 
     @pytest.mark.unit
     def test_duplicate_pad_success(self, editor, sample_audio_file):
@@ -352,16 +345,9 @@ class TestEditorServiceCopyPaste:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def mock_app(self, launchpad):
-        """Create a mock app with launchpad."""
-        app = Mock()
-        app.launchpad = launchpad
-        return app
-
-    @pytest.fixture
-    def editor(self, mock_app, config):
+    def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(mock_app, config)
+        return EditorService(launchpad, config)
 
     @pytest.mark.unit
     def test_copy_pad_success(self, editor, sample_audio_file):
@@ -549,16 +535,9 @@ class TestEditorServiceCutPad:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def mock_app(self, launchpad):
-        """Create a mock app with launchpad."""
-        app = Mock()
-        app.launchpad = launchpad
-        return app
-
-    @pytest.fixture
-    def editor(self, mock_app, config):
+    def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(mock_app, config)
+        return EditorService(launchpad, config)
 
     @pytest.mark.unit
     def test_cut_pad_success(self, editor, sample_audio_file):
@@ -626,16 +605,9 @@ class TestEditorServiceClipboardInspection:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def mock_app(self, launchpad):
-        """Create a mock app with launchpad."""
-        app = Mock()
-        app.launchpad = launchpad
-        return app
-
-    @pytest.fixture
-    def editor(self, mock_app, config):
+    def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(mock_app, config)
+        return EditorService(launchpad, config)
 
     @pytest.mark.unit
     def test_has_clipboard_empty(self, editor):
@@ -671,16 +643,9 @@ class TestEditorServiceBulkClear:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def mock_app(self, launchpad):
-        """Create a mock app with launchpad."""
-        app = Mock()
-        app.launchpad = launchpad
-        return app
-
-    @pytest.fixture
-    def editor(self, mock_app, config):
+    def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(mock_app, config)
+        return EditorService(launchpad, config)
 
     @pytest.mark.unit
     def test_clear_all_empty_launchpad(self, editor):
@@ -787,16 +752,9 @@ class TestEditorServiceEvents:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def mock_app(self, launchpad):
-        """Create a mock app with launchpad."""
-        app = Mock()
-        app.launchpad = launchpad
-        return app
-
-    @pytest.fixture
-    def editor(self, mock_app, config):
+    def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(mock_app, config)
+        return EditorService(launchpad, config)
 
     @pytest.fixture
     def observer(self):
@@ -953,20 +911,8 @@ class TestEditorServiceEvents:
         assert indices == [15]
         assert not pads[0].is_assigned
 
-    @pytest.mark.unit
-    def test_select_pad_fires_event(self, editor, observer, sample_audio_file):
-        """Test that select_pad fires PAD_SELECTED event."""
-        editor.assign_sample(5, sample_audio_file)
-        editor.register_observer(observer)
-        
-        pad = editor.select_pad(5)
-        
-        observer.on_edit_event.assert_called_once()
-        event, indices, pads = observer.on_edit_event.call_args[0]
-        assert event == EditEvent.PAD_SELECTED
-        assert indices == [5]
-        assert pads[0] == pad
-        assert editor.selected_pad_index == 5
+    # NOTE: test_select_pad_fires_event removed - selection moved to UI layer
+    # Selection is now managed by TUI app and fires SelectionEvent instead of EditEvent
 
     @pytest.mark.unit
     def test_observer_exception_doesnt_break_others(self, editor, sample_audio_file):

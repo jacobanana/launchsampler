@@ -11,6 +11,8 @@ from launchsampler.protocols import (
     MidiEvent,
     MidiObserver,
     PlaybackEvent,
+    SelectionEvent,
+    SelectionObserver,
     StateObserver,
 )
 from launchsampler.tui.widgets import PadGrid, PadDetailsPanel, StatusBar
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TUIService(AppObserver, EditObserver, MidiObserver, StateObserver):
+class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, StateObserver):
     """
     Service for synchronizing the Terminal UI with application state.
 
@@ -32,7 +34,8 @@ class TUIService(AppObserver, EditObserver, MidiObserver, StateObserver):
 
     Implements multiple observer protocols:
     - AppObserver: App lifecycle events (SET_LOADED, SET_SAVED, etc.)
-    - EditObserver: Editing events (PAD_ASSIGNED, PAD_SELECTED, etc.)
+    - EditObserver: Editing events (PAD_ASSIGNED, PAD_CLEARED, etc.)
+    - SelectionObserver: Selection events (CHANGED, CLEARED) - UI state only
     - MidiObserver: MIDI controller events (NOTE_ON, NOTE_OFF, etc.)
     - StateObserver: Playback events (PAD_PLAYING, PAD_STOPPED, etc.)
     """
@@ -85,10 +88,10 @@ class TUIService(AppObserver, EditObserver, MidiObserver, StateObserver):
                 grid.update_pad(i, pad)
 
             # Update details panel if a pad is currently selected
-            if self.app.editor.selected_pad_index is not None:
+            if self.app.selected_pad_index is not None:
                 self._update_selected_pad_ui(
-                    self.app.editor.selected_pad_index,
-                    self.app.launchpad.pads[self.app.editor.selected_pad_index]
+                    self.app.selected_pad_index,
+                    self.app.launchpad.pads[self.app.selected_pad_index]
                 )
 
             logger.debug("TUI synchronized with loaded set")
@@ -146,18 +149,46 @@ class TUIService(AppObserver, EditObserver, MidiObserver, StateObserver):
         logger.debug(f"TUIService received edit event: {event.value} for pads {pad_indices}")
 
         try:
-            if event == EditEvent.PAD_SELECTED:
-                # Handle selection - update grid selection state and details panel
-                pad_index = pad_indices[0]
-                pad = pads[0]
-                self._update_selected_pad_ui(pad_index, pad)
-            else:
-                # Update content - refresh grid and details if currently selected
-                for pad_index, pad in zip(pad_indices, pads):
-                    self._update_pad_ui(pad_index, pad)
+            # Update content - refresh grid and details if currently selected
+            for pad_index, pad in zip(pad_indices, pads):
+                self._update_pad_ui(pad_index, pad)
 
         except Exception as e:
             logger.error(f"Error handling edit event {event}: {e}")
+
+    # =================================================================
+    # SelectionObserver Protocol - Selection events
+    # =================================================================
+
+    def on_selection_event(
+        self,
+        event: "SelectionEvent",
+        pad_index: Optional[int]
+    ) -> None:
+        """
+        Handle selection change events.
+
+        This is the NEW way to handle selection (replaces EditEvent.PAD_SELECTED).
+        Selection is UI state that doesn't affect persistence or audio.
+
+        Args:
+            event: The type of selection event
+            pad_index: Index of selected pad (0-63), or None if cleared
+        """
+        logger.debug(f"TUIService received selection event: {event.value}, pad: {pad_index}")
+
+        try:
+            if event == SelectionEvent.CHANGED and pad_index is not None:
+                # Pad selected - update UI
+                pad = self.app.editor.get_pad(pad_index)
+                self._update_selected_pad_ui(pad_index, pad)
+            elif event == SelectionEvent.CLEARED:
+                # Selection cleared - update UI
+                grid = self.app.query_one(PadGrid)
+                grid.clear_selection()
+
+        except Exception as e:
+            logger.error(f"Error handling selection event {event}: {e}")
 
     # =================================================================
     # MidiObserver Protocol - MIDI controller events
@@ -294,7 +325,7 @@ class TUIService(AppObserver, EditObserver, MidiObserver, StateObserver):
             grid.update_pad(pad_index, pad)
 
             # Update details panel if this pad is currently selected
-            if pad_index == self.app.editor.selected_pad_index:
+            if pad_index == self.app.selected_pad_index:
                 self._update_details_panel(pad_index, pad)
 
         except Exception as e:

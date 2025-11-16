@@ -74,8 +74,7 @@ class LaunchpadSamplerApp:
         # Services (domain logic)
         self.set_manager = SetManagerService(config)
         self.player = Player(config)
-        # EditorService needs a reference to get pad data - we'll pass self
-        self.editor: Optional[EditorService] = None
+        self.editor = EditorService(self.launchpad, config)
 
         # Observers (UIs)
         self._app_observers: list[AppObserver] = []
@@ -86,9 +85,6 @@ class LaunchpadSamplerApp:
 
         This should be called after construction to set up services and load initial state.
         """
-        # Create editor service (it needs self to access launchpad)
-        self.editor = EditorService(self, self.config)
-
         # Load initial set
         self._load_initial_set(self._initial_set_name, self._initial_samples_dir)
 
@@ -277,13 +273,41 @@ class LaunchpadSamplerApp:
 
     @property
     def mode(self) -> Optional[str]:
-        """Get the current app mode."""
+        """
+        Get the current app mode.
+
+        READ-ONLY: This is a read-only property. To change the mode,
+        use set_mode() which fires AppEvent.MODE_CHANGED for observers.
+        """
         return self._mode
 
     # =================================================================
-    # Convenience accessors for EditorService
+    # Read-Only State Access
+    #
+    # IMPORTANT: These properties provide READ-ONLY access to state.
+    # UI layers should NEVER mutate this state directly.
+    #
+    # To modify state, use the service methods which:
+    # 1. Perform the mutation
+    # 2. Fire events to notify all observers
+    # 3. Ensure consistency across all UIs
+    #
+    # Communication Rules:
+    # - Mutations: UI → Service → Event → Observer → UI Update
+    # - Queries: UI → orchestrator.property (read-only)
     # =================================================================
 
     def get_pad(self, index: int):
-        """Get a pad by index (for EditorService compatibility)."""
+        """
+        Get a pad by index (read-only access).
+
+        This is a convenience method for EditorService compatibility.
+        To modify pads, use EditorService methods which fire events.
+
+        Args:
+            index: Pad index (0-63)
+
+        Returns:
+            Pad at the given index
+        """
         return self.launchpad.pads[index]

@@ -12,7 +12,7 @@ from textual.binding import Binding
 from launchsampler.core.player import Player
 from launchsampler.models import Launchpad, Set, PlaybackMode
 from launchsampler.services import SetManagerService
-from launchsampler.protocols import AppEvent
+from launchsampler.protocols import AppEvent, SelectionEvent
 
 from .decorators import edit_only
 from .services import EditorService, TUIService
@@ -115,20 +115,45 @@ class LaunchpadSampler(App):
         self.config = orchestrator.config
         self._start_mode = start_mode
 
+        # UI-specific ephemeral state (not persisted)
+        self._selected_pad_index: Optional[int] = None
+
         self.tui_service: Optional[TUIService] = None  # Initialized in on_mount
+        self._selection_observers: list = []  # For SelectionObserver pattern
 
     # =================================================================
-    # Convenience Properties - Direct delegation to orchestrator
+    # Read-Only State Access - Delegated to orchestrator
+    #
+    # ARCHITECTURAL RULE: These properties provide READ-ONLY access.
+    #
+    # ❌ NEVER do this:
+    #    self.launchpad.pads[i] = new_pad  # Direct mutation!
+    #
+    # ✅ ALWAYS do this:
+    #    self.editor.assign_sample(i, sample)  # Service method fires events
+    #
+    # Why? Because services fire events that keep all observers in sync.
+    # Direct mutations break the observer pattern and cause UI desync.
     # =================================================================
 
     @property
     def launchpad(self) -> Launchpad:
-        """Get the launchpad from orchestrator."""
+        """
+        READ-ONLY access to launchpad state.
+
+        Do NOT mutate this directly. Use EditorService methods to make
+        changes (they fire events for observer synchronization).
+        """
         return self.orchestrator.launchpad
 
     @property
     def current_set(self) -> Set:
-        """Get the current set from orchestrator."""
+        """
+        READ-ONLY access to current set.
+
+        To load a new set, use orchestrator.load_set() which fires
+        AppEvent.SET_LOADED for observers.
+        """
         return self.orchestrator.current_set
 
     @property
@@ -148,8 +173,66 @@ class LaunchpadSampler(App):
 
     @property
     def _sampler_mode(self) -> Optional[str]:
-        """Get the current mode from orchestrator."""
+        """
+        READ-ONLY access to current mode.
+
+        To change mode, use orchestrator.set_mode() or _set_mode()
+        which fires AppEvent.MODE_CHANGED.
+        """
         return self.orchestrator.mode
+
+    # =================================================================
+    # Selection Management (UI-Specific Ephemeral State)
+    #
+    # Selection is UI state that doesn't persist to disk.
+    # Each UI can have its own independent selection.
+    # =================================================================
+
+    @property
+    def selected_pad_index(self) -> Optional[int]:
+        """Get the currently selected pad index (UI state)."""
+        return self._selected_pad_index
+
+    def select_pad(self, pad_index: int) -> None:
+        """
+        Select a pad (UI operation).
+
+        This updates UI-specific selection state and notifies selection observers.
+        This does NOT modify persistent data or fire EditEvent.
+
+        Args:
+            pad_index: Index of pad to select (0-63)
+        """
+        if not 0 <= pad_index < 64:
+            logger.error(f"Pad index {pad_index} out of range")
+            return
+
+        self._selected_pad_index = pad_index
+
+        # Notify selection observers (TUIService will update UI)
+        self._notify_selection_observers(SelectionEvent.CHANGED, pad_index)
+
+    def clear_selection(self) -> None:
+        """Clear pad selection (UI operation)."""
+        self._selected_pad_index = None
+        self._notify_selection_observers(SelectionEvent.CLEARED, None)
+
+    def register_selection_observer(self, observer) -> None:
+        """Register an observer for selection events."""
+        if observer not in self._selection_observers:
+            self._selection_observers.append(observer)
+
+    def _notify_selection_observers(self, event, pad_index: Optional[int]) -> None:
+        """Notify all selection observers."""
+        for observer in self._selection_observers:
+            try:
+                observer.on_selection_event(event, pad_index)
+            except Exception as e:
+                logger.error(f"Error notifying selection observer: {e}")
+
+    # =================================================================
+    # Textual Lifecycle
+    # =================================================================
 
     def compose(self) -> ComposeResult:
         """Create the main layout."""
@@ -175,6 +258,7 @@ class LaunchpadSampler(App):
 
         # Register TUI service for all event types
         self.editor.register_observer(self.tui_service)      # TUIService observes edits for UI sync
+        self.register_selection_observer(self.tui_service)   # TUIService observes selection changes (UI state)
         if self.player._midi:
             self.player._midi.register_observer(self.tui_service)  # TUIService observes MIDI events
         self.player.set_playback_callback(self.tui_service.on_playback_event)  # TUIService observes playback
@@ -272,15 +356,15 @@ class LaunchpadSampler(App):
         grid = self.query_one(PadGrid)
         if mode == "play":
             # Clear selection in play mode
-            grid.clear_selection()
+            self.clear_selection()
         else:
             # Edit mode: ensure a pad is selected
-            if self.editor.selected_pad_index is not None:
+            if self.selected_pad_index is not None:
                 # Restore existing selection
-                grid.select_pad(self.editor.selected_pad_index)
+                grid.select_pad(self.selected_pad_index)
             else:
                 # No pad selected yet, select pad 0 by default
-                self.editor.select_pad(0)  # Event system handles UI sync
+                self.select_pad(0)  # Fires SelectionEvent
 
         logger.info(f"Switched to {mode} mode")
         return True
@@ -293,7 +377,7 @@ class LaunchpadSampler(App):
         """Handle pad selection from grid."""
         if self._sampler_mode == "edit":
             try:
-                self.editor.select_pad(message.pad_index)  # Event system handles UI sync
+                self.select_pad(message.pad_index)  # Fires SelectionEvent
             except Exception as e:
                 logger.error(f"Error selecting pad: {e}")
                 self.notify(f"Error selecting pad: {e}", severity="error")
@@ -414,7 +498,7 @@ class LaunchpadSampler(App):
     @edit_only
     def action_browse_sample(self) -> None:
         """Open file browser to assign a sample."""
-        if self.editor.selected_pad_index is None:
+        if self.selected_pad_index is None:
             self.notify("Select a pad first", severity="warning")
             return
 
@@ -423,7 +507,7 @@ class LaunchpadSampler(App):
             return
 
         # Capture selected pad index (guaranteed not None here)
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
 
         def handle_file(file_path: Optional[Path]) -> None:
             if file_path:
@@ -546,7 +630,7 @@ class LaunchpadSampler(App):
     @edit_only
     def action_copy_pad(self) -> None:
         """Copy selected pad to clipboard."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -560,7 +644,7 @@ class LaunchpadSampler(App):
     @edit_only
     def action_cut_pad(self) -> None:
         """Cut selected pad to clipboard."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -581,7 +665,7 @@ class LaunchpadSampler(App):
     @edit_only
     def action_paste_pad(self) -> None:
         """Paste clipboard to selected pad."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -623,7 +707,7 @@ class LaunchpadSampler(App):
     @edit_only
     def action_delete_pad(self) -> None:
         """Delete the selected pad."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -659,57 +743,57 @@ class LaunchpadSampler(App):
 
     def action_navigate_up(self) -> None:
         """Navigate to pad above current selection."""
-        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
+        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
 
         if y < self.launchpad.GRID_SIZE - 1:
             new_index = self.launchpad.xy_to_note(x, y + 1)
             try:
-                self.editor.select_pad(new_index)  # Event system handles UI sync
+                self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
     def action_navigate_down(self) -> None:
         """Navigate to pad below current selection."""
-        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
+        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
 
         if y > 0:
             new_index = self.launchpad.xy_to_note(x, y - 1)
             try:
-                self.editor.select_pad(new_index)  # Event system handles UI sync
+                self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
     def action_navigate_left(self) -> None:
         """Navigate to pad left of current selection."""
-        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
+        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
 
         if x > 0:
             new_index = self.launchpad.xy_to_note(x - 1, y)
             try:
-                self.editor.select_pad(new_index)  # Event system handles UI sync
+                self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
     def action_navigate_right(self) -> None:
         """Navigate to pad right of current selection."""
-        if self._sampler_mode != "edit" or self.editor.selected_pad_index is None:
+        if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.editor.selected_pad_index)
+        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
 
         if x < self.launchpad.GRID_SIZE - 1:
             new_index = self.launchpad.xy_to_note(x + 1, y)
             try:
-                self.editor.select_pad(new_index)  # Event system handles UI sync
+                self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
                 logger.error(f"Error navigating: {e}")
 
@@ -751,37 +835,37 @@ class LaunchpadSampler(App):
 
     def action_test_pad(self) -> None:
         """Test the selected pad (works in both modes)."""
-        if self.editor.selected_pad_index is None:
+        if self.selected_pad_index is None:
             return
 
-        pad = self.editor.get_pad(self.editor.selected_pad_index)
+        pad = self.editor.get_pad(self.selected_pad_index)
         if pad.is_assigned:
-            self.player.trigger_pad(self.editor.selected_pad_index)
+            self.player.trigger_pad(self.selected_pad_index)
 
     def action_toggle_test(self) -> None:
         """Toggle between test and stop for the selected pad."""
-        if self.editor.selected_pad_index is None:
+        if self.selected_pad_index is None:
             return
 
-        pad = self.editor.get_pad(self.editor.selected_pad_index)
+        pad = self.editor.get_pad(self.selected_pad_index)
         if not pad.is_assigned:
             return
 
         # Check if pad is currently playing
-        if self.player.is_pad_playing(self.editor.selected_pad_index):
+        if self.player.is_pad_playing(self.selected_pad_index):
             # Stop the pad - goes through queue and fires proper events
-            self.player.stop_pad(self.editor.selected_pad_index)
+            self.player.stop_pad(self.selected_pad_index)
         else:
             # Start the pad
-            self.player.trigger_pad(self.editor.selected_pad_index)
+            self.player.trigger_pad(self.selected_pad_index)
 
     def action_stop_audio(self) -> None:
         """Stop all audio playback."""
         self.player.stop_all()
 
         # Also release selected pad if in HOLD mode
-        if self.editor.selected_pad_index is not None:
-            self.player.release_pad(self.editor.selected_pad_index)
+        if self.selected_pad_index is not None:
+            self.player.release_pad(self.selected_pad_index)
 
     def action_set_mode_one_shot(self) -> None:
         """Set selected pad to one-shot mode."""
@@ -841,7 +925,7 @@ class LaunchpadSampler(App):
     @edit_only
     def _duplicate_directional(self, direction: str) -> None:
         """Duplicate pad in given direction."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -862,7 +946,7 @@ class LaunchpadSampler(App):
             pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
 
             # Move selection to duplicated pad
-            self.editor.select_pad(target_index)
+            self.select_pad(target_index)
             # Selection event will sync UI automatically
 
         except ValueError as e:
@@ -878,7 +962,7 @@ class LaunchpadSampler(App):
                             pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
 
                             # Move selection to duplicated pad
-                            self.editor.select_pad(target_index)  # Event system handles UI sync
+                            self.select_pad(target_index)  # Event system handles UI sync
 
                         except Exception as e:
                             logger.error(f"Error duplicating: {e}")
@@ -896,7 +980,7 @@ class LaunchpadSampler(App):
     @edit_only
     def _move_directional(self, direction: str) -> None:
         """Move pad in given direction."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             self.notify("Select a pad first", severity="warning")
             return
@@ -981,7 +1065,7 @@ class LaunchpadSampler(App):
                 new_selection = target_index
 
             # Update editor's selected pad (event system handles UI sync)
-            self.editor.select_pad(new_selection)
+            self.select_pad(new_selection)
 
         except Exception as e:
             logger.error(f"Error executing pad move: {e}")
@@ -990,7 +1074,7 @@ class LaunchpadSampler(App):
     @edit_only
     def _set_pad_mode(self, mode: PlaybackMode) -> None:
         """Set the playback mode for selected pad."""
-        selected_pad = self.editor.selected_pad_index
+        selected_pad = self.selected_pad_index
         if selected_pad is None:
             return
 

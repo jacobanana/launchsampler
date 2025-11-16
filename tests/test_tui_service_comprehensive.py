@@ -17,7 +17,7 @@ class TestTUIServiceEditObserver:
         app = Mock()
         app.launchpad = Launchpad.create_empty()
         app.editor = Mock()
-        app.editor.selected_pad_index = 5
+        app.selected_pad_index = 5
         app.player = Mock()
         app.player._engine = None
         return app
@@ -36,42 +36,15 @@ class TestTUIServiceEditObserver:
         assert callable(service.on_edit_event)
         assert isinstance(service, EditObserver)
 
-    @pytest.mark.unit
-    def test_on_edit_event_pad_selected(self, service, mock_app, sample_audio_file):
-        """Test handling PAD_SELECTED event."""
-        # Setup
-        mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
-        mock_grid = Mock()
-        mock_details = Mock()
-
-        def query_one_side_effect(widget_type):
-            from launchsampler.tui.widgets import PadGrid, PadDetailsPanel
-            if widget_type == PadGrid:
-                return mock_grid
-            elif widget_type == PadDetailsPanel:
-                return mock_details
-
-        mock_app.query_one = Mock(side_effect=query_one_side_effect)
-
-        # Call event handler
-        service.on_edit_event(
-            EditEvent.PAD_SELECTED,
-            pad_indices=[3],
-            pads=[mock_app.launchpad.pads[3]]
-        )
-
-        # Verify grid selection was updated
-        mock_grid.select_pad.assert_called_once_with(3)
-
-        # Verify details panel was updated
-        mock_details.update_for_pad.assert_called_once()
+    # NOTE: test_on_edit_event_pad_selected removed - PAD_SELECTED no longer exists
+    # Selection events now handled via SelectionEvent protocol, not EditEvent
 
     @pytest.mark.unit
     def test_on_edit_event_pad_assigned(self, service, mock_app, sample_audio_file):
         """Test handling PAD_ASSIGNED event."""
         # Setup
         mock_app.launchpad.pads[7].sample = Sample.from_file(sample_audio_file)
-        mock_app.editor.selected_pad_index = 7
+        mock_app.selected_pad_index = 7
         mock_grid = Mock()
         mock_details = Mock()
 
@@ -280,7 +253,7 @@ class TestTUIServiceUIHelpers:
         app = Mock()
         app.launchpad = Launchpad.create_empty()
         app.editor = Mock()
-        app.editor.selected_pad_index = None
+        app.selected_pad_index = None
         app.player = Mock()
         app.player._engine = None
         app._sampler_mode = "edit"
@@ -342,7 +315,7 @@ class TestTUIServiceUIHelpers:
         """Test updating pad UI when pad is NOT selected."""
         # Setup
         mock_app.launchpad.pads[10].sample = Sample.from_file(sample_audio_file)
-        mock_app.editor.selected_pad_index = 5  # Different pad selected
+        mock_app.selected_pad_index = 5  # Different pad selected
         mock_grid = Mock()
         mock_details = Mock()
 

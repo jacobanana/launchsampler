@@ -17,7 +17,7 @@ class TestTUIServiceObserver:
         app = Mock()
         app.launchpad = Launchpad.create_empty()
         app.editor = Mock()
-        app.editor.selected_pad_index = None
+        app.selected_pad_index = None
         app.player = Mock()
         app.player._engine = None
         return app
@@ -62,7 +62,7 @@ class TestTUIServiceObserver:
         """Test SET_LOADED updates details panel when pad is selected."""
         # Setup: assign sample to pad 5 and select it
         mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
-        mock_app.editor.selected_pad_index = 5
+        mock_app.selected_pad_index = 5  # Selection now on app, not editor
 
         # Setup mocks
         mock_grid = Mock()
@@ -95,7 +95,7 @@ class TestTUIServiceObserver:
     def test_on_app_event_set_loaded_no_selection(self, service, mock_app):
         """Test SET_LOADED doesn't update details when no pad selected."""
         # Setup: no pad selected
-        mock_app.editor.selected_pad_index = None
+        mock_app.selected_pad_index = None
 
         # Setup mocks
         mock_grid = Mock()
