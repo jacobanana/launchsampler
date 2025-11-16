@@ -124,7 +124,7 @@ class SamplerEngine:
                 
                 # Notify state machine if pad was playing
                 if was_playing:
-                    self._state_machine.on_pad_stopped(pad_index)
+                    self._state_machine.notify_pad_stopped(pad_index)
 
     def trigger_pad(self, pad_index: int) -> None:
         """
@@ -356,35 +356,35 @@ class SamplerEngine:
                             if state.is_playing:
                                 # Second note on - stop playback
                                 state.stop()
-                                self._state_machine.on_pad_stopped(pad_index)
+                                self._state_machine.notify_pad_stopped(pad_index)
                             else:
                                 # First note on - start playback
                                 was_playing = False
                                 state.start()
-                                self._state_machine.on_pad_triggered(pad_index)
+                                self._state_machine.notify_pad_triggered(pad_index)
                                 if state.is_playing:
-                                    self._state_machine.on_pad_playing(pad_index)
+                                    self._state_machine.notify_pad_playing(pad_index)
                         else:
                             # Normal behavior for other modes
                             was_playing = state.is_playing
                             state.start()
 
                             # Publish event
-                            self._state_machine.on_pad_triggered(pad_index)
+                            self._state_machine.notify_pad_triggered(pad_index)
                             if state.is_playing and not was_playing:
-                                self._state_machine.on_pad_playing(pad_index)
+                                self._state_machine.notify_pad_playing(pad_index)
 
                     elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
                         # Note: LOOP_TOGGLE ignores note off messages
                         if state.is_playing:
                             state.stop()
-                            self._state_machine.on_pad_stopped(pad_index)
+                            self._state_machine.notify_pad_stopped(pad_index)
 
                     elif action == "stop":
                         # Immediate stop - works for all modes
                         if state.is_playing:
                             state.stop()
-                            self._state_machine.on_pad_stopped(pad_index)
+                            self._state_machine.notify_pad_stopped(pad_index)
 
                 except Exception as e:
                     logger.error(f"Error processing trigger queue for pad {pad_index}: {e}", exc_info=True)
@@ -409,7 +409,7 @@ class SamplerEngine:
             for pad_index in was_playing_before:
                 state = self._playback_states[pad_index]
                 if not state.is_playing:
-                    self._state_machine.on_pad_finished(pad_index)
+                    self._state_machine.notify_pad_finished(pad_index)
 
             # Apply master volume
             if self._master_volume != 1.0:

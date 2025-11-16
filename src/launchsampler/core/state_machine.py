@@ -54,9 +54,9 @@ class SamplerStateMachine:
                 self._observers.remove(observer)
                 logger.debug(f"Unregistered observer: {observer}")
 
-    def on_pad_triggered(self, pad_index: int) -> None:
+    def notify_pad_triggered(self, pad_index: int) -> None:
         """
-        Handle pad trigger event (note on received).
+        Notify that a pad trigger event occurred (note on received).
 
         Args:
             pad_index: Index of triggered pad
@@ -65,9 +65,9 @@ class SamplerStateMachine:
             self._triggered_pads.add(pad_index)
             self._notify_observers(PlaybackEvent.PAD_TRIGGERED, pad_index)
 
-    def on_pad_playing(self, pad_index: int) -> None:
+    def notify_pad_playing(self, pad_index: int) -> None:
         """
-        Handle pad playing event (audio started).
+        Notify that a pad playing event occurred (audio started).
 
         Args:
             pad_index: Index of pad that started playing
@@ -77,9 +77,9 @@ class SamplerStateMachine:
             self._playing_pads.add(pad_index)
             self._notify_observers(PlaybackEvent.PAD_PLAYING, pad_index)
 
-    def on_pad_stopped(self, pad_index: int) -> None:
+    def notify_pad_stopped(self, pad_index: int) -> None:
         """
-        Handle pad stopped event (note off or interrupt).
+        Notify that a pad stopped event occurred (note off or interrupt).
 
         Args:
             pad_index: Index of pad that was stopped
@@ -92,9 +92,9 @@ class SamplerStateMachine:
             if was_playing:
                 self._notify_observers(PlaybackEvent.PAD_STOPPED, pad_index)
 
-    def on_pad_finished(self, pad_index: int) -> None:
+    def notify_pad_finished(self, pad_index: int) -> None:
         """
-        Handle pad finished event (playback completed naturally).
+        Notify that a pad finished event occurred (playback completed naturally).
 
         Args:
             pad_index: Index of pad that finished playing

@@ -39,7 +39,7 @@ class TestSamplerStateMachine(unittest.TestCase):
         observer = Mock(spec=StateObserver)
         machine.register_observer(observer)
 
-        machine.on_pad_triggered(5)
+        machine.notify_pad_triggered(5)
 
         observer.on_playback_event.assert_called_once_with(PlaybackEvent.PAD_TRIGGERED, 5)
 
@@ -49,7 +49,7 @@ class TestSamplerStateMachine(unittest.TestCase):
         observer = Mock(spec=StateObserver)
         machine.register_observer(observer)
 
-        machine.on_pad_playing(10)
+        machine.notify_pad_playing(10)
 
         assert machine.is_pad_playing(10)
         observer.on_playback_event.assert_called_once_with(PlaybackEvent.PAD_PLAYING, 10)
@@ -61,11 +61,11 @@ class TestSamplerStateMachine(unittest.TestCase):
         machine.register_observer(observer)
 
         # Start playing first
-        machine.on_pad_playing(15)
+        machine.notify_pad_playing(15)
         observer.on_playback_event.reset_mock()
 
         # Then stop
-        machine.on_pad_stopped(15)
+        machine.notify_pad_stopped(15)
 
         assert not machine.is_pad_playing(15)
         observer.on_playback_event.assert_called_once_with(PlaybackEvent.PAD_STOPPED, 15)
@@ -77,11 +77,11 @@ class TestSamplerStateMachine(unittest.TestCase):
         machine.register_observer(observer)
 
         # Start playing first
-        machine.on_pad_playing(20)
+        machine.notify_pad_playing(20)
         observer.on_playback_event.reset_mock()
 
         # Then finish
-        machine.on_pad_finished(20)
+        machine.notify_pad_finished(20)
 
         assert not machine.is_pad_playing(20)
         observer.on_playback_event.assert_called_once_with(PlaybackEvent.PAD_FINISHED, 20)
@@ -94,9 +94,9 @@ class TestSamplerStateMachine(unittest.TestCase):
         assert machine.get_playing_pads() == []
 
         # Start some pads
-        machine.on_pad_playing(0)
-        machine.on_pad_playing(5)
-        machine.on_pad_playing(10)
+        machine.notify_pad_playing(0)
+        machine.notify_pad_playing(5)
+        machine.notify_pad_playing(10)
 
         playing = machine.get_playing_pads()
         assert len(playing) == 3
@@ -105,7 +105,7 @@ class TestSamplerStateMachine(unittest.TestCase):
         assert 10 in playing
 
         # Stop one
-        machine.on_pad_stopped(5)
+        machine.notify_pad_stopped(5)
         playing = machine.get_playing_pads()
         assert len(playing) == 2
         assert 0 in playing
@@ -121,7 +121,7 @@ class TestSamplerStateMachine(unittest.TestCase):
         machine.register_observer(observer1)
         machine.register_observer(observer2)
 
-        machine.on_pad_triggered(3)
+        machine.notify_pad_triggered(3)
 
         observer1.on_playback_event.assert_called_once_with(PlaybackEvent.PAD_TRIGGERED, 3)
         observer2.on_playback_event.assert_called_once_with(PlaybackEvent.PAD_TRIGGERED, 3)
@@ -141,7 +141,7 @@ class TestSamplerStateMachine(unittest.TestCase):
         machine.register_observer(good_observer)
 
         # Should not raise
-        machine.on_pad_triggered(7)
+        machine.notify_pad_triggered(7)
 
         # Both should have been called
         bad_observer.on_playback_event.assert_called_once()
@@ -154,7 +154,7 @@ class TestSamplerStateMachine(unittest.TestCase):
         machine.register_observer(observer)
 
         # Try to stop a pad that was never started
-        machine.on_pad_stopped(25)
+        machine.notify_pad_stopped(25)
 
         # Should not notify since it wasn't playing
         observer.on_playback_event.assert_not_called()
@@ -166,17 +166,17 @@ class TestSamplerStateMachine(unittest.TestCase):
         machine.register_observer(observer)
 
         # Trigger
-        machine.on_pad_triggered(1)
+        machine.notify_pad_triggered(1)
         assert not machine.is_pad_playing(1)  # Not playing yet, just triggered
         assert observer.on_playback_event.call_count == 1
 
         # Start playing
-        machine.on_pad_playing(1)
+        machine.notify_pad_playing(1)
         assert machine.is_pad_playing(1)
         assert observer.on_playback_event.call_count == 2
 
         # Finish
-        machine.on_pad_finished(1)
+        machine.notify_pad_finished(1)
         assert not machine.is_pad_playing(1)
         assert observer.on_playback_event.call_count == 3
 
