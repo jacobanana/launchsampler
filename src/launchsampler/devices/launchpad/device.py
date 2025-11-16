@@ -1,10 +1,8 @@
 """Launchpad device implementation."""
 
 import logging
-from typing import Optional, Tuple
-import mido
+from typing import Optional
 from launchsampler.midi import MidiManager
-from launchsampler.models import Color
 from launchsampler.devices.protocols import Device, DeviceInput, DeviceOutput
 from .model import LaunchpadInfo, LaunchpadModel
 from .input import LaunchpadInput
@@ -124,58 +122,3 @@ class LaunchpadDevice(Device):
         # Fall back to first match
         return matching_ports[0]
 
-    # Backward compatibility methods for old tests
-    @staticmethod
-    def parse_input(msg: mido.Message) -> Optional[Tuple[str, int]]:
-        """
-        Parse incoming MIDI message into Launchpad events.
-
-        DEPRECATED: Use LaunchpadInput.parse_message() instead.
-        This method is kept for backward compatibility with existing tests.
-        Uses simple 1:1 note mapping (note 0-63 → index 0-63) for compatibility.
-
-        Args:
-            msg: MIDI message
-
-        Returns:
-            Tuple of (event_type, pad_index) or None
-            event_type: "pad_press" or "pad_release"
-            pad_index: 0-63
-        """
-        # Filter out clock messages
-        if msg.type == 'clock':
-            return None
-
-        # Handle note on/off with simple 1:1 mapping
-        if msg.type == 'note_on':
-            # Old tests expect notes 0-63 to map directly to pads 0-63
-            if 0 <= msg.note < 64:
-                # Note on with velocity 0 is actually note off
-                if msg.velocity > 0:
-                    return ("pad_press", msg.note)
-                else:
-                    return ("pad_release", msg.note)
-
-        elif msg.type == 'note_off':
-            if 0 <= msg.note < 64:
-                return ("pad_release", msg.note)
-
-        return None
-
-    @staticmethod
-    def create_led_message(pad_index: int, color: Color) -> mido.Message:
-        """
-        Create MIDI message to set pad LED color.
-
-        DEPRECATED: Use LaunchpadOutput.set_led() instead.
-        This method is kept for backward compatibility but doesn't actually work.
-
-        Args:
-            pad_index: Pad 0-63
-            color: RGB color
-
-        Returns:
-            MIDI message (placeholder)
-        """
-        logger.warning("LaunchpadDevice.create_led_message() is deprecated - use LaunchpadOutput.set_led() instead")
-        return mido.Message('note_on', note=pad_index, velocity=127)

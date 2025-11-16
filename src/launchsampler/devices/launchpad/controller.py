@@ -200,34 +200,25 @@ class LaunchpadController:
         Called from mido's internal I/O thread.
         """
         try:
-            # Use device input if available, otherwise use deprecated static method
-            if self._device:
-                event = self._device.input.parse_message(msg)
-                if event:
-                    if isinstance(event, PadPressEvent):
-                        logger.info(f"Pad pressed: {event.pad_index} (note {msg.note})")
-                        self._notify_observers(MidiEvent.NOTE_ON, event.pad_index)
+            if not self._device:
+                logger.warning("Received message but no device is connected")
+                return
 
-                    elif isinstance(event, PadReleaseEvent):
-                        logger.info(f"Pad released: {event.pad_index} (note {msg.note})")
-                        self._notify_observers(MidiEvent.NOTE_OFF, event.pad_index)
+            event = self._device.input.parse_message(msg)
+            if event:
+                if isinstance(event, PadPressEvent):
+                    logger.info(f"Pad pressed: {event.pad_index} (note {msg.note})")
+                    self._notify_observers(MidiEvent.NOTE_ON, event.pad_index)
 
-                    elif isinstance(event, ControlChangeEvent):
-                        logger.info(f"Control change: control={event.control}, value={event.value}")
-                        self._notify_observers(MidiEvent.CONTROL_CHANGE, -1, event.control, event.value)
-                else:
-                    logger.debug(f"Unhandled message: {msg}")
+                elif isinstance(event, PadReleaseEvent):
+                    logger.info(f"Pad released: {event.pad_index} (note {msg.note})")
+                    self._notify_observers(MidiEvent.NOTE_OFF, event.pad_index)
+
+                elif isinstance(event, ControlChangeEvent):
+                    logger.info(f"Control change: control={event.control}, value={event.value}")
+                    self._notify_observers(MidiEvent.CONTROL_CHANGE, -1, event.control, event.value)
             else:
-                # Fallback to old static method for backward compatibility
-                result = LaunchpadDevice.parse_input(msg)
-                if result:
-                    event_type, pad_index = result
-                    if event_type == "pad_press":
-                        logger.info(f"Pad pressed: {pad_index} (fallback)")
-                        self._notify_observers(MidiEvent.NOTE_ON, pad_index)
-                    elif event_type == "pad_release":
-                        logger.info(f"Pad released: {pad_index} (fallback)")
-                        self._notify_observers(MidiEvent.NOTE_OFF, pad_index)
+                logger.debug(f"Unhandled message: {msg}")
 
         except Exception as e:
             logger.error(f"Error handling Launchpad message: {e}")
