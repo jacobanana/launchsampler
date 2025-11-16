@@ -3,10 +3,13 @@
 import logging
 from pathlib import Path
 from threading import Lock
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
+
+if TYPE_CHECKING:
+    from launchsampler.tui.app import LaunchpadSampler
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +19,9 @@ class EditorService:
     Manages editing operations on a Launchpad configuration.
 
     This service encapsulates all business logic for editing pads,
-    managing samples, and saving/loading sets. It operates on models
-    and is UI-agnostic.
+    managing samples, and saving/loading sets. It accesses the app's
+    Launchpad instance via a property, ensuring it always operates on
+    the current data.
 
     Event-Driven Architecture:
         All editing operations emit EditEvent notifications to registered
@@ -32,22 +36,27 @@ class EditorService:
         during potentially slow callbacks.
     """
 
-    def __init__(self, launchpad: Launchpad, config: AppConfig):
+    def __init__(self, app: "LaunchpadSampler", config: AppConfig):
         """
         Initialize the editor service.
 
         Args:
-            launchpad: The Launchpad model to edit
+            app: The LaunchpadSampler app instance
             config: Application configuration
         """
-        self.launchpad = launchpad
+        self._app = app
         self.config = config
         self.selected_pad_index: Optional[int] = None
         self._clipboard: Optional[Pad] = None
-        
+
         # Event system
         self._observers: list[EditObserver] = []
         self._event_lock = Lock()
+
+    @property
+    def launchpad(self) -> Launchpad:
+        """Get the current launchpad from the app."""
+        return self._app.launchpad
 
     @property
     def grid_size(self) -> int:
@@ -328,59 +337,6 @@ class EditorService:
 
         logger.info(f"Set pad {pad_index} sample name to '{name}'")
         return pad
-
-    def save_set(self, name: str) -> Path:
-        """
-        Save current launchpad configuration as a set.
-
-        Args:
-            name: Name for the set (without .json extension)
-
-        Returns:
-            Path to saved file
-
-        Raises:
-            ValueError: If name is empty
-        """
-        if not name or not name.strip():
-            raise ValueError("Set name cannot be empty")
-
-        name = name.strip()
-
-        # Ensure sets directory exists
-        self.config.ensure_directories()
-
-        # Create Set object
-        set_obj = Set(name=name, launchpad=self.launchpad)
-
-        # Save to file
-        set_path = self.config.sets_dir / f"{name}.json"
-        set_obj.save_to_file(set_path)
-
-        logger.info(f"Saved set '{name}' to {set_path}")
-        return set_path
-
-    def load_set(self, set_path: Path) -> Set:
-        """
-        Load a set from disk.
-
-        Args:
-            set_path: Path to set file
-
-        Returns:
-            Loaded Set object
-
-        Raises:
-            FileNotFoundError: If set file doesn't exist
-        """
-        if not set_path.exists():
-            raise FileNotFoundError(f"Set not found: {set_path}")
-
-        set_obj = Set.load_from_file(set_path)
-        self.launchpad = set_obj.launchpad
-
-        logger.info(f"Loaded set '{set_obj.name}' from {set_path}")
-        return set_obj
 
     def move_pad(self, source_index: int, target_index: int, swap: bool = False) -> tuple[Pad, Pad]:
         """
