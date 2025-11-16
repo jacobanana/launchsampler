@@ -276,7 +276,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
         Handle MIDI events from controller.
 
         This is called from the MIDI thread.
-        
+
         Args:
             event: The MIDI event that occurred
             pad_index: Index of the pad (0-63), or -1 for connection events
@@ -287,14 +287,16 @@ class Player(StateObserver, EditObserver, MidiObserver):
                 pad = self.current_set.launchpad.pads[pad_index]
                 if pad.is_assigned:
                     self.trigger_pad(pad_index)
-        
+            else:
+                logger.warning(f"MIDI NOTE_ON received but cannot trigger: current_set={self.current_set is not None}, pad_index={pad_index}")
+
         elif event == MidiEvent.NOTE_OFF:
             # MIDI pad released - release audio if mode supports it
             if self.current_set and pad_index >= 0:
                 pad = self.current_set.launchpad.pads[pad_index]
                 if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
                     self.release_pad(pad_index)
-        
+
         # Connection events don't require action from Player
         # (UI observers will handle status updates)
 
