@@ -1,11 +1,10 @@
-"""Service for managing LED UI synchronization with application state."""
+"""Event handler for LED UI synchronization with application state."""
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from launchsampler.core.state_machine import SamplerStateMachine
-from launchsampler.devices.launchpad import LaunchpadController
-from launchsampler.models import Color
+from launchsampler.led_ui.services.led_renderer import LEDRenderer
 from launchsampler.protocols import (
     AppEvent,
     AppObserver,
@@ -16,7 +15,6 @@ from launchsampler.protocols import (
     PlaybackEvent,
     StateObserver,
 )
-from launchsampler.ui_colors import get_pad_led_color, get_pad_led_palette_index, PANIC_BUTTON_COLOR
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -24,13 +22,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
+class LEDEventHandler(AppObserver, EditObserver, MidiObserver, StateObserver):
     """
-    Service for synchronizing the Launchpad LED grid with application state.
+    Event handler for synchronizing the Launchpad LED grid with application state.
 
-    This service observes all system events and updates the Launchpad LEDs
-    to mirror the state shown in the TUI. It decouples the application core
-    from LED-specific update logic.
+    This service observes all system events and delegates LED rendering to LEDRenderer.
+    It decouples the application core from LED-specific update logic.
 
     Implements multiple observer protocols:
     - AppObserver: App lifecycle events (SET_MOUNTED, SET_SAVED, etc.)
@@ -44,19 +41,19 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
     - Playing pad: Pulsing yellow (overrides mode color)
     """
 
-    def __init__(self, controller: Optional[LaunchpadController], orchestrator, state_machine: SamplerStateMachine):
+    def __init__(self, renderer: LEDRenderer, orchestrator, state_machine: SamplerStateMachine):
         """
-        Initialize the LED service.
+        Initialize the LED event handler.
 
         Args:
-            controller: The Launchpad controller instance (may be None initially)
+            renderer: The LED renderer for hardware updates
             orchestrator: The LaunchpadSamplerApp orchestrator
             state_machine: Shared state machine for querying playback state
         """
-        self.controller = controller
+        self.renderer = renderer
         self.orchestrator = orchestrator
         self.state_machine = state_machine
-        logger.info("LEDService initialized")
+        logger.info("LEDEventHandler initialized")
 
     # =================================================================
     # AppObserver Protocol - App lifecycle events
@@ -80,7 +77,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
                 # No LED action needed on mode change
                 pass
             else:
-                logger.warning(f"LEDService received unknown app event: {event}")
+                logger.warning(f"LEDEventHandler received unknown app event: {event}")
 
         except Exception as e:
             logger.error(f"Error handling app event {event}: {e}")
@@ -122,7 +119,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             pad_indices: List of affected pad indices
             pads: List of affected pad states (post-edit)
         """
-        logger.debug(f"LEDService received edit event: {event.value} for pads {pad_indices}")
+        logger.debug(f"LEDEventHandler received edit event: {event.value} for pads {pad_indices}")
 
         try:
             # Update LEDs for edited pads
@@ -148,7 +145,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             control: MIDI CC control number (for CONTROL_CHANGE events)
             value: MIDI CC value (for CONTROL_CHANGE events)
         """
-        logger.debug(f"LEDService received MIDI event: {event}, pad_index: {pad_index}")
+        logger.debug(f"LEDEventHandler received MIDI event: {event}, pad_index: {pad_index}")
 
         # Handle device connection/disconnection events
         if event == MidiEvent.CONTROLLER_CONNECTED:
@@ -178,7 +175,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             event: The playback event that occurred
             pad_index: Index of the pad (0-63)
         """
-        logger.debug(f"LEDService received playback event: {event}, pad_index: {pad_index}")
+        logger.debug(f"LEDEventHandler received playback event: {event}, pad_index: {pad_index}")
 
         try:
             if event == PlaybackEvent.PAD_PLAYING:
@@ -193,50 +190,19 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             logger.error(f"Error handling playback event {event}: {e}")
 
     # =================================================================
-    # LED Update Helpers - Private methods to update LEDs
+    # LED Update Helpers - Delegate to renderer
     # =================================================================
 
     def _update_all_leds(self) -> None:
         """Update all 64 pad LEDs to reflect current state."""
-        if not self.controller or not self.controller.is_connected:
-            logger.warning("Cannot update LEDs: Controller not available or not connected")
-            return
-
         # Get playing pads from state machine (single source of truth)
         playing_pads = set(self.state_machine.get_playing_pads())
 
         # Get all pads from orchestrator (single source of truth)
         all_pads = self.orchestrator.launchpad.pads
 
-        # Build bulk update list
-        updates = []
-        for i in range(64):
-            # Check if pad is currently playing
-            if i in playing_pads:
-                # Playing pads get pulsing yellow (set individually, not in bulk)
-                continue  # Skip bulk update, will be set with pulsing after
-
-            pad = all_pads[i]
-            if pad.is_assigned:
-                # Get color from centralized color scheme
-                # This will return mode-specific colors for assigned pads
-                color = get_pad_led_color(pad, is_playing=False)
-                updates.append((i, color))
-            else:
-                # Pad is empty, turn off
-                updates.append((i, Color.off()))
-
-        # Send bulk update for non-playing pads
-        if updates:
-            self.controller.set_leds_bulk(updates)
-            logger.info(f"Updated {len(updates)} non-playing LEDs")
-
-        # Set playing pads with animation
-        for pad_index in playing_pads:
-            pad = all_pads[pad_index]
-            palette_color = get_pad_led_palette_index(pad, is_playing=True)
-            self.controller.set_pad_pulsing(pad_index, palette_color)
-            logger.debug(f"Set playing animation for pad {pad_index}")
+        # Delegate to renderer
+        self.renderer.update_all_pads(all_pads, playing_pads)
 
     def _update_pad_led(self, pad_index: int, pad: "Pad") -> None:
         """
@@ -246,62 +212,35 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             pad_index: Index of pad (0-63)
             pad: Pad model
         """
-        if not self.controller or not self.controller.is_connected:
-            logger.debug("Cannot update LED: Controller not available or not connected")
-            return
+        # Check if pad is currently playing
+        is_playing = self.state_machine.is_pad_playing(pad_index)
 
-        # If pad is playing, don't override the playing animation
-        if self.state_machine.is_pad_playing(pad_index):
-            return
-
-        # Set color from centralized color scheme
-        color = get_pad_led_color(pad, is_playing=False)
-        self.controller.set_pad_color(pad_index, color)
+        # Delegate to renderer
+        self.renderer.update_pad(pad_index, pad, is_playing)
 
     def _set_pad_playing_led(self, pad_index: int, is_playing: bool) -> None:
         """
-        Update LED to reflect pad playing state (pulsing yellow).
+        Update LED to reflect pad playing state (pulsing animation).
 
         Args:
             pad_index: Index of pad (0-63)
             is_playing: Whether pad is playing
         """
-        if not self.controller or not self.controller.is_connected:
-            logger.debug("Cannot update LED: Controller not available or not connected")
-            return
+        # Get pad from orchestrator (single source of truth)
+        pad = self.orchestrator.launchpad.pads[pad_index]
 
-        if is_playing:
-            # Pulse with playing color (centralized from ui_colors)
-            pad = self.orchestrator.launchpad.pads[pad_index]
-            palette_color = get_pad_led_palette_index(pad, is_playing=True)
-            self.controller.set_pad_pulsing(pad_index, palette_color)
-        else:
-            # Restore normal color
-            pad = self.orchestrator.launchpad.pads[pad_index]
-            if pad.is_assigned:
-                self._update_pad_led(pad_index, pad)
-            else:
-                self.controller.set_pad_color(pad_index, Color.off())
+        # Delegate to renderer
+        self.renderer.set_playing_animation(pad_index, pad, is_playing)
 
     def _set_panic_button_led(self) -> None:
         """
         Set the panic button LED to dark red.
 
         This lights up the control button that triggers the panic function
-        (stop all audio) when pressed. The button is identified by the
-        configured CC control number.
+        (stop all audio) when pressed.
         """
-        if not self.controller or not self.controller.is_connected:
-            logger.debug("Cannot set panic button LED: Controller not available or not connected")
-            return
-
-        if not self.controller._device:
-            logger.debug("Cannot set panic button LED: Device not initialized")
-            return
-
         # Get panic button CC control from config
         cc_control = self.orchestrator.config.panic_button_cc_control
 
-        # Set the LED to dark red using the RGB color
-        self.controller._device.output.set_control_led(cc_control, PANIC_BUTTON_COLOR.rgb)
-        logger.info(f"Panic button LED set for CC {cc_control}")
+        # Delegate to renderer
+        self.renderer.set_panic_button(cc_control)

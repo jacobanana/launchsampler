@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from launchsampler.protocols import UIAdapter
-from .services import LEDService
+from .services import LEDEventHandler, LEDRenderer
 
 if TYPE_CHECKING:
     from launchsampler.app import LaunchpadSamplerApp
@@ -28,7 +28,7 @@ class LaunchpadLEDUI(UIAdapter):
 
     Lifecycle:
     1. __init__: Create controller and service, register as observer
-    2. initialize(): Start Launchpad controller
+    2. initialize(): Start LED controller
     3. run(): Non-blocking (returns immediately)
     4. shutdown(): Stop controller and clean up
     """
@@ -48,9 +48,11 @@ class LaunchpadLEDUI(UIAdapter):
         # This avoids MIDI port conflicts
         self.controller = None  # Will be set in register_with_services()
 
-        # Create LED service (observer) - controller will be set later
-        # Pass the shared state machine from orchestrator
-        self.service = LEDService(None, orchestrator, orchestrator.state_machine)
+        # Create LED renderer (stateless) - controller will be set later
+        self.renderer = LEDRenderer(None)
+
+        # Create LED event handler (observer) - pass renderer and shared state machine
+        self.event_handler = LEDEventHandler(self.renderer, orchestrator, orchestrator.state_machine)
 
         # Register service with orchestrator services
         self._register_with_services()
@@ -59,14 +61,14 @@ class LaunchpadLEDUI(UIAdapter):
 
     def _register_with_services(self) -> None:
         """
-        Register LED service as observer with orchestrator.
+        Register LED event handler as observer with orchestrator.
 
         This ensures the LED UI receives app-level events.
         Service-level registration happens later in register_with_services().
         """
         # Register with orchestrator for app events
-        self.orchestrator.register_observer(self.service)
-        logger.info("LED service registered as app observer")
+        self.orchestrator.register_observer(self.event_handler)
+        logger.info("LED event handler registered as app observer")
 
     def initialize(self) -> None:
         """
@@ -81,7 +83,7 @@ class LaunchpadLEDUI(UIAdapter):
 
     def register_with_services(self, orchestrator: "LaunchpadSamplerApp") -> None:
         """
-        Register LED service with all orchestrator services after they're initialized.
+        Register LED event handler with all orchestrator services after they're initialized.
 
         Called by orchestrator after services are created.
 
@@ -91,24 +93,24 @@ class LaunchpadLEDUI(UIAdapter):
         # Reuse the Player's LaunchpadController (avoid MIDI port conflicts)
         if orchestrator.player._midi:
             self.controller = orchestrator.player._midi
-            self.service.controller = self.controller
+            self.renderer.controller = self.controller
             logger.info("LED UI reusing Player's LaunchpadController")
         else:
             logger.warning("No MIDI controller available - LED UI will not function")
 
         # Register with editor for edit events
-        orchestrator.editor.register_observer(self.service)
+        orchestrator.editor.register_observer(self.event_handler)
 
         # Register for playback events (proper observer pattern)
-        orchestrator.player.register_state_observer(self.service)
+        orchestrator.player.register_state_observer(self.event_handler)
 
         # Register as MIDI observer to receive connection events only
         # (we ignore NOTE_ON/NOTE_OFF events in on_midi_event)
         if orchestrator.player._midi:
-            orchestrator.player._midi.register_observer(self.service)
-            logger.info("LED service registered for MIDI connection events")
+            orchestrator.player._midi.register_observer(self.event_handler)
+            logger.info("LED event handler registered for MIDI connection events")
 
-        logger.info("LED service registered with all services")
+        logger.info("LED event handler registered with all services")
 
     def run(self) -> None:
         """
@@ -132,17 +134,17 @@ class LaunchpadLEDUI(UIAdapter):
 
         # Unregister observers
         try:
-            self.orchestrator.unregister_observer(self.service)
+            self.orchestrator.unregister_observer(self.event_handler)
             if self.orchestrator.editor:
-                self.orchestrator.editor.unregister_observer(self.service)
+                self.orchestrator.editor.unregister_observer(self.event_handler)
             if self.orchestrator.player:
-                self.orchestrator.player.unregister_state_observer(self.service)
+                self.orchestrator.player.unregister_state_observer(self.event_handler)
                 # Unregister from MIDI controller if available
                 if self.orchestrator.player._midi:
-                    self.orchestrator.player._midi.unregister_observer(self.service)
-            logger.info("LED service unregistered from all services")
+                    self.orchestrator.player._midi.unregister_observer(self.event_handler)
+            logger.info("LED event handler unregistered from all services")
         except Exception as e:
-            logger.error(f"Error unregistering LED service observers: {e}")
+            logger.error(f"Error unregistering LED event handler observers: {e}")
 
         # Don't stop the controller - we don't own it, the Player does
         logger.info("LED UI shut down")
