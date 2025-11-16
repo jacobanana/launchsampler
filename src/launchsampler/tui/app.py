@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
@@ -10,9 +10,9 @@ from textual.widgets import Header, Footer, Button, RadioSet
 from textual.binding import Binding
 
 from launchsampler.core.player import Player
-from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode
+from launchsampler.models import Launchpad, Set, PlaybackMode
 from launchsampler.services import SetManagerService
-from launchsampler.protocols import AppEvent, AppObserver
+from launchsampler.protocols import AppEvent
 
 from .decorators import edit_only
 from .services import EditorService, TUIService
@@ -26,21 +26,31 @@ from .widgets import (
 )
 from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
 
+if TYPE_CHECKING:
+    from launchsampler.app import LaunchpadSamplerApp
 
 logger = logging.getLogger(__name__)
 
 
 class LaunchpadSampler(App):
     """
-    TUI for Launchpad Sampler.
+    Textual TUI for Launchpad Sampler.
 
-    This is a THIN UI layer that delegates to:
-    - Player: Audio/MIDI/playback logic
-    - EditorService: Editing operations
-    - TUIService: UI synchronization (observes all events)
+    This is a PURE UI layer that delegates all business logic to the orchestrator.
+    The orchestrator (LaunchpadSamplerApp) owns all state and services.
 
-    Provides two modes:
-    - Edit Mode: Build sets, assign samples, test with preview audio
+    Responsibilities:
+    - Textual framework integration (widgets, layouts, bindings)
+    - UI event handling (keyboard, mouse)
+    - Visual presentation and updates via TUIService
+
+    The orchestrator provides:
+    - Core state (launchpad, current_set, mode)
+    - Services (Player, EditorService, SetManagerService)
+    - Observer pattern for UI synchronization
+
+    Modes:
+    - Edit Mode: Build sets, assign samples, configure pads
     - Play Mode: Full MIDI integration for live performance
 
     Switch modes anytime with E (edit) or P (play) keys.
@@ -85,43 +95,61 @@ class LaunchpadSampler(App):
 
     def __init__(
         self,
-        config: AppConfig,
-        set_name: Optional[str] = None,
-        samples_dir: Optional[Path] = None,
+        orchestrator: "LaunchpadSamplerApp",
         start_mode: str = "play"
     ):
         """
-        Initialize the application.
+        Initialize the Textual UI application.
+
+        This is a thin UI layer that delegates all business logic to the orchestrator.
+        The orchestrator must be initialized before creating the UI.
 
         Args:
-            config: Application configuration
-            set_name: Name of set to load (None for new set)
-            samples_dir: Directory to load samples from (alternative to set_name)
+            orchestrator: The LaunchpadSamplerApp orchestrator instance
             start_mode: Mode to start in ("edit" or "play")
         """
         super().__init__()
-        self.config = config
+
+        # Orchestrator owns all business logic and state
+        self.orchestrator = orchestrator
+        self.config = orchestrator.config
         self._start_mode = start_mode
-        self._sampler_mode = None  # UI mode state (edit/play display)
 
-        # App owns the Launchpad (single source of truth)
-        self.launchpad: Launchpad = Launchpad.create_empty()
-
-        # Set metadata (wraps the launchpad reference)
-        self.current_set: Set = Set.create_empty("Untitled")
-
-        # Store initial load parameters
-        self._initial_set_name = set_name
-        self._initial_samples_dir = samples_dir
-
-        # Services
-        self.set_manager = SetManagerService(config)
-        self.player = Player(config)
-        self.editor = EditorService(self, config)  # Pass self for app reference
-
-        # App-level observers (for lifecycle events)
-        self._app_observers: list[AppObserver] = []
         self.tui_service: Optional[TUIService] = None  # Initialized in on_mount
+
+    # =================================================================
+    # Convenience Properties - Direct delegation to orchestrator
+    # =================================================================
+
+    @property
+    def launchpad(self) -> Launchpad:
+        """Get the launchpad from orchestrator."""
+        return self.orchestrator.launchpad
+
+    @property
+    def current_set(self) -> Set:
+        """Get the current set from orchestrator."""
+        return self.orchestrator.current_set
+
+    @property
+    def set_manager(self) -> SetManagerService:
+        """Get the set manager service from orchestrator."""
+        return self.orchestrator.set_manager
+
+    @property
+    def player(self) -> Player:
+        """Get the player service from orchestrator."""
+        return self.orchestrator.player
+
+    @property
+    def editor(self) -> EditorService:
+        """Get the editor service from orchestrator."""
+        return self.orchestrator.editor
+
+    @property
+    def _sampler_mode(self) -> Optional[str]:
+        """Get the current mode from orchestrator."""
+        return self.orchestrator.mode
 
     def compose(self) -> ComposeResult:
         """Create the main layout."""
@@ -136,27 +164,24 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
-        # Load initial set (now that widgets are mounted)
-        self._load_initial_set(self._initial_set_name, self._initial_samples_dir)
-
-        # Initialize grid with launchpad data
+        # Orchestrator has already initialized services
+        # Just initialize UI
         grid = self.query_one(PadGrid)
         grid.initialize_pads(self.launchpad)
 
-        # Start player with current set
-        if not self.player.start(initial_set=self.current_set):
-            self.notify("Failed to start player - app may not function correctly", severity="error")
-
         # Create TUI service - handles ALL UI updates via observer pattern
         self.tui_service = TUIService(self)
-        self._app_observers.append(self.tui_service)
+        self.orchestrator.register_observer(self.tui_service)
 
         # Register TUI service for all event types
-        self.editor.register_observer(self.player)           # Player observes edits for audio sync
         self.editor.register_observer(self.tui_service)      # TUIService observes edits for UI sync
         if self.player._midi:
             self.player._midi.register_observer(self.tui_service)  # TUIService observes MIDI events
-        self.player.set_playback_callback(self.tui_service.on_playback_event)  # TUIService observes playback events
+        self.player.set_playback_callback(self.tui_service.on_playback_event)  # TUIService observes playback
+
+        # Update subtitle with current mode and set
+        if self.orchestrator.mode:
+            self.sub_title = f"{self.orchestrator.mode.title()}: {self.current_set.name}"
 
         # Set initial mode (UI state only) - will fire MODE_CHANGED event
         self._set_mode(self._start_mode)
@@ -164,21 +189,19 @@ class LaunchpadSampler(App):
     def on_unmount(self) -> None:
         """Cleanup when app closes."""
         logger.info("Shutting down application")
-        self.player.stop()
+        self.orchestrator.shutdown()
 
     def _notify_app_observers(self, event: AppEvent, **kwargs) -> None:
         """
         Notify all registered app observers of an event.
 
+        Delegates to orchestrator's notification system.
+
         Args:
             event: The app event that occurred
             **kwargs: Event-specific data
         """
-        for observer in self._app_observers:
-            try:
-                observer.on_app_event(event, **kwargs)
-            except Exception as e:
-                logger.error(f"Error notifying app observer {observer} of {event}: {e}")
+        self.orchestrator._notify_observers(event, **kwargs)
 
     # =================================================================
     # Set Management - Loading and managing sample sets
@@ -188,72 +211,17 @@ class LaunchpadSampler(App):
         """
         Load a new set into the app.
 
-        This is the single point of truth for loading sets - all load operations
-        should go through this method to ensure consistency.
+        Delegates to orchestrator's load_set method.
 
         Args:
             loaded_set: The Set to load
         """
-        # Update app's launchpad (single source of truth)
-        self.launchpad = loaded_set.launchpad
+        # Delegate to orchestrator
+        self.orchestrator.load_set(loaded_set)
 
-        # Update Set metadata to reference app's launchpad
-        self.current_set = Set(
-            name=loaded_set.name,
-            launchpad=self.launchpad,  # App's launchpad reference
-            samples_root=loaded_set.samples_root,
-            created_at=loaded_set.created_at,
-            modified_at=loaded_set.modified_at
-        )
-
-        # Load into player if running
-        if self.player.is_running:
-            self.player.load_set(self.current_set)
-
-        # Notify app observers (TUIService will sync UI)
-        self._notify_app_observers(AppEvent.SET_LOADED)
-
-        # Update subtitle (only if mode is set)
+        # Update subtitle
         if self._sampler_mode:
             self.sub_title = f"{self._sampler_mode.title()}: {self.current_set.name}"
-
-        logger.info(f"Loaded set: {self.current_set.name} with {len(self.launchpad.assigned_pads)} samples")
-
-    def _load_initial_set(self, set_name: Optional[str], samples_dir: Optional[Path]) -> None:
-        """
-        Load initial set configuration.
-
-        Args:
-            set_name: Name of set to load (None for new set)
-            samples_dir: Directory to load samples from (alternative to set_name)
-        """
-        name = set_name or "Untitled"
-
-        try:
-            # Priority 1: Load from samples directory if provided
-            if samples_dir:
-                loaded_set = self.set_manager.create_from_directory(samples_dir, name)
-                self._load_set(loaded_set)
-                return
-
-            # Priority 2: Load from saved set file
-            if name and name.lower() != "untitled":
-                loaded_set = self.set_manager.open_set_by_name(name)
-                if loaded_set:
-                    self._load_set(loaded_set)
-                    return
-                else:
-                    logger.warning(f"Set '{name}' not found, creating empty set")
-
-            # Fall back to empty set (already created in __init__)
-            logger.info(f"Created empty set '{name}'")
-            self.current_set = Set.create_empty(name)
-            self.current_set.launchpad = self.launchpad  # Reference app's launchpad
-
-        except Exception as e:
-            logger.error(f"Error loading initial set: {e}")
-            self.notify(f"Error loading set: {e}", severity="error")
-            # Keep empty set that was created in __init__
 
     # =================================================================
     # Mode Management - Edit/Play mode switching
@@ -287,12 +255,12 @@ class LaunchpadSampler(App):
             logger.error(f"Invalid mode: {mode}")
             return False
 
-        # Already in target mode, nothing to do
-        if self._sampler_mode == mode:
-            return True
+        # Delegate to orchestrator to update mode
+        success = self.orchestrator.set_mode(mode)
+        if not success:
+            return False
 
-        # Update mode
-        self._sampler_mode = mode
+        # Update subtitle
         self.sub_title = f"{mode.title()}: {self.current_set.name}"
 
         # Update UI based on mode
@@ -313,9 +281,6 @@ class LaunchpadSampler(App):
             else:
                 # No pad selected yet, select pad 0 by default
                 self.editor.select_pad(0)  # Event system handles UI sync
-
-        # Fire MODE_CHANGED event (TUIService will update status bar)
-        self._notify_app_observers(AppEvent.MODE_CHANGED, mode=mode)
 
         logger.info(f"Switched to {mode} mode")
         return True
