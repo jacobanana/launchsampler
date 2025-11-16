@@ -117,8 +117,14 @@ class SamplerEngine:
         """
         with self._lock:
             if pad_index in self._playback_states:
+                was_playing = self._playback_states[pad_index].is_playing
                 self._playback_states[pad_index].stop()
-                self._playback_states[pad_index].audio_data = None
+                # Remove the entry entirely to ensure fresh state when reloading
+                del self._playback_states[pad_index]
+                
+                # Notify state machine if pad was playing
+                if was_playing:
+                    self._state_machine.on_pad_stopped(pad_index)
 
     def trigger_pad(self, pad_index: int) -> None:
         """
