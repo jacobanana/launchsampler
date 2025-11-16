@@ -4,6 +4,7 @@ import time
 import logging
 
 import click
+import mido
 
 from launchsampler.devices.launchpad import LaunchpadController
 from launchsampler.models import Color
@@ -31,6 +32,18 @@ def test(verbose):
 
     # Create Launchpad controller
     controller = LaunchpadController(poll_interval=5.0)
+
+    # Add handler for MIDI messages
+    def message_handler(msg: mido.Message) -> None:
+        """Print incoming MIDI messages."""
+        if msg.type == 'control_change':
+            click.echo(f"[CC] control={msg.control}, value={msg.value}")
+        elif msg.type == 'note_on':
+            click.echo(f"[NOTE ON] note={msg.note}, velocity={msg.velocity}")
+        elif msg.type == 'note_off':
+            click.echo(f"[NOTE OFF] note={msg.note}")
+
+    controller._midi.on_message(message_handler)
 
     try:
         # Start the controller
@@ -106,7 +119,8 @@ def test(verbose):
         click.echo("  - Row 1: Flashing green, pink, cyan")
         click.echo("  - Row 2: Pulsing blue, pink, yellow")
         click.echo("  - Row 3: Static palette red, yellow, green, blue")
-        click.echo("\nPress Ctrl+C to clear and exit...")
+        click.echo("\nIncoming MIDI messages (note on/off, CC) will be displayed below.")
+        click.echo("Press Ctrl+C to clear and exit...")
 
         # Wait for user interrupt
         while True:
