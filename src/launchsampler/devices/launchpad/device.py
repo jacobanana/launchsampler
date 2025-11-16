@@ -1,49 +1,73 @@
-"""Launchpad device protocol and message parsing."""
+"""Launchpad device implementation."""
 
 import logging
 from typing import Optional, Tuple
-
 import mido
-
+from launchsampler.midi import MidiManager
 from launchsampler.models import Color
+from launchsampler.devices.protocols import Device, DeviceInput, DeviceOutput
+from .model import LaunchpadInfo, LaunchpadModel
+from .input import LaunchpadInput
+from .output import LaunchpadOutput
+from .mapper import LaunchpadNoteMapper
 
 logger = logging.getLogger(__name__)
 
 
-class LaunchpadDevice:
+class LaunchpadDevice(Device):
     """
-    Launchpad device protocol.
+    Complete Launchpad device with input and output.
 
-    Defines Launchpad-specific patterns, message parsing, and LED control.
-    Pure functions - no state, just protocol knowledge.
+    Provides unified interface hiding hardware-specific note mapping.
+    Application code works with logical pad indices (0-63) only.
     """
+
+    # Device name patterns for detection
+    PATTERNS = [
+        "Launchpad X",
+        "Launchpad Mini",
+        "Launchpad Pro",
+        "LPProMK3",
+        "LPMiniMK3",
+        "LPX",
+        "Launchpad",
+    ]
 
     # Launchpad hardware constants
     NUM_PADS = 64  # 8x8 grid
     GRID_SIZE = 8  # 8x8 grid
 
-    # Launchpad device name patterns to detect
-    PATTERNS = [
-        "Launchpad X",
-        "Launchpad Mini",
-        "Launchpad Pro",
-        "LPProMK3",  # Launchpad Pro MK3
-        "LPMiniMK3",  # Launchpad Mini MK3
-        "LPX",  # Launchpad X
-        "Launchpad",
-    ]
+    def __init__(self, midi_manager: MidiManager, port_name: str):
+        """
+        Initialize Launchpad device.
+
+        Args:
+            midi_manager: MIDI manager instance
+            port_name: MIDI port name for this device
+
+        Raises:
+            ValueError: If port_name doesn't match a recognized Launchpad
+        """
+        self.info = LaunchpadInfo.from_port(port_name)
+        if self.info is None:
+            raise ValueError(f"Port '{port_name}' is not a recognized Launchpad")
+
+        self._input = LaunchpadInput(self.info.model)
+        self._output = LaunchpadOutput(midi_manager, self.info)
+
+    @property
+    def input(self) -> DeviceInput:
+        """Get input handler."""
+        return self._input
+
+    @property
+    def output(self) -> DeviceOutput:
+        """Get output controller."""
+        return self._output
 
     @staticmethod
     def matches(port_name: str) -> bool:
-        """
-        Check if port name matches a Launchpad device.
-
-        Args:
-            port_name: MIDI port name
-
-        Returns:
-            True if port matches any Launchpad pattern
-        """
+        """Check if port name matches a Launchpad device."""
         return any(pattern in port_name for pattern in LaunchpadDevice.PATTERNS)
 
     @staticmethod
@@ -100,10 +124,15 @@ class LaunchpadDevice:
         # Fall back to first match
         return matching_ports[0]
 
+    # Backward compatibility methods for old tests
     @staticmethod
     def parse_input(msg: mido.Message) -> Optional[Tuple[str, int]]:
         """
         Parse incoming MIDI message into Launchpad events.
+
+        DEPRECATED: Use LaunchpadInput.parse_message() instead.
+        This method is kept for backward compatibility with existing tests.
+        Uses simple 1:1 note mapping (note 0-63 → index 0-63) for compatibility.
 
         Args:
             msg: MIDI message
@@ -117,19 +146,18 @@ class LaunchpadDevice:
         if msg.type == 'clock':
             return None
 
-        # Handle note on/off
+        # Handle note on/off with simple 1:1 mapping
         if msg.type == 'note_on':
-            # Note on with velocity 0 is actually note off
-            if msg.velocity > 0:
-                # Launchpad uses notes 0-63 for the 8x8 grid
-                if 0 <= msg.note < LaunchpadDevice.NUM_PADS:
+            # Old tests expect notes 0-63 to map directly to pads 0-63
+            if 0 <= msg.note < 64:
+                # Note on with velocity 0 is actually note off
+                if msg.velocity > 0:
                     return ("pad_press", msg.note)
-            else:
-                if 0 <= msg.note < LaunchpadDevice.NUM_PADS:
+                else:
                     return ("pad_release", msg.note)
 
         elif msg.type == 'note_off':
-            if 0 <= msg.note < LaunchpadDevice.NUM_PADS:
+            if 0 <= msg.note < 64:
                 return ("pad_release", msg.note)
 
         return None
@@ -139,17 +167,15 @@ class LaunchpadDevice:
         """
         Create MIDI message to set pad LED color.
 
-        Note: This is a placeholder implementation. Actual LED control
-        depends on the specific Launchpad model and requires SysEx messages.
+        DEPRECATED: Use LaunchpadOutput.set_led() instead.
+        This method is kept for backward compatibility but doesn't actually work.
 
         Args:
             pad_index: Pad 0-63
             color: RGB color
 
         Returns:
-            MIDI message to send
+            MIDI message (placeholder)
         """
-        # TODO: Implement proper SysEx messages for LED control
-        # For now, this is a placeholder that won't actually work
-        logger.warning("LED control not yet implemented")
+        logger.warning("LaunchpadDevice.create_led_message() is deprecated - use LaunchpadOutput.set_led() instead")
         return mido.Message('note_on', note=pad_index, velocity=127)
