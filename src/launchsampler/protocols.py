@@ -1,7 +1,7 @@
 """Protocol definitions for observer patterns and interfaces."""
 
 from enum import Enum
-from typing import Protocol, runtime_checkable, TYPE_CHECKING
+from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -26,7 +26,12 @@ class PlaybackEvent(Enum):
 
 
 class EditEvent(Enum):
-    """Events that occur during editing operations."""
+    """
+    Events that occur during editing operations.
+
+    These events represent PERSISTENT state changes (saved to disk).
+    For ephemeral UI state (selection), see SelectionEvent.
+    """
 
     PAD_ASSIGNED = "pad_assigned"           # Sample assigned to pad
     PAD_CLEARED = "pad_cleared"             # Pad sample removed
@@ -35,8 +40,19 @@ class EditEvent(Enum):
     PAD_MODE_CHANGED = "pad_mode_changed"   # Playback mode changed
     PAD_VOLUME_CHANGED = "pad_volume_changed"  # Volume changed
     PAD_NAME_CHANGED = "pad_name_changed"   # Sample name changed
-    PAD_SELECTED = "pad_selected"           # Pad selection changed
     PADS_CLEARED = "pads_cleared"           # Multiple pads cleared
+
+
+class SelectionEvent(Enum):
+    """
+    Events for pad selection changes (ephemeral UI state).
+
+    Selection is UI-specific state that doesn't persist to disk.
+    Different UIs can have independent selections.
+    """
+
+    CHANGED = "changed"        # Selection changed to a specific pad
+    CLEARED = "cleared"        # Selection cleared (no pad selected)
 
 
 @runtime_checkable
@@ -92,7 +108,7 @@ class StateObserver(Protocol):
 class EditObserver(Protocol):
     """
     Observer that receives editing events.
-    
+
     This protocol allows loose coupling between the editor service
     and components that need to react to edits (audio engine, UI, etc.).
     """
@@ -121,5 +137,71 @@ class EditObserver(Protocol):
             EditorService. They do not propagate to the caller, ensuring
             one failing observer doesn't break others. Observers should
             not rely on exceptions for critical error signaling.
+        """
+        ...
+
+
+@runtime_checkable
+class SelectionObserver(Protocol):
+    """
+    Observer that receives selection change events.
+
+    This protocol separates ephemeral UI state (selection) from
+    persistent data mutations (edits). Selection is UI-specific and
+    doesn't affect audio engine or persistence layers.
+    """
+
+    def on_selection_event(
+        self,
+        event: "SelectionEvent",
+        pad_index: Optional[int]
+    ) -> None:
+        """
+        Handle selection change events.
+
+        Args:
+            event: The type of selection event
+            pad_index: Index of selected pad (0-63), or None if cleared
+
+        Threading:
+            Called from the UI thread (Textual's main asyncio loop).
+            Implementations should be lightweight and non-blocking.
+        """
+        ...
+
+
+class AppEvent(Enum):
+    """Events from application lifecycle and state changes."""
+
+    SET_MOUNTED = "set_mounted"      # Set was mounted into the application
+    SET_SAVED = "set_saved"          # Set was saved to disk
+    MODE_CHANGED = "mode_changed"    # Application mode changed (sampler/arranger)
+
+
+@runtime_checkable
+class AppObserver(Protocol):
+    """
+    Observer that receives application lifecycle events.
+
+    This protocol allows loose coupling between the application core
+    and UI/service components that need to react to app-level changes.
+    """
+
+    def on_app_event(self, event: "AppEvent", **kwargs) -> None:
+        """
+        Handle application lifecycle events.
+
+        Args:
+            event: The type of application event
+            **kwargs: Event-specific data (e.g., set_name, mode, etc.)
+
+        Threading:
+            Called from the UI thread (Textual's main asyncio loop).
+            Implementations should avoid blocking operations.
+
+        Error Handling:
+            Exceptions raised by observers are caught and logged by the
+            application. They do not propagate to the caller, ensuring
+            one failing observer doesn't break others.
         """
         ...

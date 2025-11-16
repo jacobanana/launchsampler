@@ -8,9 +8,6 @@ from typing import TYPE_CHECKING, Optional
 from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
 
-if TYPE_CHECKING:
-    from launchsampler.tui.app import LaunchpadSampler
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,9 +16,8 @@ class EditorService:
     Manages editing operations on a Launchpad configuration.
 
     This service encapsulates all business logic for editing pads,
-    managing samples, and saving/loading sets. It accesses the app's
-    Launchpad instance via a property, ensuring it always operates on
-    the current data.
+    managing samples, and saving/loading sets. It operates directly
+    on a Launchpad instance, with no dependency on the full app.
 
     Event-Driven Architecture:
         All editing operations emit EditEvent notifications to registered
@@ -34,19 +30,22 @@ class EditorService:
         The _event_lock protects the observer list during registration,
         but is released before calling observers to avoid holding locks
         during potentially slow callbacks.
+
+    Dependency Injection:
+        EditorService receives a Launchpad reference, not the entire app.
+        This eliminates circular dependencies and improves testability.
     """
 
-    def __init__(self, app: "LaunchpadSampler", config: AppConfig):
+    def __init__(self, launchpad: Launchpad, config: AppConfig):
         """
         Initialize the editor service.
 
         Args:
-            app: The LaunchpadSampler app instance
+            launchpad: The Launchpad instance to edit
             config: Application configuration
         """
-        self._app = app
+        self._launchpad = launchpad
         self.config = config
-        self.selected_pad_index: Optional[int] = None
         self._clipboard: Optional[Pad] = None
 
         # Event system
@@ -55,8 +54,8 @@ class EditorService:
 
     @property
     def launchpad(self) -> Launchpad:
-        """Get the current launchpad from the app."""
-        return self._app.launchpad
+        """Get the launchpad being edited."""
+        return self._launchpad
 
     @property
     def grid_size(self) -> int:
@@ -144,28 +143,6 @@ class EditorService:
         """
         if not 0 <= pad_index < self.grid_size:
             raise IndexError(f"{label} {pad_index} out of range (0-{self.grid_size-1})")
-
-    def select_pad(self, pad_index: int) -> Pad:
-        """
-        Select a pad and return its state.
-
-        Args:
-            pad_index: Index of pad to select
-
-        Returns:
-            The selected Pad
-
-        Raises:
-            IndexError: If pad_index is out of range
-        """
-        self._validate_pad_index(pad_index)
-        self.selected_pad_index = pad_index
-        pad = self.launchpad.pads[pad_index]
-        
-        # Notify observers of selection change
-        self._notify_observers(EditEvent.PAD_SELECTED, [pad_index], [pad])
-        
-        return pad
 
     def get_pad(self, pad_index: int) -> Pad:
         """

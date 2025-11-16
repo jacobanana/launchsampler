@@ -1,10 +1,18 @@
 """Set file browser screen for loading saved sets."""
 
+import logging
+from os import path
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from launchsampler.models import Set
+from textual.markup import escape
 
 from .base_browser import BaseBrowserScreen
+
+if TYPE_CHECKING:
+    from launchsampler.services import SetManagerService
+
+logger = logging.getLogger(__name__)
 
 
 class SetFileBrowserScreen(BaseBrowserScreen):
@@ -16,6 +24,16 @@ class SetFileBrowserScreen(BaseBrowserScreen):
     anywhere on the filesystem to find set files.
     """
 
+    def __init__(self, set_manager: "SetManagerService", *args, **kwargs):
+        """
+        Initialize the set file browser.
+
+        Args:
+            set_manager: Service for loading sets
+        """
+        super().__init__(*args, **kwargs)
+        self.set_manager = set_manager
+
     def _is_valid_selection(self, path: Path) -> bool:
         """
         Check if path is a valid set file.
@@ -24,20 +42,15 @@ class SetFileBrowserScreen(BaseBrowserScreen):
             path: Path to validate
 
         Returns:
-            True if path is an existing .json file that can be loaded as a Set
+            True if path is a valid Set file that can be loaded
         """
-        if not path.exists() or not path.is_file():
+        if not (path.exists() and path.is_file() and path.suffix.lower() == '.json'):
             return False
-        
-        if path.suffix.lower() != '.json':
-            return False
-        
-        # Try to validate the JSON structure (don't fail if samples don't exist)
+
+        # Validate it's actually a Set file by trying to load it
         try:
-            import json
-            data = json.loads(path.read_text())
-            # Check for required fields
-            return 'name' in data and 'launchpad' in data
+            self.set_manager.open_set(path)
+            return True
         except Exception:
             return False
 
@@ -97,30 +110,35 @@ class SetFileBrowserScreen(BaseBrowserScreen):
             event: File selected event
         """
         file_path = Path(event.path)
-        
+        logger.info(f"File selected: {file_path}")
+
         # Only auto-select if it's a valid set file
         if file_path.suffix.lower() == '.json':
+            logger.info(f"Attempting to load JSON file: {file_path}")
             try:
                 # Try to load metadata
-                set_obj = Set.load_from_file(file_path)
+                set_obj = self.set_manager.open_set(file_path)
                 assigned_count = len(set_obj.launchpad.assigned_pads)
                 created = set_obj.created_at.strftime("%Y-%m-%d %H:%M")
-                
+
                 # Update selected path
                 self.selected_path = file_path
-                
+                logger.info(f"Successfully loaded set: {set_obj.name} from {file_path}")
+
                 # Show metadata notification
                 self.notify(
                     f"{set_obj.name}: {assigned_count} pads, created {created}",
                     timeout=3
                 )
-                
+
                 # Auto-select valid set file
                 self._confirm_selection()
-                
+
             except Exception as e:
-                # Invalid set file
-                self.notify(f"Cannot load set: {e}", severity="error")
+                # Invalid set file - escape filename to avoid markup errors
+                logger.error(f"Failed to load set file {file_path}: {e}", exc_info=True)
+                self.notify(f"Invalid set file: {escape(file_path.name)}", severity="error")
         else:
+            logger.info(f"Not a JSON file: {file_path}")
             # Not a JSON file
             self._show_invalid_selection_error(file_path)

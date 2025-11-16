@@ -1,5 +1,5 @@
-"""Service layer for business logic."""
+"""TUI-specific services."""
 
-from .editor_service import EditorService
+from .tui_service import TUIService
 
-__all__ = ["EditorService"]
+__all__ = ["TUIService"]

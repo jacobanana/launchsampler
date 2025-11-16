@@ -223,7 +223,6 @@ class AudioDevice:
     def _start_stream(self, config: dict) -> None:
         """Create and start the stream with the given configuration."""
 
-        print(config)
         self._stream = sd.OutputStream(**config)
         self._stream.start()
         self._is_running = True

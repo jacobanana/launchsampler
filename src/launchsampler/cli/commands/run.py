@@ -7,6 +7,9 @@ from typing import Optional
 import click
 
 from launchsampler.models import AppConfig
+from launchsampler.app import LaunchpadSamplerApp
+from launchsampler.tui import LaunchpadSampler
+
 
 logger = logging.getLogger(__name__)
 
@@ -72,13 +75,27 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
     # Save config
     config.save()
 
-    # Launch TUI
-    from launchsampler.tui import LaunchpadSampler
+    # Create orchestrator
 
-    app = LaunchpadSampler(
+    orchestrator = LaunchpadSamplerApp(
         config=config,
         set_name=set,
         samples_dir=samples_dir,
+        start_mode=mode.lower(),
+        headless=False
+    )
+
+    # Initialize orchestrator (loads set, starts services)
+    try:
+        orchestrator.initialize()
+    except Exception as e:
+        logger.exception("Error initializing orchestrator")
+        click.echo(f"Error initializing: {e}", err=True)
+        raise click.Abort()
+
+    # Create Textual TUI with orchestrator
+    app = LaunchpadSampler(
+        orchestrator=orchestrator,
         start_mode=mode.lower()
     )
 
