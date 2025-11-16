@@ -218,6 +218,8 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             event: The MIDI event that occurred
             pad_index: Index of the pad (0-63), or -1 for connection events
         """
+        logger.info(f"TUI received MIDI event: {event}, pad_index: {pad_index}")
+
         if event == MidiEvent.NOTE_ON:
             # MIDI note on - show green border
             self.app.call_from_thread(self._set_pad_midi_on_ui, pad_index, True)

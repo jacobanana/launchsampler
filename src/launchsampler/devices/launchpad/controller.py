@@ -48,7 +48,7 @@ class LaunchpadController:
         """Register observer for MIDI events."""
         if observer not in self._observers:
             self._observers.append(observer)
-            logger.debug(f"Registered MIDI observer: {observer}")
+            logger.info(f"Registered MIDI observer: {observer} (type: {type(observer).__name__})")
 
     def unregister_observer(self, observer: MidiObserver) -> None:
         """Unregister observer."""
@@ -58,11 +58,14 @@ class LaunchpadController:
 
     def _notify_observers(self, event: MidiEvent, pad_index: int) -> None:
         """Notify all observers of a MIDI event."""
+        logger.info(f"Notifying {len(self._observers)} observers of {event} on pad {pad_index}")
         for observer in self._observers:
             try:
+                logger.info(f"Calling on_midi_event for observer: {type(observer).__name__} ({observer})")
                 observer.on_midi_event(event, pad_index)
+                logger.info(f"Successfully notified observer: {type(observer).__name__}")
             except Exception as e:
-                logger.error(f"Error notifying MIDI observer {observer}: {e}")
+                logger.error(f"Error notifying MIDI observer {observer}: {e}", exc_info=True)
 
     def set_pad_color(self, pad_index: int, color: Color) -> bool:
         """
@@ -93,6 +96,15 @@ class LaunchpadController:
 
     def stop(self) -> None:
         """Stop monitoring and close connections."""
+        # Shutdown device output (exit programmer mode) before stopping MIDI
+        if self._device:
+            try:
+                self._device.output.shutdown()
+                logger.info("Launchpad device shut down")
+            except Exception as e:
+                logger.error(f"Error shutting down Launchpad device: {e}")
+            self._device = None
+
         self._midi.stop()
         logger.info("LaunchpadController stopped")
 
@@ -108,22 +120,24 @@ class LaunchpadController:
                 event = self._device.input.parse_message(msg)
                 if event:
                     if isinstance(event, PadPressEvent):
-                        logger.debug(f"Pad pressed: {event.pad_index}")
+                        logger.info(f"Pad pressed: {event.pad_index} (note {msg.note})")
                         self._notify_observers(MidiEvent.NOTE_ON, event.pad_index)
 
                     elif isinstance(event, PadReleaseEvent):
-                        logger.debug(f"Pad released: {event.pad_index}")
+                        logger.info(f"Pad released: {event.pad_index} (note {msg.note})")
                         self._notify_observers(MidiEvent.NOTE_OFF, event.pad_index)
+                else:
+                    logger.debug(f"Unhandled message: {msg}")
             else:
                 # Fallback to old static method for backward compatibility
                 result = LaunchpadDevice.parse_input(msg)
                 if result:
                     event_type, pad_index = result
                     if event_type == "pad_press":
-                        logger.debug(f"Pad pressed: {pad_index}")
+                        logger.info(f"Pad pressed: {pad_index} (fallback)")
                         self._notify_observers(MidiEvent.NOTE_ON, pad_index)
                     elif event_type == "pad_release":
-                        logger.debug(f"Pad released: {pad_index}")
+                        logger.info(f"Pad released: {pad_index} (fallback)")
                         self._notify_observers(MidiEvent.NOTE_OFF, pad_index)
 
         except Exception as e:
