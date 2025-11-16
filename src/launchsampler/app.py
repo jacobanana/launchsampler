@@ -63,6 +63,11 @@ class LaunchpadSamplerApp:
         self.config = config
         self.headless = headless
 
+        # Initial load parameters
+        self._initial_set_name = set_name
+        self._initial_samples_dir = samples_dir
+        self._start_mode = start_mode
+
         # Core state - owned by orchestrator
         self._mode: Optional[str] = None
         self.launchpad: Launchpad = Launchpad.create_empty()
@@ -71,11 +76,6 @@ class LaunchpadSamplerApp:
         # Shared resources - hardware and state
         self.state_machine = SamplerStateMachine()
         self.midi_controller: Optional[LaunchpadController] = None
-
-        # Initial load parameters
-        self._initial_set_name = set_name
-        self._initial_samples_dir = samples_dir
-        self._start_mode = start_mode
 
         # Services (domain logic)
         self.set_manager: Optional[SetManagerService] = None
