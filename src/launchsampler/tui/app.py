@@ -591,10 +591,10 @@ class LaunchpadSampler(App):
 
                 except Exception as e:
                     logger.error(f"Error loading set: {e}")
-                    self.notify(f"Error loading: {e}", severity="error")
+                    self.notify("Error loading set file", severity="error")
 
         # Start in the sets directory
-        self.push_screen(SetFileBrowserScreen(self.config.sets_dir), handle_load)
+        self.push_screen(SetFileBrowserScreen(self.set_manager, self.config.sets_dir), handle_load)
 
     def action_open_directory(self) -> None:
         """Open a directory to load samples from."""

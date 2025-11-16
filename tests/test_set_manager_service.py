@@ -30,9 +30,9 @@ class TestSetManagerServiceLoad:
         launchpad.pads[0].mode = PlaybackMode.ONE_SHOT
         test_set = Set(name="test", launchpad=launchpad)
 
-        # Save it
+        # Save it using the service
         set_path = temp_dir / "test.json"
-        test_set.save_to_file(set_path)
+        service.save_set(test_set, set_path)
 
         # Open it back
         loaded = service.open_set(set_path)
@@ -56,7 +56,7 @@ class TestSetManagerServiceLoad:
         test_set = Set(name="myset", launchpad=launchpad)
 
         set_path = temp_dir / "myset.json"
-        test_set.save_to_file(set_path)
+        service.save_set(test_set, set_path)
 
         # Open by name
         loaded = service.open_set_by_name("myset")
@@ -139,7 +139,7 @@ class TestSetManagerServiceSave:
         assert save_path.exists()
 
         # Load it back to verify
-        loaded = Set.load_from_file(save_path)
+        loaded = service.open_set(save_path)
         assert loaded.name == "myset"
         assert loaded.launchpad.pads[0].is_assigned
 
@@ -183,7 +183,7 @@ class TestSetManagerServiceSave:
         assert saved_set.name == "original"
 
         # Verify set name in file is still "original"
-        loaded = Set.load_from_file(saved_path)
+        loaded = service.open_set(saved_path)
         assert loaded.name == "original"
 
 
