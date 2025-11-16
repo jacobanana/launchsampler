@@ -791,7 +791,9 @@ class TestEditorServiceEvents:
         """Test that registering same observer twice is idempotent."""
         editor.register_observer(observer)
         editor.register_observer(observer)
-        assert editor._observers.count(observer) == 1
+        # ObserverManager ensures idempotent registration - observer should be registered once
+        assert observer in editor._observers
+        assert len(editor._observers) == 1
 
     @pytest.mark.unit
     def test_assign_sample_fires_event(self, editor, observer, sample_audio_file):

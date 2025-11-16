@@ -14,6 +14,7 @@ from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
 from launchsampler.services import EditorService, SetManagerService
+from launchsampler.utils import ObserverManager
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class LaunchpadSamplerApp:
         self._uis: list[UIAdapter] = []
 
         # Observers (UIs)
-        self._app_observers: list[AppObserver] = []
+        self._app_observers = ObserverManager[AppObserver](observer_type_name="app")
 
     def register_ui(self, ui: UIAdapter) -> None:
         """
@@ -203,9 +204,7 @@ class LaunchpadSamplerApp:
         Args:
             observer: The observer to register
         """
-        if observer not in self._app_observers:
-            self._app_observers.append(observer)
-            logger.debug(f"Registered app observer: {observer}")
+        self._app_observers.register(observer)
 
     def unregister_observer(self, observer: AppObserver) -> None:
         """
@@ -214,9 +213,7 @@ class LaunchpadSamplerApp:
         Args:
             observer: The observer to unregister
         """
-        if observer in self._app_observers:
-            self._app_observers.remove(observer)
-            logger.debug(f"Unregistered app observer: {observer}")
+        self._app_observers.unregister(observer)
 
     def _notify_observers(self, event: AppEvent, **kwargs) -> None:
         """
@@ -226,11 +223,7 @@ class LaunchpadSamplerApp:
             event: The app event that occurred
             **kwargs: Event-specific data
         """
-        for observer in self._app_observers:
-            try:
-                observer.on_app_event(event, **kwargs)
-            except Exception as e:
-                logger.error(f"Error notifying observer {observer} of {event}: {e}")
+        self._app_observers.notify('on_app_event', event, **kwargs)
 
     # =================================================================
     # Set Management

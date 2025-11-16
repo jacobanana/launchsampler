@@ -5,6 +5,7 @@ from threading import Lock
 from typing import Optional
 
 from launchsampler.protocols import PlaybackEvent, StateObserver
+from launchsampler.utils import ObserverManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ class SamplerStateMachine:
         self._lock = Lock()
         self._playing_pads: set[int] = set()
         self._triggered_pads: set[int] = set()
-        self._observers: list[StateObserver] = []
+        # ObserverManager has its own lock - don't share to avoid deadlock when notifying while holding _lock
+        self._observers = ObserverManager[StateObserver](observer_type_name="state")
 
     def register_observer(self, observer: StateObserver) -> None:
         """
@@ -37,10 +39,7 @@ class SamplerStateMachine:
         Args:
             observer: Object implementing StateObserver protocol
         """
-        with self._lock:
-            if observer not in self._observers:
-                self._observers.append(observer)
-                logger.debug(f"Registered observer: {observer}")
+        self._observers.register(observer)
 
     def unregister_observer(self, observer: StateObserver) -> None:
         """
@@ -49,10 +48,7 @@ class SamplerStateMachine:
         Args:
             observer: Previously registered observer
         """
-        with self._lock:
-            if observer in self._observers:
-                self._observers.remove(observer)
-                logger.debug(f"Unregistered observer: {observer}")
+        self._observers.unregister(observer)
 
     def notify_pad_triggered(self, pad_index: int) -> None:
         """
@@ -138,16 +134,7 @@ class SamplerStateMachine:
             pad_index: Index of the pad involved
 
         Note:
-            Must be called with lock held.
-            Catches and logs exceptions from observers to prevent
-            one bad observer from breaking others.
+            Called while holding self._lock. ObserverManager has its own separate lock
+            to avoid deadlock. ObserverManager handles exception catching and logging automatically.
         """
-        for observer in self._observers:
-            try:
-                observer.on_playback_event(event, pad_index)
-            except Exception as e:
-                logger.error(
-                    f"Error notifying observer {observer} of {event.value} "
-                    f"for pad {pad_index}: {e}",
-                    exc_info=True
-                )
+        self._observers.notify('on_playback_event', event, pad_index)

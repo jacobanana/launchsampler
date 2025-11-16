@@ -18,6 +18,7 @@ from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Set, PlaybackMode
 from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
+from launchsampler.utils import ObserverManager
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
         self._on_playback_change: Optional[Callable[[PlaybackEvent, int], None]] = None
 
         # State observers (multiple observers supported)
-        self._state_observers: list[StateObserver] = []
+        self._state_observers = ObserverManager[StateObserver](observer_type_name="state")
 
         # State
         self._is_running = False
@@ -328,11 +329,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
             self._on_playback_change(event, pad_index)
 
         # Notify all state observers
-        for observer in self._state_observers:
-            try:
-                observer.on_playback_event(event, pad_index)
-            except Exception as e:
-                logger.error(f"Error notifying state observer {observer}: {e}")
+        self._state_observers.notify('on_playback_event', event, pad_index)
 
     # =================================================================
     # EditObserver Protocol
@@ -417,9 +414,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
         Args:
             observer: Object implementing StateObserver protocol
         """
-        if observer not in self._state_observers:
-            self._state_observers.append(observer)
-            logger.info(f"Registered state observer: {observer}")
+        self._state_observers.register(observer)
 
     def unregister_state_observer(self, observer: StateObserver) -> None:
         """
@@ -428,9 +423,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
         Args:
             observer: Previously registered observer
         """
-        if observer in self._state_observers:
-            self._state_observers.remove(observer)
-            logger.debug(f"Unregistered state observer: {observer}")
+        self._state_observers.unregister(observer)
 
     def set_playback_callback(self, callback: Callable[[PlaybackEvent, int], None]) -> None:
         """

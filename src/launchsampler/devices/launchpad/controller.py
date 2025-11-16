@@ -9,6 +9,7 @@ from launchsampler.midi import MidiManager
 from launchsampler.models import Color
 from launchsampler.protocols import MidiEvent, MidiObserver
 from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent, ControlChangeEvent
+from launchsampler.utils import ObserverManager
 from .device import LaunchpadDevice
 
 logger = logging.getLogger(__name__)
@@ -39,22 +40,18 @@ class LaunchpadController:
         self._midi.on_connection_changed(self._handle_connection_changed)
 
         # Observer pattern for MIDI events
-        self._observers: list[MidiObserver] = []
+        self._observers = ObserverManager[MidiObserver](observer_type_name="MIDI")
 
         # Launchpad device instance (created when connected)
         self._device: Optional[LaunchpadDevice] = None
 
     def register_observer(self, observer: MidiObserver) -> None:
         """Register observer for MIDI events."""
-        if observer not in self._observers:
-            self._observers.append(observer)
-            logger.info(f"Registered MIDI observer: {observer} (type: {type(observer).__name__})")
+        self._observers.register(observer)
 
     def unregister_observer(self, observer: MidiObserver) -> None:
         """Unregister observer."""
-        if observer in self._observers:
-            self._observers.remove(observer)
-            logger.debug(f"Unregistered MIDI observer: {observer}")
+        self._observers.unregister(observer)
 
     def _notify_observers(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0) -> None:
         """
@@ -66,14 +63,7 @@ class LaunchpadController:
             control: MIDI CC control number (for CONTROL_CHANGE events)
             value: MIDI CC value (for CONTROL_CHANGE events)
         """
-        logger.info(f"Notifying {len(self._observers)} observers of {event} on pad {pad_index}")
-        for observer in self._observers:
-            try:
-                logger.info(f"Calling on_midi_event for observer: {type(observer).__name__} ({observer})")
-                observer.on_midi_event(event, pad_index, control, value)
-                logger.info(f"Successfully notified observer: {type(observer).__name__}")
-            except Exception as e:
-                logger.error(f"Error notifying MIDI observer {observer}: {e}", exc_info=True)
+        self._observers.notify('on_midi_event', event, pad_index, control, value)
 
     def set_pad_color(self, pad_index: int, color: Color) -> bool:
         """

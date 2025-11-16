@@ -2,11 +2,11 @@
 
 import logging
 from pathlib import Path
-from threading import Lock
 from typing import TYPE_CHECKING, Optional
 
 from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
+from launchsampler.utils import ObserverManager
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,7 @@ class EditorService:
         self._clipboard: Optional[Pad] = None
 
         # Event system
-        self._observers: list[EditObserver] = []
-        self._event_lock = Lock()
+        self._observers = ObserverManager[EditObserver](observer_type_name="edit")
         logger.info("EditorService initialized")
 
     @property
@@ -87,57 +86,39 @@ class EditorService:
     def register_observer(self, observer: EditObserver) -> None:
         """
         Register an observer to receive edit events.
-        
+
         Args:
             observer: Object implementing EditObserver protocol
         """
-        with self._event_lock:
-            if observer not in self._observers:
-                self._observers.append(observer)
-                logger.info(f"Registered edit observer: {observer}")
+        self._observers.register(observer)
 
     def unregister_observer(self, observer: EditObserver) -> None:
         """
         Unregister an observer.
-        
+
         Args:
             observer: Previously registered observer
         """
-        with self._event_lock:
-            if observer in self._observers:
-                self._observers.remove(observer)
-                logger.debug(f"Unregistered edit observer: {observer}")
+        self._observers.unregister(observer)
 
     def _notify_observers(
-        self, 
-        event: EditEvent, 
-        pad_indices: list[int], 
+        self,
+        event: EditEvent,
+        pad_indices: list[int],
         pads: list[Pad]
     ) -> None:
         """
         Notify all registered observers of an edit event.
-        
+
         Args:
             event: The editing event that occurred
             pad_indices: List of affected pad indices
             pads: List of affected pad states (post-edit)
-            
+
         Note:
-            Catches and logs exceptions from observers to prevent
-            one bad observer from breaking others.
+            ObserverManager handles exception catching and logging automatically.
         """
-        with self._event_lock:
-            observers = list(self._observers)  # Copy to avoid lock during callbacks
-        
-        for observer in observers:
-            try:
-                observer.on_edit_event(event, pad_indices, pads)
-            except Exception as e:
-                logger.error(
-                    f"Error notifying observer {observer} of {event.value} "
-                    f"for pads {pad_indices}: {e}",
-                    exc_info=True
-                )
+        self._observers.notify('on_edit_event', event, pad_indices, pads)
 
     # =================================================================
     # Validation
