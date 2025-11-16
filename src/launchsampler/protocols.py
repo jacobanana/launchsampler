@@ -9,9 +9,10 @@ if TYPE_CHECKING:
 
 class MidiEvent(Enum):
     """Events from MIDI controller input."""
-    
+
     NOTE_ON = "note_on"                          # MIDI note on received
     NOTE_OFF = "note_off"                        # MIDI note off received
+    CONTROL_CHANGE = "control_change"            # MIDI control change received
     CONTROLLER_CONNECTED = "controller_connected"    # MIDI controller connected
     CONTROLLER_DISCONNECTED = "controller_disconnected"  # MIDI controller disconnected
 
@@ -59,19 +60,21 @@ class SelectionEvent(Enum):
 class MidiObserver(Protocol):
     """
     Observer that receives MIDI controller events.
-    
+
     This protocol allows loose coupling between the MIDI controller
     and components that need to react to MIDI input (e.g., UI feedback).
     """
 
-    def on_midi_event(self, event: "MidiEvent", pad_index: int) -> None:
+    def on_midi_event(self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0) -> None:
         """
         Handle MIDI controller events.
-        
+
         Args:
             event: The type of MIDI event
-            pad_index: Index of the pad (0-63), or -1 for connection events
-            
+            pad_index: Index of the pad (0-63), or -1 for connection/CC events
+            control: MIDI CC control number (for CONTROL_CHANGE events)
+            value: MIDI CC value (for CONTROL_CHANGE events)
+
         Note:
             This is called from the MIDI polling thread, so implementations
             should be thread-safe and avoid blocking operations.

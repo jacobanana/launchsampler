@@ -23,6 +23,13 @@ class PadReleaseEvent(DeviceEvent):
         self.pad_index = pad_index  # Logical 0-63
 
 
+class ControlChangeEvent(DeviceEvent):
+    """MIDI control change received."""
+    def __init__(self, control: int, value: int):
+        self.control = control
+        self.value = value
+
+
 class DeviceInput(Protocol):
     """Protocol for device input handling."""
 

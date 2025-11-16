@@ -182,7 +182,7 @@ class TestLaunchpadController:
         observer_calls = []
 
         class TestObserver:
-            def on_midi_event(self, event: MidiEvent, pad_index: int):
+            def on_midi_event(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0):
                 observer_calls.append((event, pad_index))
 
         observer = TestObserver()
@@ -206,7 +206,7 @@ class TestLaunchpadController:
         observer_calls = []
 
         class TestObserver:
-            def on_midi_event(self, event: MidiEvent, pad_index: int):
+            def on_midi_event(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0):
                 observer_calls.append(pad_index)
 
         observer = TestObserver()

@@ -83,10 +83,17 @@ class TestLaunchpadInput:
         assert input_parser.parse_message(msg) is None
 
     def test_parse_other_message_types(self, input_parser):
-        """Test that other message types return None."""
-        msg = mido.Message('control_change', control=7, value=100)
-        assert input_parser.parse_message(msg) is None
+        """Test control_change returns ControlChangeEvent, other types return None."""
+        from launchsampler.devices.protocols import ControlChangeEvent
 
+        # Control change should return ControlChangeEvent
+        msg = mido.Message('control_change', control=7, value=100)
+        event = input_parser.parse_message(msg)
+        assert isinstance(event, ControlChangeEvent)
+        assert event.control == 7
+        assert event.value == 100
+
+        # Other message types should still return None
         msg = mido.Message('program_change', program=0)
         assert input_parser.parse_message(msg) is None
 

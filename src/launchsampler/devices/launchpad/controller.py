@@ -8,7 +8,7 @@ import mido
 from launchsampler.midi import MidiManager
 from launchsampler.models import Color
 from launchsampler.protocols import MidiEvent, MidiObserver
-from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent
+from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent, ControlChangeEvent
 from .device import LaunchpadDevice
 
 logger = logging.getLogger(__name__)
@@ -56,13 +56,21 @@ class LaunchpadController:
             self._observers.remove(observer)
             logger.debug(f"Unregistered MIDI observer: {observer}")
 
-    def _notify_observers(self, event: MidiEvent, pad_index: int) -> None:
-        """Notify all observers of a MIDI event."""
+    def _notify_observers(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0) -> None:
+        """
+        Notify all observers of a MIDI event.
+
+        Args:
+            event: The MIDI event type
+            pad_index: Pad index (0-63) or -1 for non-pad events
+            control: MIDI CC control number (for CONTROL_CHANGE events)
+            value: MIDI CC value (for CONTROL_CHANGE events)
+        """
         logger.info(f"Notifying {len(self._observers)} observers of {event} on pad {pad_index}")
         for observer in self._observers:
             try:
                 logger.info(f"Calling on_midi_event for observer: {type(observer).__name__} ({observer})")
-                observer.on_midi_event(event, pad_index)
+                observer.on_midi_event(event, pad_index, control, value)
                 logger.info(f"Successfully notified observer: {type(observer).__name__}")
             except Exception as e:
                 logger.error(f"Error notifying MIDI observer {observer}: {e}", exc_info=True)
@@ -192,6 +200,10 @@ class LaunchpadController:
                     elif isinstance(event, PadReleaseEvent):
                         logger.info(f"Pad released: {event.pad_index} (note {msg.note})")
                         self._notify_observers(MidiEvent.NOTE_OFF, event.pad_index)
+
+                    elif isinstance(event, ControlChangeEvent):
+                        logger.info(f"Control change: control={event.control}, value={event.value}")
+                        self._notify_observers(MidiEvent.CONTROL_CHANGE, -1, event.control, event.value)
                 else:
                     logger.debug(f"Unhandled message: {msg}")
             else:

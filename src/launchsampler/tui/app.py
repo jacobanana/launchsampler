@@ -65,6 +65,7 @@ class LaunchpadSampler(App):
         Binding("ctrl+o", "load", "Open Set", show=True),
         Binding("ctrl+l", "open_directory", "Load from Directory", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
+        Binding("escape", "stop_audio", "Panic (Stop All)", show=True),
         Binding("b", "browse_sample", "Browse", show=False),
         Binding("c", "copy_pad", "Copy", show=True),
         Binding("x", "cut_pad", "Cut", show=True),

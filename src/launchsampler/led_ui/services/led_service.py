@@ -136,7 +136,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
     # MidiObserver Protocol - MIDI controller events
     # =================================================================
 
-    def on_midi_event(self, event: "MidiEvent", pad_index: int) -> None:
+    def on_midi_event(self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0) -> None:
         """
         Handle MIDI events from controller.
 
@@ -144,7 +144,9 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
 
         Args:
             event: The MIDI event that occurred
-            pad_index: Index of the pad (0-63), or -1 for connection events
+            pad_index: Index of the pad (0-63), or -1 for connection/CC events
+            control: MIDI CC control number (for CONTROL_CHANGE events)
+            value: MIDI CC value (for CONTROL_CHANGE events)
         """
         logger.debug(f"LEDService received MIDI event: {event}, pad_index: {pad_index}")
 

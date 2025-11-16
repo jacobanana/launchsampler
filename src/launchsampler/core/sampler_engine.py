@@ -216,10 +216,21 @@ class SamplerEngine:
             logger.warning(f"Trigger queue full, dropped pad {pad_index} stop")
 
     def stop_all(self) -> None:
-        """Stop all playing pads."""
+        """
+        Stop all playing pads.
+
+        Uses the queue mechanism to ensure proper playback events are fired.
+        """
+        # Get all pad indices (need lock to safely read keys)
         with self._lock:
-            for state in self._playback_states.values():
-                state.stop()
+            pad_indices = list(self._playback_states.keys())
+
+        # Queue stop actions for all pads (lock-free)
+        for pad_index in pad_indices:
+            try:
+                self._trigger_queue.put_nowait(("stop", pad_index))
+            except Full:
+                logger.warning(f"Trigger queue full, dropped pad {pad_index} stop during stop_all")
 
     def update_pad_volume(self, pad_index: int, volume: float) -> None:
         """

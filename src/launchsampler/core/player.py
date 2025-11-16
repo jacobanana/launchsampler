@@ -275,7 +275,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
     # MidiObserver Protocol
     # =================================================================
 
-    def on_midi_event(self, event: MidiEvent, pad_index: int) -> None:
+    def on_midi_event(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0) -> None:
         """
         Handle MIDI events from controller.
 
@@ -283,7 +283,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
         Args:
             event: The MIDI event that occurred
-            pad_index: Index of the pad (0-63), or -1 for connection events
+            pad_index: Index of the pad (0-63), or -1 for connection/CC events
+            control: MIDI CC control number (for CONTROL_CHANGE events)
+            value: MIDI CC value (for CONTROL_CHANGE events)
         """
         if event == MidiEvent.NOTE_ON:
             # MIDI pad pressed - trigger audio if sample is assigned
@@ -300,6 +302,13 @@ class Player(StateObserver, EditObserver, MidiObserver):
                 pad = self.current_set.launchpad.pads[pad_index]
                 if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
                     self.release_pad(pad_index)
+
+        elif event == MidiEvent.CONTROL_CHANGE:
+            # Handle panic button (stop all audio)
+            if (control == self.config.panic_button_cc_control and
+                value == self.config.panic_button_cc_value):
+                logger.info(f"Panic button triggered via MIDI CC (control={control}, value={value})")
+                self.stop_all()
 
         # Connection events don't require action from Player
         # (UI observers will handle status updates)

@@ -31,6 +31,16 @@ class AppConfig(BaseModel):
         description="How often to check for MIDI device changes (seconds)"
     )
 
+    # Panic button settings
+    panic_button_cc_control: int = Field(
+        default=19,
+        description="MIDI CC control number for panic button (stop all audio)"
+    )
+    panic_button_cc_value: int = Field(
+        default=127,
+        description="MIDI CC value for panic button trigger"
+    )
+
     # Session settings
     last_set: Optional[str] = Field(
         default=None,

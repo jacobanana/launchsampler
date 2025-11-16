@@ -2,7 +2,7 @@
 
 from typing import Optional
 import mido
-from launchsampler.devices.protocols import DeviceInput, DeviceEvent, PadPressEvent, PadReleaseEvent
+from launchsampler.devices.protocols import DeviceInput, DeviceEvent, PadPressEvent, PadReleaseEvent, ControlChangeEvent
 from .model import LaunchpadModel
 from .mapper import LaunchpadNoteMapper
 
@@ -55,5 +55,8 @@ class LaunchpadInput(DeviceInput):
             if pad_index is None:
                 return None
             return PadReleaseEvent(pad_index)
+
+        elif msg.type == 'control_change':
+            return ControlChangeEvent(msg.control, msg.value)
 
         return None

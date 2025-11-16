@@ -308,11 +308,14 @@ class TestSamplerEngineVoiceManagement:
         outdata = np.zeros((512, 2), dtype=np.float32)
         loaded_engine._audio_callback(outdata, 512)
         assert loaded_engine.active_voices == 3
-        
-        # Stop all - directly stops playback states
+
+        # Stop all - queues stop actions for all pads
         loaded_engine.stop_all()
-        
-        # Voices should be stopped immediately
+
+        # Process the queue to actually stop the pads
+        loaded_engine._audio_callback(outdata, 512)
+
+        # Voices should be stopped after processing
         assert loaded_engine.active_voices == 0
 
 
