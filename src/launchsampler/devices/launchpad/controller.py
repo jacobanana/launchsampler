@@ -1,12 +1,13 @@
 """Launchpad controller."""
 
 import logging
-from typing import Callable, Optional
+from typing import Optional
 
 import mido
 
 from launchsampler.midi import MidiManager
 from launchsampler.models import Color
+from launchsampler.protocols import MidiEvent, MidiObserver
 from .device import LaunchpadDevice
 
 logger = logging.getLogger(__name__)
@@ -34,36 +35,30 @@ class LaunchpadController:
             port_selector=LaunchpadDevice.select_port
         )
         self._midi.on_message(self._handle_message)
+        self._midi.on_connection_changed(self._handle_connection_changed)
 
-        # Event callbacks
-        self._on_pad_pressed: Optional[Callable[[int], None]] = None
-        self._on_pad_released: Optional[Callable[[int], None]] = None
+        # Observer pattern for MIDI events
+        self._observers: list[MidiObserver] = []
 
-    def on_pad_pressed(self, callback: Callable[[int], None]) -> None:
-        """
-        Register callback for pad press events.
+    def register_observer(self, observer: MidiObserver) -> None:
+        """Register observer for MIDI events."""
+        if observer not in self._observers:
+            self._observers.append(observer)
+            logger.debug(f"Registered MIDI observer: {observer}")
 
-        Callback is executed in mido's internal I/O thread - keep it fast!
+    def unregister_observer(self, observer: MidiObserver) -> None:
+        """Unregister observer."""
+        if observer in self._observers:
+            self._observers.remove(observer)
+            logger.debug(f"Unregistered MIDI observer: {observer}")
 
-        Args:
-            callback: Function that takes pad_index (0-63) as argument
-        """
-        self._on_pad_pressed = callback
-
-    def on_pad_released(self, callback: Callable[[int], None]) -> None:
-        """
-        Register callback for pad release events.
-
-        Callback is executed in mido's internal I/O thread - keep it fast!
-
-        Args:
-            callback: Function that takes pad_index (0-63) as argument
-        """
-        self._on_pad_released = callback
-
-    def on_connection_changed(self, callback: Callable[[bool, Optional[str]], None]) -> None:
-        """Register callback for MIDI connection state changes."""
-        self._midi.on_connection_changed(callback)
+    def _notify_observers(self, event: MidiEvent, pad_index: int) -> None:
+        """Notify all observers of a MIDI event."""
+        for observer in self._observers:
+            try:
+                observer.on_midi_event(event, pad_index)
+            except Exception as e:
+                logger.error(f"Error notifying MIDI observer {observer}: {e}")
 
     def set_pad_color(self, pad_index: int, color: Color) -> bool:
         """
@@ -102,16 +97,20 @@ class LaunchpadController:
 
                 if event_type == "pad_press":
                     logger.debug(f"Pad pressed: {pad_index}")
-                    if self._on_pad_pressed:
-                        self._on_pad_pressed(pad_index)
+                    self._notify_observers(MidiEvent.NOTE_ON, pad_index)
 
                 elif event_type == "pad_release":
                     logger.debug(f"Pad released: {pad_index}")
-                    if self._on_pad_released:
-                        self._on_pad_released(pad_index)
+                    self._notify_observers(MidiEvent.NOTE_OFF, pad_index)
 
         except Exception as e:
             logger.error(f"Error handling Launchpad message: {e}")
+
+    def _handle_connection_changed(self, is_connected: bool, port_name: Optional[str]) -> None:
+        """Handle MIDI connection state changes."""
+        event = MidiEvent.CONTROLLER_CONNECTED if is_connected else MidiEvent.CONTROLLER_DISCONNECTED
+        self._notify_observers(event, -1)  # -1 indicates no specific pad
+        logger.info(f"MIDI controller {'connected' if is_connected else 'disconnected'}: {port_name}")
 
     @property
     def is_connected(self) -> bool:

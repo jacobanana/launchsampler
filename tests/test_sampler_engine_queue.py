@@ -619,14 +619,13 @@ class TestSamplerEngineThreadSafety:
         loaded_engine._audio_callback(outdata, 512)
         assert loaded_engine.is_pad_playing(0)
         
-        # Unload stops the playback state but state machine still tracks it
+        # Unload removes the playback state entirely for clean reload
         loaded_engine.unload_sample(0)
         
-        # Playback state should be stopped
-        state = loaded_engine._playback_states[0]
-        assert not state.is_playing
-        # Audio data should be cleared
-        assert state.audio_data is None
+        # Playback state should be removed
+        assert 0 not in loaded_engine._playback_states
+        # Pad should no longer be playing
+        assert not loaded_engine.is_pad_playing(0)
 
 
 # =================================================================

@@ -17,24 +17,30 @@ from launchsampler.audio import AudioDevice
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
 from launchsampler.models import AppConfig, Set, PlaybackMode
-from launchsampler.protocols import PlaybackEvent, StateObserver
+from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
 
 logger = logging.getLogger(__name__)
 
 
-class Player(StateObserver):
+class Player(StateObserver, EditObserver, MidiObserver):
     """
     Core player for Launchpad sampling.
 
     This class manages audio and MIDI without any UI dependencies.
     It can be used in any application (TUI, GUI, CLI, headless).
 
+    Implements:
+    - StateObserver: for playback events from audio engine
+    - EditObserver: for editing events from editor service
+    - MidiObserver: for MIDI input events from controller
+
     Responsibilities:
     - Audio engine lifecycle
     - MIDI controller lifecycle
     - Playback state observation
+    - Edit event observation and audio sync
+    - MIDI input observation and audio triggering
     - Set loading into audio engine
-    - Trigger routing
 
     NOT responsible for:
     - UI rendering
@@ -160,10 +166,8 @@ class Player(StateObserver):
                 poll_interval=self.config.midi_poll_interval
             )
 
-            # Wire up event handlers
-            self._midi.on_pad_pressed(self._on_pad_pressed)
-            self._midi.on_pad_released(self._on_pad_released)
-            self._midi.on_connection_changed(self._on_midi_connection_changed)
+            # Register as MIDI observer
+            self._midi.register_observer(self)
 
             # Start controller
             self._midi.start()
@@ -264,45 +268,35 @@ class Player(StateObserver):
             self._engine.set_master_volume(volume)
 
     # =================================================================
-    # MIDI Event Handlers (private)
+    # MidiObserver Protocol
     # =================================================================
 
-    def _on_pad_pressed(self, pad_index: int) -> None:
-        """Handle MIDI pad press."""
-        if not self.current_set:
-            return
+    def on_midi_event(self, event: MidiEvent, pad_index: int) -> None:
+        """
+        Handle MIDI events from controller.
 
-        pad = self.current_set.launchpad.pads[pad_index]
+        This is called from the MIDI thread.
         
-        # Always fire NOTE_ON for MIDI input feedback
-        if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.NOTE_ON, pad_index)
+        Args:
+            event: The MIDI event that occurred
+            pad_index: Index of the pad (0-63), or -1 for connection events
+        """
+        if event == MidiEvent.NOTE_ON:
+            # MIDI pad pressed - trigger audio if sample is assigned
+            if self.current_set and pad_index >= 0:
+                pad = self.current_set.launchpad.pads[pad_index]
+                if pad.is_assigned:
+                    self.trigger_pad(pad_index)
         
-        # Only trigger audio if sample is assigned
-        if pad.is_assigned:
-            self.trigger_pad(pad_index)
-
-    def _on_pad_released(self, pad_index: int) -> None:
-        """Handle MIDI pad release."""
-        if not self.current_set:
-            return
-
-        pad = self.current_set.launchpad.pads[pad_index]
+        elif event == MidiEvent.NOTE_OFF:
+            # MIDI pad released - release audio if mode supports it
+            if self.current_set and pad_index >= 0:
+                pad = self.current_set.launchpad.pads[pad_index]
+                if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
+                    self.release_pad(pad_index)
         
-        # Always fire NOTE_OFF for MIDI input feedback
-        if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.NOTE_OFF, pad_index)
-        
-        # Only release audio if sample is assigned and mode supports it
-        if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
-            self.release_pad(pad_index)
-
-    def _on_midi_connection_changed(self, is_connected: bool, port_name: Optional[str]) -> None:
-        """Handle MIDI connection state changes."""
-        # Fire a dummy playback event to trigger status bar update
-        # Using NOTE_OFF with invalid pad index as a signal
-        if self._on_playback_change:
-            self._on_playback_change(PlaybackEvent.NOTE_OFF, -1)
+        # Connection events don't require action from Player
+        # (UI observers will handle status updates)
 
     # =================================================================
     # StateObserver Protocol
@@ -318,6 +312,78 @@ class Player(StateObserver):
             self._on_playback_change(event, pad_index)
 
     # =================================================================
+    # EditObserver Protocol
+    # =================================================================
+
+    def on_edit_event(
+        self,
+        event: EditEvent,
+        pad_indices: list[int],
+        pads: list
+    ) -> None:
+        """
+        Handle editing events and sync audio engine.
+
+        This eliminates the need for manual _reload_pad() calls throughout
+        the codebase. When any editing operation occurs (assign, clear, move,
+        etc.), this observer automatically syncs the audio engine.
+
+        Threading:
+            Called from the UI thread (Textual's main loop).
+            Delegates to SamplerEngine methods which use locks for thread safety.
+
+        Args:
+            event: The type of editing event
+            pad_indices: List of affected pad indices
+            pads: List of affected pad states (post-edit)
+        """
+        if not self._engine:
+            return
+        
+        logger.debug(f"Player received edit event: {event.value} for pads {pad_indices}")
+        
+        for pad_index, pad in zip(pad_indices, pads):
+            if event in (
+                EditEvent.PAD_ASSIGNED,
+                EditEvent.PAD_DUPLICATED,
+                EditEvent.PAD_MODE_CHANGED
+            ):
+                # Reload sample into engine
+                if pad.is_assigned:
+                    logger.info(f"Loading sample '{pad.sample.name}' into pad {pad_index} (event: {event.value})")
+                    self._engine.load_sample(pad_index, pad)
+                else:
+                    logger.info(f"Unloading pad {pad_index} (event: {event.value})")
+                    self._engine.unload_sample(pad_index)
+            
+            elif event == EditEvent.PAD_MOVED:
+                # For moves, reload both pads (source and target)
+                if pad.is_assigned:
+                    logger.info(f"Loading sample '{pad.sample.name}' into pad {pad_index} (moved)")
+                    self._engine.load_sample(pad_index, pad)
+                else:
+                    logger.info(f"Unloading pad {pad_index} (moved)")
+                    self._engine.unload_sample(pad_index)
+            
+            elif event == EditEvent.PAD_CLEARED:
+                # Unload sample
+                logger.info(f"Unloading pad {pad_index} (cleared)")
+                self._engine.unload_sample(pad_index)
+            
+            elif event == EditEvent.PAD_VOLUME_CHANGED:
+                # Update volume without reloading (more efficient)
+                logger.debug(f"Updating volume for pad {pad_index} to {pad.volume}")
+                self._engine.update_pad_volume(pad_index, pad.volume)
+            
+            elif event == EditEvent.PADS_CLEARED:
+                # Multiple pads cleared - reload each
+                logger.info(f"Unloading multiple pads: {pad_indices}")
+                for idx, p in zip(pad_indices, pads):
+                    self._engine.unload_sample(idx)
+            
+            # Note: PAD_NAME_CHANGED doesn't affect audio, no action needed
+
+    # =================================================================
     # Callback Registration
     # =================================================================
 
@@ -326,7 +392,7 @@ class Player(StateObserver):
         Register callback for playback events.
 
         Args:
-            callback: Function to call on playback events
+            callback: Function to call on playback events (from audio engine)
         """
         self._on_playback_change = callback
 

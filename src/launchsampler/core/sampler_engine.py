@@ -25,6 +25,29 @@ class SamplerEngine:
 
     Composes generic audio primitives (device, loader, mixer) with
     pad-based playback management.
+
+    Threading Model:
+        This engine operates across multiple threads:
+
+        1. UI Thread (Textual):
+           - Calls load_sample() / unload_sample() via EditObserver pattern
+           - Uses self._lock to safely modify _playback_states
+
+        2. MIDI Thread:
+           - Calls trigger_pad() / release_pad()
+           - Lock-free: writes to _trigger_queue (Queue is thread-safe)
+
+        3. Audio Callback Thread (sounddevice):
+           - Runs _audio_callback() to mix and render audio
+           - Reads from _trigger_queue (lock-free)
+           - Reads/writes _playback_states WITHOUT lock (owns playback state)
+
+        Lock Strategy:
+            - self._lock protects _playback_states during load/unload (rare ops)
+            - Triggers use lock-free queue for minimal latency (frequent ops)
+            - Audio callback avoids locks entirely to prevent audio glitches
+            - Stale reads during concurrent modifications are acceptable
+              (affects at most one 5ms audio block)
     """
 
     def __init__(self, audio_device: AudioDevice, num_pads: int = 64):
@@ -69,6 +92,12 @@ class SamplerEngine:
 
         Returns:
             True if loaded successfully, False otherwise
+
+        Thread Safety:
+            Safe to call from UI thread via EditObserver pattern.
+            Uses self._lock to protect _playback_states dict from
+            concurrent modification with the audio callback thread.
+            File I/O occurs outside the lock for better performance.
         """
         if pad_index < 0 or pad_index >= self._num_pads:
             logger.error(f"Invalid pad index: {pad_index} (valid: 0-{self._num_pads-1})")
@@ -114,11 +143,24 @@ class SamplerEngine:
 
         Args:
             pad_index: Pad index (0 to num_pads-1)
+
+        Thread Safety:
+            Safe to call from UI thread via EditObserver pattern.
+            Uses self._lock to protect _playback_states dict.
+            If a pad is triggered after unloading but before the
+            audio callback processes it, the callback safely skips
+            missing pads (see _audio_callback line ~347).
         """
         with self._lock:
             if pad_index in self._playback_states:
+                was_playing = self._playback_states[pad_index].is_playing
                 self._playback_states[pad_index].stop()
-                self._playback_states[pad_index].audio_data = None
+                # Remove the entry entirely to ensure fresh state when reloading
+                del self._playback_states[pad_index]
+                
+                # Notify state machine if pad was playing
+                if was_playing:
+                    self._state_machine.notify_pad_stopped(pad_index)
 
     def trigger_pad(self, pad_index: int) -> None:
         """
@@ -186,6 +228,9 @@ class SamplerEngine:
         Args:
             pad_index: Pad index (0 to num_pads-1)
             volume: New volume (0.0-1.0)
+
+        Thread Safety:
+            Safe to call from UI thread. Uses self._lock.
         """
         with self._lock:
             if pad_index in self._playback_states:
@@ -198,6 +243,9 @@ class SamplerEngine:
         Args:
             pad_index: Pad index (0 to num_pads-1)
             mode: New playback mode
+
+        Thread Safety:
+            Safe to call from UI thread. Uses self._lock.
         """
         with self._lock:
             if pad_index in self._playback_states:
@@ -350,35 +398,35 @@ class SamplerEngine:
                             if state.is_playing:
                                 # Second note on - stop playback
                                 state.stop()
-                                self._state_machine.on_pad_stopped(pad_index)
+                                self._state_machine.notify_pad_stopped(pad_index)
                             else:
                                 # First note on - start playback
                                 was_playing = False
                                 state.start()
-                                self._state_machine.on_pad_triggered(pad_index)
+                                self._state_machine.notify_pad_triggered(pad_index)
                                 if state.is_playing:
-                                    self._state_machine.on_pad_playing(pad_index)
+                                    self._state_machine.notify_pad_playing(pad_index)
                         else:
                             # Normal behavior for other modes
                             was_playing = state.is_playing
                             state.start()
 
                             # Publish event
-                            self._state_machine.on_pad_triggered(pad_index)
+                            self._state_machine.notify_pad_triggered(pad_index)
                             if state.is_playing and not was_playing:
-                                self._state_machine.on_pad_playing(pad_index)
+                                self._state_machine.notify_pad_playing(pad_index)
 
                     elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
                         # Note: LOOP_TOGGLE ignores note off messages
                         if state.is_playing:
                             state.stop()
-                            self._state_machine.on_pad_stopped(pad_index)
+                            self._state_machine.notify_pad_stopped(pad_index)
 
                     elif action == "stop":
                         # Immediate stop - works for all modes
                         if state.is_playing:
                             state.stop()
-                            self._state_machine.on_pad_stopped(pad_index)
+                            self._state_machine.notify_pad_stopped(pad_index)
 
                 except Exception as e:
                     logger.error(f"Error processing trigger queue for pad {pad_index}: {e}", exc_info=True)
@@ -403,7 +451,7 @@ class SamplerEngine:
             for pad_index in was_playing_before:
                 state = self._playback_states[pad_index]
                 if not state.is_playing:
-                    self._state_machine.on_pad_finished(pad_index)
+                    self._state_machine.notify_pad_finished(pad_index)
 
             # Apply master volume
             if self._master_volume != 1.0:

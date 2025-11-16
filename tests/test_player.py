@@ -6,7 +6,7 @@ import pytest
 
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Set, Launchpad, Pad, Sample, PlaybackMode, Color
-from launchsampler.protocols import PlaybackEvent
+from launchsampler.protocols import PlaybackEvent, MidiEvent
 
 
 @pytest.fixture
@@ -396,8 +396,8 @@ class TestPlayerMIDIHandling:
         player.start()
         player.load_set(test_set)
         
-        # Simulate MIDI pad press
-        player._on_pad_pressed(0)
+        # Simulate MIDI pad press via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_ON, 0)
         
         # Should trigger audio
         mock_engine.trigger_pad.assert_called_once_with(0)
@@ -405,8 +405,8 @@ class TestPlayerMIDIHandling:
     @patch('launchsampler.core.player.AudioDevice')
     @patch('launchsampler.core.player.SamplerEngine')
     @patch('launchsampler.core.player.LaunchpadController')
-    def test_midi_pad_press_fires_note_on_event(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config, test_set):
-        """Test MIDI pad press fires NOTE_ON event."""
+    def test_empty_pad_press_doesnt_trigger_audio(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+        """Test pressing empty pad doesn't trigger audio."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
         
@@ -414,59 +414,11 @@ class TestPlayerMIDIHandling:
         player.start()
         player.load_set(test_set)
         
-        callback = Mock()
-        player.set_playback_callback(callback)
-        
-        # Simulate MIDI pad press
-        player._on_pad_pressed(0)
-        
-        # Should fire NOTE_ON event
-        callback.assert_called_with(PlaybackEvent.NOTE_ON, 0)
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    @patch('launchsampler.core.player.LaunchpadController')
-    def test_empty_pad_press_fires_note_on_without_audio(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config, test_set):
-        """Test pressing empty pad fires NOTE_ON but doesn't trigger audio."""
-        mock_engine = Mock()
-        mock_engine_cls.return_value = mock_engine
-        
-        player = Player(mock_config)
-        player.start()
-        player.load_set(test_set)
-        
-        callback = Mock()
-        player.set_playback_callback(callback)
-        
-        # Press empty pad (pad 1 has no sample)
-        player._on_pad_pressed(1)
-        
-        # Should fire NOTE_ON
-        callback.assert_called_with(PlaybackEvent.NOTE_ON, 1)
+        # Press empty pad (pad 1 has no sample) via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_ON, 1)
         
         # Should NOT trigger audio
         mock_engine.trigger_pad.assert_not_called()
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    @patch('launchsampler.core.player.LaunchpadController')
-    def test_midi_pad_release_fires_note_off_event(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config, test_set):
-        """Test MIDI pad release fires NOTE_OFF event."""
-        mock_engine = Mock()
-        mock_engine_cls.return_value = mock_engine
-        
-        player = Player(mock_config)
-        player.start()
-        player.load_set(test_set)
-        
-        callback = Mock()
-        player.set_playback_callback(callback)
-        
-        # Simulate MIDI pad release
-        player._on_pad_released(0)
-        
-        # Should fire NOTE_OFF event
-        callback.assert_called_with(PlaybackEvent.NOTE_OFF, 0)
     
     @patch('launchsampler.core.player.AudioDevice')
     @patch('launchsampler.core.player.SamplerEngine')
@@ -480,8 +432,8 @@ class TestPlayerMIDIHandling:
         player.start()
         player.load_set(test_set)
         
-        # Release pad 5 (LOOP mode)
-        player._on_pad_released(5)
+        # Release pad 5 (LOOP mode) via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_OFF, 5)
         
         # Should release audio
         mock_engine.release_pad.assert_called_once_with(5)
@@ -498,8 +450,8 @@ class TestPlayerMIDIHandling:
         player.start()
         player.load_set(test_set)
         
-        # Release pad 10 (HOLD mode)
-        player._on_pad_released(10)
+        # Release pad 10 (HOLD mode) via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_OFF, 10)
         
         # Should release audio
         mock_engine.release_pad.assert_called_once_with(10)
@@ -516,32 +468,12 @@ class TestPlayerMIDIHandling:
         player.start()
         player.load_set(test_set)
         
-        # Release pad 0 (ONE_SHOT mode)
-        player._on_pad_released(0)
+        # Release pad 0 (ONE_SHOT mode) via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_OFF, 0)
         
-        # Should NOT release audio in ONE_SHOT mode
+        # Should NOT release audio
         mock_engine.release_pad.assert_not_called()
     
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    @patch('launchsampler.core.player.LaunchpadController')
-    def test_midi_connection_callback_fires_signal(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config):
-        """Test MIDI connection change fires signal event."""
-        mock_engine = Mock()
-        mock_engine_cls.return_value = mock_engine
-        
-        player = Player(mock_config)
-        player.start()
-        
-        callback = Mock()
-        player.set_playback_callback(callback)
-        
-        # Simulate MIDI connection change
-        player._on_midi_connection_changed(True, "Launchpad X")
-        
-        # Should fire NOTE_OFF with -1 as signal
-        callback.assert_called_with(PlaybackEvent.NOTE_OFF, -1)
-
 
 # =================================================================
 # State Observer Tests
@@ -805,32 +737,32 @@ class TestPlayerIntegration:
         mock_midi = Mock()
         mock_midi_cls.return_value = mock_midi
         
-        # Track events
-        events = []
-        def track_events(event, pad_index):
-            events.append((event, pad_index))
+        # Track playback events
+        playback_events = []
+        
+        def track_playback_events(event, pad_index):
+            playback_events.append((event, pad_index))
         
         player = Player(mock_config)
-        player.set_playback_callback(track_events)
+        player.set_playback_callback(track_playback_events)
         
         # Start and load set
         player.start(initial_set=test_set)
         assert player.is_running
         assert player.current_set == test_set
         
-        # Simulate MIDI press
-        player._on_pad_pressed(0)
+        # Simulate MIDI press via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_ON, 0)
         
-        # Should have NOTE_ON event
-        assert (PlaybackEvent.NOTE_ON, 0) in events
+        # Should trigger audio
+        mock_engine.trigger_pad.assert_called_with(0)
         
         # Simulate engine firing PAD_PLAYING
         player.on_playback_event(PlaybackEvent.PAD_PLAYING, 0)
-        assert (PlaybackEvent.PAD_PLAYING, 0) in events
+        assert (PlaybackEvent.PAD_PLAYING, 0) in playback_events
         
-        # Simulate MIDI release
-        player._on_pad_released(0)
-        assert (PlaybackEvent.NOTE_OFF, 0) in events
+        # Simulate MIDI release via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_OFF, 0)
         
         # Stop player
         player.stop()
@@ -849,10 +781,10 @@ class TestPlayerIntegration:
         player.start()
         player.load_set(test_set)
         
-        # Trigger multiple pads
-        player._on_pad_pressed(0)
-        player._on_pad_pressed(5)
-        player._on_pad_pressed(10)
+        # Trigger multiple pads via MidiObserver protocol
+        player.on_midi_event(MidiEvent.NOTE_ON, 0)
+        player.on_midi_event(MidiEvent.NOTE_ON, 5)
+        player.on_midi_event(MidiEvent.NOTE_ON, 10)
         
         # All should be triggered
         assert mock_engine.trigger_pad.call_count == 3

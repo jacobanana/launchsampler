@@ -99,8 +99,11 @@ class MoveConfirmationModal(ModalScreen[str]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "overwrite-btn":
+            event.stop()
             self.dismiss("overwrite")
         elif event.button.id == "swap-btn":
+            event.stop()
             self.dismiss("swap")
         elif event.button.id == "cancel-btn":
+            event.stop()
             self.dismiss("cancel")
