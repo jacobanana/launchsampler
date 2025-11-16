@@ -300,7 +300,6 @@ class LaunchpadSampler(App):
 
     def clear_pad_selection(self) -> None:
         """Clear pad selection (UI operation - renamed to avoid Textual API conflict)."""
-        self._selected_pad_index = None
         self._notify_selection_observers(SelectionEvent.CLEARED, None)
 
     def register_selection_observer(self, observer) -> None:
