@@ -160,12 +160,10 @@ class TestTUIServiceObserver:
     @pytest.mark.unit
     def test_update_selected_pad_ui_with_audio_data(self, service, mock_app, sample_audio_file):
         """Test updating selected pad UI includes audio data when available."""
-        # Setup: engine with audio data
+        # Setup: player with audio data
         mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
-        mock_engine = Mock()
         mock_audio_data = Mock()
-        mock_engine.get_audio_data = Mock(return_value=mock_audio_data)
-        mock_app.player._engine = mock_engine
+        mock_app.player.get_audio_data = Mock(return_value=mock_audio_data)
 
         # Setup details panel mock
         mock_details = Mock()
@@ -174,8 +172,8 @@ class TestTUIServiceObserver:
         # Call internal method
         service._update_selected_pad_ui(3, mock_app.launchpad.pads[3])
 
-        # Verify engine was queried for audio data
-        mock_engine.get_audio_data.assert_called_once_with(3)
+        # Verify player was queried for audio data
+        mock_app.player.get_audio_data.assert_called_once_with(3)
 
         # Verify details panel was updated with audio data
         mock_details.update_for_pad.assert_called_once()
@@ -185,9 +183,9 @@ class TestTUIServiceObserver:
     @pytest.mark.unit
     def test_update_selected_pad_ui_without_engine(self, service, mock_app, sample_audio_file):
         """Test updating selected pad UI when engine is not available."""
-        # Setup: no engine
+        # Setup: player returns None (simulating no engine)
         mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
-        mock_app.player._engine = None
+        mock_app.player.get_audio_data = Mock(return_value=None)
 
         # Setup details panel mock
         mock_details = Mock()
@@ -204,9 +202,8 @@ class TestTUIServiceObserver:
     @pytest.mark.unit
     def test_update_selected_pad_ui_unassigned_pad(self, service, mock_app):
         """Test updating selected pad UI for unassigned pad."""
-        # Setup: unassigned pad, engine available but shouldn't be queried
-        mock_engine = Mock()
-        mock_app.player._engine = mock_engine
+        # Setup: unassigned pad, player available but shouldn't be queried for audio data
+        mock_app.player.get_audio_data = Mock(return_value=None)
 
         # Setup details panel mock
         mock_details = Mock()
@@ -215,8 +212,8 @@ class TestTUIServiceObserver:
         # Call internal method with unassigned pad
         service._update_selected_pad_ui(7, mock_app.launchpad.pads[7])
 
-        # Verify engine was NOT queried (pad not assigned)
-        mock_engine.get_audio_data.assert_not_called()
+        # Verify player was NOT queried (pad not assigned)
+        mock_app.player.get_audio_data.assert_not_called()
 
         # Verify details panel was still updated
         mock_details.update_for_pad.assert_called_once()
