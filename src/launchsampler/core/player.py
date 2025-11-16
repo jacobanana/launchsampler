@@ -316,17 +316,22 @@ class Player(StateObserver, EditObserver, MidiObserver):
     # =================================================================
 
     def on_edit_event(
-        self, 
-        event: EditEvent, 
-        pad_indices: list[int], 
+        self,
+        event: EditEvent,
+        pad_indices: list[int],
         pads: list
     ) -> None:
         """
         Handle editing events and sync audio engine.
-        
-        This is called from the UI thread when editing operations occur.
-        Automatically synchronizes the audio engine with the new pad states.
-        
+
+        This eliminates the need for manual _reload_pad() calls throughout
+        the codebase. When any editing operation occurs (assign, clear, move,
+        etc.), this observer automatically syncs the audio engine.
+
+        Threading:
+            Called from the UI thread (Textual's main loop).
+            Delegates to SamplerEngine methods which use locks for thread safety.
+
         Args:
             event: The type of editing event
             pad_indices: List of affected pad indices

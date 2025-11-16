@@ -99,21 +99,28 @@ class EditObserver(Protocol):
     """
 
     def on_edit_event(
-        self, 
-        event: "EditEvent", 
+        self,
+        event: "EditEvent",
         pad_indices: list[int],
         pads: list["Pad"]
     ) -> None:
         """
         Handle editing events.
-        
+
         Args:
             event: The type of editing event
             pad_indices: List of affected pad indices (0-63)
             pads: List of affected pad states (post-edit)
-            
-        Note:
-            This is called from the UI thread, so audio-related observers
-            should handle thread safety appropriately.
+
+        Threading:
+            Called from the UI thread (Textual's main asyncio loop).
+            Audio-related observers (e.g., Player) must ensure their
+            engine methods are thread-safe (typically via locks).
+
+        Error Handling:
+            Exceptions raised by observers are caught and logged by the
+            EditorService. They do not propagate to the caller, ensuring
+            one failing observer doesn't break others. Observers should
+            not rely on exceptions for critical error signaling.
         """
         ...

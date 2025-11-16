@@ -18,6 +18,18 @@ class EditorService:
     This service encapsulates all business logic for editing pads,
     managing samples, and saving/loading sets. It operates on models
     and is UI-agnostic.
+
+    Event-Driven Architecture:
+        All editing operations emit EditEvent notifications to registered
+        observers. This ensures automatic synchronization of audio engine
+        and UI without manual coordination.
+
+    Threading:
+        All methods are called from the UI thread (Textual's main loop).
+        Observer notifications are also dispatched on the UI thread.
+        The _event_lock protects the observer list during registration,
+        but is released before calling observers to avoid holding locks
+        during potentially slow callbacks.
     """
 
     def __init__(self, launchpad: Launchpad, config: AppConfig):
