@@ -166,6 +166,44 @@ class LaunchpadOutput(DeviceOutput):
         if not self.midi.send(msg):
             logger.warning(f"Failed to set LED {index} static (note {note})")
 
+    def set_control_led(self, cc_number: int, color: Color) -> None:
+        """
+        Set LED for a control button (CC control) using RGB color.
+
+        Control buttons are the top row and side buttons on the Launchpad
+        that send CC messages rather than note messages. In programmer mode,
+        these can be lit up using their CC number directly as the LED index.
+
+        Args:
+            cc_number: MIDI CC control number (e.g., 19 for panic button)
+            color: RGB color (0-127 per channel)
+        """
+        # In programmer mode, CC controls use their CC number as the LED index
+        # For example, CC 19 uses LED index 19
+        spec = (LightingMode.RGB.value, cc_number, color.r, color.g, color.b)
+        msg = self.sysex.led_lighting([spec])
+
+        if not self.midi.send(msg):
+            logger.warning(f"Failed to set control LED for CC {cc_number}")
+        else:
+            logger.debug(f"Set control LED for CC {cc_number}")
+
+    def set_control_led_static(self, cc_number: int, palette_color: int) -> None:
+        """
+        Set LED for a control button using palette color.
+
+        Args:
+            cc_number: MIDI CC control number
+            palette_color: Palette color index (0-127)
+        """
+        spec = (LightingMode.STATIC.value, cc_number, palette_color)
+        msg = self.sysex.led_lighting([spec])
+
+        if not self.midi.send(msg):
+            logger.warning(f"Failed to set control LED for CC {cc_number}")
+        else:
+            logger.debug(f"Set control LED for CC {cc_number} to palette {palette_color}")
+
     def clear_all(self) -> None:
         """Clear all LEDs (set to black)."""
         # Clear all 64 pads by iterating logical indices

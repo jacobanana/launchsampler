@@ -15,7 +15,7 @@ from launchsampler.protocols import (
     PlaybackEvent,
     StateObserver,
 )
-from launchsampler.ui_colors import get_pad_led_color, get_pad_led_palette_index
+from launchsampler.ui_colors import get_pad_led_color, get_pad_led_palette_index, PANIC_BUTTON_COLOR
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -95,6 +95,8 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             self._current_pads = list(self.orchestrator.launchpad.pads)
             # Update all LEDs
             self._update_all_leds()
+            # Light up panic button
+            self._set_panic_button_led()
             logger.info("LED grid synchronized with loaded set")
 
         except Exception as e:
@@ -155,6 +157,8 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             logger.info("Launchpad connected - syncing LED grid")
             # Sync all LEDs when device connects
             self._update_all_leds()
+            # Light up panic button
+            self._set_panic_button_led()
         elif event == MidiEvent.CONTROLLER_DISCONNECTED:
             logger.info("Launchpad disconnected")
             # Nothing to do - LEDs are already off
@@ -289,3 +293,26 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
                 self._update_pad_led(pad_index, pad)
             else:
                 self.controller.set_pad_color(pad_index, Color.off())
+
+    def _set_panic_button_led(self) -> None:
+        """
+        Set the panic button LED to dark red.
+
+        This lights up the control button that triggers the panic function
+        (stop all audio) when pressed. The button is identified by the
+        configured CC control number.
+        """
+        if not self.controller or not self.controller.is_connected:
+            logger.debug("Cannot set panic button LED: Controller not available or not connected")
+            return
+
+        if not self.controller._device:
+            logger.debug("Cannot set panic button LED: Device not initialized")
+            return
+
+        # Get panic button CC control from config
+        cc_control = self.orchestrator.config.panic_button_cc_control
+
+        # Set the LED to dark red using the RGB color
+        self.controller._device.output.set_control_led(cc_control, PANIC_BUTTON_COLOR.rgb)
+        logger.info(f"Panic button LED set for CC {cc_control}")

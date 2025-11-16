@@ -22,6 +22,7 @@ class LaunchpadColor(Enum):
     RED = (Color(r=127, g=5, b=0), 5)
     RED_DARK = (Color(r=45, g=0, b=0), 6)
     RED_DARKER = (Color(r=12, g=0, b=1), 7)
+    PANIC_RED = (Color(r=45, g=0, b=0), 6)  # Dark red for panic/emergency stop
 
     # Oranges (8-11)
     ORANGE_BRIGHT = (Color(r=127, g=94, b=49), 8)

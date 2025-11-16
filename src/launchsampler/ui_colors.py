@@ -38,6 +38,9 @@ PLAYING_COLOR = LaunchpadColor.YELLOW
 # Empty pad (no sample assigned)
 EMPTY_COLOR = LaunchpadColor.BLACK
 
+# Panic button color (for emergency stop LED indicator)
+PANIC_BUTTON_COLOR = LaunchpadColor.PANIC_RED
+
 # TUI-only states (not applicable to LED UI)
 
 # Selected pad (TUI only - currently selected for editing)
