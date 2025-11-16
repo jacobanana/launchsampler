@@ -272,12 +272,17 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         try:
             status = self.app.query_one(StatusBar)
 
+            # Get MIDI status from the controller (owned by orchestrator)
+            midi_controller = self.app.orchestrator.midi_controller
+            is_midi_connected = midi_controller.is_connected if midi_controller else False
+            midi_device_name = midi_controller.device_name if midi_controller else "No MIDI"
+
             status.update_state(
                 mode=self.app._sampler_mode,
-                connected=self.app.player.is_midi_connected,
+                connected=is_midi_connected,
                 voices=self.app.player.active_voices,
                 audio_device=self.app.player.audio_device_name,
-                midi_device=self.app.player.midi_device_name
+                midi_device=midi_device_name
             )
         except Exception:
             # Status bar might not be mounted yet

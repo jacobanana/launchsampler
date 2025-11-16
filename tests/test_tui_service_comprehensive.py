@@ -257,10 +257,15 @@ class TestTUIServiceUIHelpers:
         app.player = Mock()
         app.player._engine = None
         app._sampler_mode = "edit"
-        app.player.is_midi_connected = False
         app.player.active_voices = 0
         app.player.audio_device_name = "Default"
-        app.player.midi_device_name = None
+
+        # Mock orchestrator with MIDI controller
+        app.orchestrator = Mock()
+        app.orchestrator.midi_controller = Mock()
+        app.orchestrator.midi_controller.is_connected = False
+        app.orchestrator.midi_controller.device_name = None
+
         return app
 
     @pytest.fixture
@@ -277,7 +282,7 @@ class TestTUIServiceUIHelpers:
         # Call method
         service._update_status_bar()
 
-        # Verify status bar was updated
+        # Verify status bar was updated with MIDI status from orchestrator
         mock_status.update_state.assert_called_once_with(
             mode="edit",
             connected=False,
