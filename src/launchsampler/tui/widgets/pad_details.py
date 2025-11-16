@@ -259,7 +259,6 @@ class PadDetailsPanel(Vertical, can_focus=True):
         """Initialize details panel."""
         super().__init__()
         self.selected_pad_index: Optional[int] = None
-        self._current_mode = "edit"  # edit or play
 
     def compose(self) -> ComposeResult:
         """Create the details panel widgets."""
@@ -314,7 +313,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
         # Update pad info labels
         pad_info = self.query_one("#pad-info", Label)
         pad_info.update(f"[b]Pad {pad_index}[/b]")
-        
+
         pad_location = self.query_one("#pad-location", Label)
         pad_location.update(f"[{pad_index % 8}, {pad_index // 8}]")
 
@@ -368,50 +367,26 @@ class PadDetailsPanel(Vertical, can_focus=True):
         # Update button states based on pad and mode
         self._update_button_states(pad)
 
-    def set_mode(self, mode: str) -> None:
-        """
-        Set the mode (edit or play) for the panel.
-
-        Args:
-            mode: "edit" or "play"
-        """
-        self._current_mode = mode
-
-        # Refresh button states if we have a selected pad
-        if self.selected_pad_index is not None:
-            # Get current pad to update buttons
-            # Note: We'll need to get this from parent, but for now just update based on mode
-            edit_enabled = (mode == "edit")
-
-            self.query_one("#name-input", Input).disabled = not edit_enabled
-            self.query_one("#volume-input", Input).disabled = not edit_enabled
-            self.query_one("#move-input", Input).disabled = not edit_enabled
-            self.query_one("#browse-btn", Button).disabled = not edit_enabled
-            self.query_one("#clear-btn", Button).disabled = not edit_enabled
-            self.query_one("#mode-radio", RadioSet).disabled = not edit_enabled
-
     def _update_button_states(self, pad: Pad) -> None:
-        """Update button states based on pad state and current mode."""
-        edit_enabled = (self._current_mode == "edit")
+        """
+        Update button states based on pad state.
 
-        # Name input - only enabled in edit mode and if pad has sample
-        name_input = self.query_one("#name-input", Input)
-        name_input.disabled = not (edit_enabled and pad.is_assigned)
+        The panel is only shown in edit mode, so all controls are always enabled
+        based solely on whether a pad is assigned.
+        """
+        # Name, volume, and move inputs - only enabled if pad has sample
+        self.query_one("#name-input", Input).disabled = not pad.is_assigned
+        self.query_one("#volume-input", Input).disabled = not pad.is_assigned
+        self.query_one("#move-input", Input).disabled = not pad.is_assigned
 
-        # Volume input - only enabled in edit mode and if pad has sample
-        volume_input = self.query_one("#volume-input", Input)
-        volume_input.disabled = not (edit_enabled and pad.is_assigned)
+        # Browse button - always enabled (can assign to empty pads)
+        self.query_one("#browse-btn", Button).disabled = False
 
-        # Move input - only enabled in edit mode and if pad has sample
-        move_input = self.query_one("#move-input", Input)
-        move_input.disabled = not (edit_enabled and pad.is_assigned)
+        # Clear button and mode radio - only enabled if pad has sample
+        self.query_one("#clear-btn", Button).disabled = not pad.is_assigned
+        self.query_one("#mode-radio", RadioSet).disabled = not pad.is_assigned
 
-        # Edit controls - only enabled in edit mode
-        self.query_one("#browse-btn", Button).disabled = not edit_enabled
-        self.query_one("#clear-btn", Button).disabled = not edit_enabled or not pad.is_assigned
-        self.query_one("#mode-radio", RadioSet).disabled = not edit_enabled or not pad.is_assigned
-
-        # Test controls - available in both modes
+        # Test/stop controls - only enabled if pad has sample
         self.query_one("#test-btn", Button).disabled = not pad.is_assigned
         self.query_one("#stop-btn", Button).disabled = not pad.is_assigned
 

@@ -71,6 +71,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
         # State
         self._is_running = False
+        logger.info("Player initialized")
 
     # =================================================================
     # Lifecycle

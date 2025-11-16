@@ -102,10 +102,11 @@ class LaunchpadSampler(App):
         Initialize the Textual UI application.
 
         This is a thin UI layer that delegates all business logic to the orchestrator.
-        The orchestrator must be initialized before creating the UI.
+        The orchestrator should NOT be initialized yet - call orchestrator.initialize()
+        after registering this UI to ensure event synchronization.
 
         Args:
-            orchestrator: The LaunchpadSamplerApp orchestrator instance
+            orchestrator: The LaunchpadSamplerApp orchestrator instance (not yet initialized)
             start_mode: Mode to start in ("edit" or "play")
         """
         super().__init__()
@@ -118,8 +119,93 @@ class LaunchpadSampler(App):
         # UI-specific ephemeral state (not persisted)
         self._selected_pad_index: Optional[int] = None
 
-        self.tui_service: Optional[TUIService] = None  # Initialized in on_mount
+        self.tui_service: Optional[TUIService] = None  # Initialized in initialize()
         self._selection_observers: list = []  # For SelectionObserver pattern
+        self._initialized = False  # Track initialization state
+        logger.info("LaunchpadSampler TUI created")
+
+    # =================================================================
+    # UIAdapter Protocol Implementation
+    # =================================================================
+
+    def initialize(self) -> None:
+        """
+        Initialize the TUI and register observers.
+
+        This is called by orchestrator.run() to set up the TUI service
+        and register app-level observers.
+        """
+        if self._initialized:
+            logger.warning("TUI already initialized")
+            return
+
+        logger.info("Initializing TUI service and registering observers")
+
+        # Create TUI service - handles ALL UI updates via observer pattern
+        self.tui_service = TUIService(self)
+
+        # Register TUI service for app-level events (SET_MOUNTED, MODE_CHANGED)
+        self.orchestrator.register_observer(self.tui_service)
+
+        # Register for selection events (UI-specific state)
+        self.register_selection_observer(self.tui_service)
+
+        self._initialized = True
+        logger.info("TUI initialization complete - ready to receive events")
+
+    def register_with_services(self, orchestrator: "LaunchpadSamplerApp") -> None:
+        """
+        Register TUI service with orchestrator services.
+
+        Called by orchestrator.initialize() after services are created
+        but BEFORE events are fired. This ensures we receive all edit events.
+
+        Args:
+            orchestrator: The orchestrator with initialized services
+        """
+        if not self.tui_service:
+            raise RuntimeError("TUI service not initialized - call initialize() first")
+
+        logger.info("Registering TUI service with orchestrator services")
+
+        # Register for edit events
+        orchestrator.editor.register_observer(self.tui_service)
+
+        # Register for MIDI events (if MIDI is available)
+        if orchestrator.player._midi:
+            orchestrator.player._midi.register_observer(self.tui_service)
+
+        # Register for playback events
+        orchestrator.player.set_playback_callback(self.tui_service.on_playback_event)
+
+        logger.info("TUI service registered with all orchestrator services")
+
+    def run(self) -> None:
+        """
+        Run the Textual TUI (blocks until app exits).
+
+        This is called by the orchestrator after initialization completes.
+        The orchestrator has already fired startup events which the TUI received.
+        """
+        if not self._initialized:
+            raise RuntimeError("TUI must be initialized before running")
+
+        logger.info("Starting Textual TUI")
+        # Call Textual's run method (blocks until app exits)
+        super().run()
+
+    def shutdown(self) -> None:
+        """
+        Shutdown the TUI and clean up resources.
+
+        Called by the orchestrator during application exit.
+        """
+        logger.info("Shutting down TUI")
+        # Unregister observers
+        if self.tui_service:
+            self.orchestrator.unregister_observer(self.tui_service)
+            if self.orchestrator.editor:
+                self.orchestrator.editor.unregister_observer(self.tui_service)
 
     # =================================================================
     # Read-Only State Access - Delegated to orchestrator
@@ -246,37 +332,51 @@ class LaunchpadSampler(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Initialize the app after mounting."""
-        # Orchestrator has already initialized services
-        # Just initialize UI
+        """
+        Initialize the app after Textual mounting.
+
+        At this point, Textual is running with its event loop active,
+        so we can safely process events and update widgets.
+
+        Flow:
+        1. UIAdapter.initialize() has created TUI service and registered app observers
+        2. Now Textual is running (we're in on_mount)
+        3. Initialize the grid widgets
+        4. Initialize the orchestrator (fires SET_MOUNTED, MODE_CHANGED)
+        5. TUI service receives events and updates widgets (now they exist!)
+        """
+        if not self._initialized or not self.tui_service:
+            raise RuntimeError("TUI must be initialized via UIAdapter.initialize() before mounting")
+
+        logger.info("TUI mounting - Textual is now running")
+
+        # Initialize grid with launchpad (creates button widgets)
         grid = self.query_one(PadGrid)
         grid.initialize_pads(self.launchpad)
 
-        # Create TUI service - handles ALL UI updates via observer pattern
-        self.tui_service = TUIService(self)
-        self.orchestrator.register_observer(self.tui_service)
+        # NOW initialize the orchestrator (Textual is running, widgets exist)
+        # orchestrator.initialize() will:
+        # 1. Create services (SetManager, Player, Editor)
+        # 2. Call ui.register_with_services() to register observers
+        # 3. Fire SET_MOUNTED and MODE_CHANGED events (TUI service receives and processes them)
+        logger.info("Initializing orchestrator from TUI on_mount")
+        self.orchestrator.initialize()
 
-        # Register TUI service for all event types
-        self.editor.register_observer(self.tui_service)      # TUIService observes edits for UI sync
-        self.register_selection_observer(self.tui_service)   # TUIService observes selection changes (UI state)
-        if self.player._midi:
-            self.player._midi.register_observer(self.tui_service)  # TUIService observes MIDI events
-        self.player.set_playback_callback(self.tui_service.on_playback_event)  # TUIService observes playback
-
-        # Update subtitle with current mode and set
+        # Update subtitle (events have already synced the widgets)
         if self.orchestrator.mode:
             self.sub_title = f"{self.orchestrator.mode.title()}: {self.current_set.name}"
 
-        # Set initial mode (UI state only) - will fire MODE_CHANGED event
-        self._set_mode(self._start_mode)
-
-        # Ensure status bar is synced with current state after mount
-        self.tui_service._update_status_bar()
+        logger.info("TUI mount complete - orchestrator initialized, UI synchronized")
 
     def on_unmount(self) -> None:
-        """Cleanup when app closes."""
-        logger.info("Shutting down application")
-        self.orchestrator.shutdown()
+        """
+        Cleanup when Textual app unmounts.
+
+        Note: Orchestrator shutdown is handled by orchestrator.shutdown(),
+        which calls our UIAdapter.shutdown() method. We don't call it here
+        to avoid double-shutdown.
+        """
+        logger.info("TUI unmounted")
 
     def _notify_app_observers(self, event: AppEvent, **kwargs) -> None:
         """
@@ -351,24 +451,24 @@ class LaunchpadSampler(App):
         # Update subtitle
         self.sub_title = f"{mode.title()}: {self.current_set.name}"
 
-        # Update UI based on mode
         details = self.query_one(PadDetailsPanel)
-        details.set_mode(mode)
-        details.display = (mode == "edit")
-
-        # Update grid selection visibility
-        grid = self.query_one(PadGrid)
         if mode == "play":
             # Clear selection in play mode
             self.clear_selection()
+            # Hide details panel in play mode
+            details.display = False
         else:
-            # Edit mode: ensure a pad is selected
+            # Edit mode: show details panel and restore/set selection
+            # Setting display=True makes the panel queryable for the SelectionEvent handler
+            details.display = True
+
+            # Ensure a pad is selected - SelectionEvent will update the details panel
             if self.selected_pad_index is not None:
-                # Restore existing selection
-                grid.select_pad(self.selected_pad_index)
+                # Restore existing selection - SelectionEvent will update UI
+                self.select_pad(self.selected_pad_index)
             else:
                 # No pad selected yet, select pad 0 by default
-                self.select_pad(0)  # Fires SelectionEvent
+                self.select_pad(0)
 
         logger.info(f"Switched to {mode} mode")
         return True

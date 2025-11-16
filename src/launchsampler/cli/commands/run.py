@@ -69,14 +69,15 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
         filename='launchsampler.log'
     )
 
+    logger.info("Starting Launchpad Sampler Application")
+
     # Load configuration
     config = AppConfig.load_or_default()
 
     # Save config
     config.save()
 
-    # Create orchestrator
-
+    # Create orchestrator (NOT initialized yet)
     orchestrator = LaunchpadSamplerApp(
         config=config,
         set_name=set,
@@ -85,23 +86,23 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
         headless=False
     )
 
-    # Initialize orchestrator (loads set, starts services)
-    try:
-        orchestrator.initialize()
-    except Exception as e:
-        logger.exception("Error initializing orchestrator")
-        click.echo(f"Error initializing: {e}", err=True)
-        raise click.Abort()
-
-    # Create Textual TUI with orchestrator
-    app = LaunchpadSampler(
+    # Create TUI (NOT initialized yet)
+    tui = LaunchpadSampler(
         orchestrator=orchestrator,
         start_mode=mode.lower()
     )
 
+    # Register TUI with orchestrator
+    orchestrator.register_ui(tui)
+
+    # Run orchestrator (will initialize and start UIs)
+    # The TUI will initialize the orchestrator once it's running
     try:
-        app.run()
+        orchestrator.run()
     except Exception as e:
-        logger.exception("Error running TUI")
+        logger.exception("Error running application")
         click.echo(f"Error: {e}", err=True)
         raise click.Abort()
+    finally:
+        # Ensure proper cleanup
+        orchestrator.shutdown()

@@ -12,7 +12,7 @@ from typing import Optional
 
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set
-from launchsampler.protocols import AppEvent, AppObserver
+from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
 from launchsampler.services import EditorService, SetManagerService
 
 logger = logging.getLogger(__name__)
@@ -71,25 +71,72 @@ class LaunchpadSamplerApp:
         self._start_mode = start_mode
 
         # Services (domain logic)
-        self.set_manager = SetManagerService(config)
-        self.player = Player(config)
-        self.editor = EditorService(self.launchpad, config)
+        self.set_manager: Optional[SetManagerService] = None
+        self.player: Optional[Player] = None
+        self.editor: Optional[EditorService] = None
+
+        # UI repository
+        self._uis: list[UIAdapter] = []
 
         # Observers (UIs)
         self._app_observers: list[AppObserver] = []
 
+    def register_ui(self, ui: UIAdapter) -> None:
+        """
+        Register a UI implementation.
+
+        This should be called BEFORE initialize() to ensure the UI receives
+        all startup events (SET_MOUNTED, MODE_CHANGED, etc.).
+
+        The UI will be initialized and run as part of the application lifecycle.
+
+        Args:
+            ui: UI implementation to register
+        """
+        if ui not in self._uis:
+            self._uis.append(ui)
+            logger.info(f"Registered UI: {ui.__class__.__name__}")
+
+            # If UI is also an observer, register it immediately
+            # This ensures it receives startup events during initialize()
+            if isinstance(ui, AppObserver):
+                self.register_observer(ui)
+
     def initialize(self) -> None:
         """
-        Initialize the application.
+        Initialize the application services and load initial state.
 
-        This should be called after construction to set up services and load initial state.
+        This is called by the UI during on_mount (when Textual's event loop is running).
+        At this point, UI observers are already registered and widgets exist.
+
+        Fires startup events (SET_MOUNTED, MODE_CHANGED) that UIs will handle.
         """
+        logger.info("Initializing LaunchpadSamplerApp services")
+
+        self.set_manager = SetManagerService(self.config)
+        self.player = Player(self.config)
+
+        # Setup Editor and register player as edit observer (for audio sync)
+        self.editor = EditorService(self.config)
+        self.editor.register_observer(self.player)
+
+        # Register UIs as edit observers (so they receive edit events)
+        # This must happen BEFORE we load the set and fire events
+        for ui in self._uis:
+            # UIs should expose their observer service for edit events
+            if hasattr(ui, 'register_with_services'):
+                ui.register_with_services(self)
+
         # Load initial set (SetManagerService handles I/O)
+        # Fires SET_MOUNTED event - UIs are already observing
         loaded_set = self.set_manager.load_set(
             self._initial_set_name,
             self._initial_samples_dir
         )
         self.mount_set(loaded_set)
+
+        # Set initial mode - Fires MODE_CHANGED event
+        self.set_mode(self._start_mode)
 
         # Start player
         if not self.player.start(initial_set=self.current_set):
@@ -98,18 +145,52 @@ class LaunchpadSamplerApp:
                 # In headless mode, we can't show notifications
                 raise RuntimeError("Failed to start player")
 
-        # Register player as edit observer (for audio sync)
-        self.editor.register_observer(self.player)
+        logger.info("LaunchpadSamplerApp initialized successfully")
 
-        # Set initial mode
-        self.set_mode(self._start_mode)
+    def run(self) -> None:
+        """
+        Run all registered UIs.
 
-        logger.info("LaunchpadSamplerApp initialized")
+        Initializes UIs first (sets up observers), then runs them.
+        The orchestrator itself will be initialized by the UI during on_mount
+        (when Textual's event loop is running).
+
+        For interactive UIs (TUI), this will block until the UI exits.
+        For background UIs (LED), this returns immediately.
+
+        Note: Currently only supports ONE blocking UI. If you need multiple
+        concurrent UIs, consider running them in separate threads/processes.
+        """
+        if not self._uis:
+            logger.warning("No UIs registered - running headless")
+            return
+
+        # Initialize UIs first (sets up observers, but doesn't start orchestrator services yet)
+        for ui in self._uis:
+            logger.info(f"Initializing UI: {ui.__class__.__name__}")
+            ui.initialize()
+
+        # Run all UIs (TUI will block here)
+        # The TUI will call orchestrator.initialize() once Textual is running (in on_mount)
+        for ui in self._uis:
+            logger.info(f"Running UI: {ui.__class__.__name__}")
+            ui.run()
 
     def shutdown(self) -> None:
         """Cleanup when app closes."""
         logger.info("Shutting down LaunchpadSamplerApp")
-        self.player.stop()
+
+        # Shutdown UIs
+        for ui in self._uis:
+            logger.info(f"Shutting down UI: {ui.__class__.__name__}")
+            try:
+                ui.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down UI {ui.__class__.__name__}: {e}")
+
+        # Shutdown player
+        if self.player:
+            self.player.stop()
 
     def register_observer(self, observer: AppObserver) -> None:
         """
@@ -160,6 +241,7 @@ class LaunchpadSamplerApp:
         This activates the Set in the running application:
         - Updates orchestrator state
         - Syncs with player (audio engine)
+        - Syncs with editor (launchpad reference)
         - Fires events to notify observers (UIs)
 
         Args:
@@ -174,6 +256,10 @@ class LaunchpadSamplerApp:
             created_at=loaded_set.created_at,
             modified_at=loaded_set.modified_at
         )
+
+        # Update editor (launchpad reference sync)
+        if self.editor:
+            self.editor.update_launchpad(self.launchpad)
 
         # Update player (audio engine sync)
         if self.player.is_running:

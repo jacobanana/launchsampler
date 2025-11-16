@@ -48,6 +48,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             app: The LaunchpadSampler application instance
         """
         self.app = app
+        logger.info("TUIService initialized")
 
     # =================================================================
     # AppObserver Protocol - App lifecycle events
@@ -67,6 +68,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             elif event == AppEvent.SET_SAVED:
                 self._handle_set_saved(**kwargs)
             elif event == AppEvent.MODE_CHANGED:
+                logger.info(f"TUIService handling MODE_CHANGED event: {kwargs}")
                 self._handle_mode_changed(**kwargs)
             else:
                 logger.warning(f"TUIService received unknown app event: {event}")
@@ -79,6 +81,9 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         Handle SET_MOUNTED event - synchronize UI with launchpad state.
 
         Updates all 64 pads and the details panel if a pad is selected.
+
+        Note: This is only called after Textual is running (from on_mount),
+        so widgets are guaranteed to exist.
         """
         try:
             grid = self.app.query_one(PadGrid)
@@ -118,6 +123,9 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         Handle MODE_CHANGED event - update status bar.
 
         Updates the status bar to reflect the new mode.
+
+        Note: This is only called after Textual is running (from on_mount),
+        so widgets are guaranteed to exist.
 
         Args:
             **kwargs: Event data (e.g., mode)

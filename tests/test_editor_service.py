@@ -26,7 +26,9 @@ class TestEditorServiceDuplicatePad:
     @pytest.fixture
     def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        service = EditorService(config)
+        service.update_launchpad(launchpad)
+        return service
 
     @pytest.mark.unit
     def test_duplicate_pad_success(self, editor, sample_audio_file):
@@ -347,7 +349,9 @@ class TestEditorServiceCopyPaste:
     @pytest.fixture
     def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        service = EditorService(config)
+        service.update_launchpad(launchpad)
+        return service
 
     @pytest.mark.unit
     def test_copy_pad_success(self, editor, sample_audio_file):
@@ -537,7 +541,9 @@ class TestEditorServiceCutPad:
     @pytest.fixture
     def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        service = EditorService(config)
+        service.update_launchpad(launchpad)
+        return service
 
     @pytest.mark.unit
     def test_cut_pad_success(self, editor, sample_audio_file):
@@ -607,7 +613,9 @@ class TestEditorServiceClipboardInspection:
     @pytest.fixture
     def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        service = EditorService(config)
+        service.update_launchpad(launchpad)
+        return service
 
     @pytest.mark.unit
     def test_has_clipboard_empty(self, editor):
@@ -645,7 +653,9 @@ class TestEditorServiceBulkClear:
     @pytest.fixture
     def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        service = EditorService(config)
+        service.update_launchpad(launchpad)
+        return service
 
     @pytest.mark.unit
     def test_clear_all_empty_launchpad(self, editor):
@@ -754,7 +764,9 @@ class TestEditorServiceEvents:
     @pytest.fixture
     def editor(self, launchpad, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        service = EditorService(config)
+        service.update_launchpad(launchpad)
+        return service
 
     @pytest.fixture
     def observer(self):

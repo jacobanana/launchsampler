@@ -36,26 +36,39 @@ class EditorService:
         This eliminates circular dependencies and improves testability.
     """
 
-    def __init__(self, launchpad: Launchpad, config: AppConfig):
+    def __init__(self, config: AppConfig):
         """
         Initialize the editor service.
 
         Args:
-            launchpad: The Launchpad instance to edit
             config: Application configuration
         """
-        self._launchpad = launchpad
+        self._launchpad = None
         self.config = config
         self._clipboard: Optional[Pad] = None
 
         # Event system
         self._observers: list[EditObserver] = []
         self._event_lock = Lock()
+        logger.info("EditorService initialized")
 
     @property
     def launchpad(self) -> Launchpad:
         """Get the launchpad being edited."""
         return self._launchpad
+
+    def update_launchpad(self, launchpad: Launchpad) -> None:
+        """
+        Update the launchpad reference.
+
+        This should be called when a new set is mounted to ensure
+        the editor is working with the correct launchpad instance.
+
+        Args:
+            launchpad: The new Launchpad instance to edit
+        """
+        self._launchpad = launchpad
+        logger.debug("EditorService launchpad reference updated")
 
     @property
     def grid_size(self) -> int:
@@ -81,7 +94,7 @@ class EditorService:
         with self._event_lock:
             if observer not in self._observers:
                 self._observers.append(observer)
-                logger.debug(f"Registered edit observer: {observer}")
+                logger.info(f"Registered edit observer: {observer}")
 
     def unregister_observer(self, observer: EditObserver) -> None:
         """

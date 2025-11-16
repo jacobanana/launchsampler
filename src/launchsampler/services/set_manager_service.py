@@ -35,6 +35,7 @@ class SetManagerService:
             config: Application configuration
         """
         self.config = config
+        logger.info("SetManagerService initialized")
 
     def _load_set_from_file(self, path: Path) -> Set:
         """
