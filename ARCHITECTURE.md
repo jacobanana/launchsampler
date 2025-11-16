@@ -370,15 +370,20 @@ def _load_set(self, loaded_set: Set):
         ...
     )
 
-    # Fire SET_LOADED event - observers sync automatically
-    self.editor._notify_observers(EditEvent.SET_LOADED, ...)
+    # Load into player if running
+    if self.player.is_running:
+        self.player.load_set(self.current_set)
+
+    # Synchronize UI directly (app-level operation, not an edit event)
+    self._sync_ui_with_launchpad()
 ```
 
 **Benefits**:
-- ✅ No manual reference updates
-- ✅ Event system handles all synchronization
+- ✅ No manual reference synchronization needed
+- ✅ App handles its own UI updates (no layering violation)
 - ✅ Impossible to have stale references
 - ✅ ~50 lines of manual sync code eliminated
+- ✅ No fake "edit events" for non-edit operations
 
 ---
 
