@@ -51,8 +51,13 @@ class LaunchpadDevice:
         """
         Select the best port from matching Launchpad ports.
 
-        Launchpad devices often have multiple MIDI ports (e.g., "MIDI 0", "MIDI 1", "MIDI 2").
-        For note input/output, "MIDI 1" is typically the correct port.
+        TODO: implement a more robust selection strategy that works on any system.
+
+        Launchpad devices often have multiple MIDI ports with different naming conventions:
+        - Launchpad Pro MK3: Note messages on "LPProMK3 MIDI 0" (uses port 0, not port 1!)
+        - Launchpad Mini MK3: Note messages on "MIDIIN2 (LPMiniMK3 MIDI) 1" (uses MIDIIN2)
+
+        For note input/output, we need to select the correct port based on the model.
 
         Args:
             matching_ports: List of port names that match Launchpad patterns
@@ -63,7 +68,31 @@ class LaunchpadDevice:
         if not matching_ports:
             return None
 
-        # Prefer ports with "MIDI 1" in the name
+        # Check if this is a Mini MK3 (uses MIDIIN2/MIDIIN3 pattern for note messages)
+        if any("LPMiniMK3" in p for p in matching_ports):
+            # For Mini MK3, prefer MIDIIN2 (LPMiniMK3 MIDI) which carries note messages
+            midiin2_ports = [p for p in matching_ports if "MIDIIN2" in p and "LPMiniMK3" in p]
+            if midiin2_ports:
+                return midiin2_ports[0]
+
+            # Fall back to ports with "MIDI 1" in the name
+            midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
+            if midi1_ports:
+                return midi1_ports[0]
+
+        # Check if this is a Pro MK3 (uses MIDI 0 for note messages, not MIDI 1!)
+        if any("LPProMK3" in p for p in matching_ports):
+            # For Pro MK3, prefer "LPProMK3 MIDI 0" which carries note messages
+            midi0_ports = [p for p in matching_ports if "LPProMK3 MIDI 0" in p]
+            if midi0_ports:
+                return midi0_ports[0]
+
+            # Fall back to ports with "MIDI 1" in the name
+            midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
+            if midi1_ports:
+                return midi1_ports[0]
+
+        # For other Launchpad models (X, etc.), prefer "MIDI 1"
         midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
         if midi1_ports:
             return midi1_ports[0]

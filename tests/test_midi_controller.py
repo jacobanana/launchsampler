@@ -67,14 +67,47 @@ class TestLaunchpadDevice:
         msg = mido.Message('clock')
         assert LaunchpadDevice.parse_input(msg) is None
 
-    def test_select_port_prefers_midi1(self):
-        """Test port selection prefers MIDI 1 ports."""
-        ports = ["LPProMK3 MIDI 0", "LPProMK3 MIDI 2", "LPProMK3 MIDI 1"]
+    def test_select_port_pro_mk3(self):
+        """Test port selection for Launchpad Pro MK3."""
+        # Pro MK3 uses MIDI 0 for note messages (not MIDI 1!)
+        ports = ["LPProMK3 MIDI 0", "MIDIIN2 (LPProMK3 MIDI) 1", "MIDIIN3 (LPProMK3 MIDI) 2"]
+        assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 0"
+
+        # If MIDI 0 is not available, fall back to MIDI 1
+        ports = ["LPProMK3 MIDI 1", "LPProMK3 MIDI 2"]
         assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 1"
 
-        # Without MIDI 1, takes first
-        ports = ["LPProMK3 MIDI 0", "LPProMK3 MIDI 2"]
+        # Standard naming convention
+        ports = ["LPProMK3 MIDI 0", "LPProMK3 MIDI 1", "LPProMK3 MIDI 2"]
         assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 0"
+
+    def test_select_port_mini_mk3(self):
+        """Test port selection for Launchpad Mini MK3."""
+        # Mini MK3 uses MIDIIN2 pattern for note messages
+        ports = [
+            "LPMiniMK3 MIDI 0",
+            "MIDIIN2 (LPMiniMK3 MIDI) 1",
+            "MIDIIN3 (LPMiniMK3 MIDI) 2"
+        ]
+        assert LaunchpadDevice.select_port(ports) == "MIDIIN2 (LPMiniMK3 MIDI) 1"
+
+        # If MIDIIN2 is not available, fall back to MIDI 1
+        ports = ["LPMiniMK3 MIDI 0", "LPMiniMK3 MIDI 1"]
+        assert LaunchpadDevice.select_port(ports) == "LPMiniMK3 MIDI 1"
+
+        # If only MIDI 0 available, use it
+        ports = ["LPMiniMK3 MIDI 0"]
+        assert LaunchpadDevice.select_port(ports) == "LPMiniMK3 MIDI 0"
+
+    def test_select_port_other_models(self):
+        """Test port selection for other Launchpad models (X, etc.)."""
+        # Other models should prefer MIDI 1
+        ports = ["Launchpad X MIDI 0", "Launchpad X MIDI 1", "Launchpad X MIDI 2"]
+        assert LaunchpadDevice.select_port(ports) == "Launchpad X MIDI 1"
+
+        # Without MIDI 1, takes first
+        ports = ["LPX MIDI 0", "LPX MIDI 2"]
+        assert LaunchpadDevice.select_port(ports) == "LPX MIDI 0"
 
         # Empty list
         assert LaunchpadDevice.select_port([]) is None
