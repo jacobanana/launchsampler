@@ -172,11 +172,9 @@ class LaunchpadSampler(App):
         # Register for edit events
         orchestrator.editor.register_observer(self.tui_service)
 
-        # Register for MIDI events (if MIDI is available)
-        if orchestrator.player._midi:
-            logger.info(f"Registering TUI service as MIDI observer with LaunchpadController")
-            orchestrator.player._midi.register_observer(self.tui_service)
-            logger.info(f"TUI service registered with LaunchpadController. Observer count: {len(orchestrator.player._midi._observers)}")
+        # Register for MIDI events (for visual feedback - green borders)
+        orchestrator.player.register_midi_observer(self.tui_service)
+        logger.info("TUI service registered as MIDI observer")
 
         # Register for playback events
         orchestrator.player.set_playback_callback(self.tui_service.on_playback_event)

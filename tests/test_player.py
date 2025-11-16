@@ -540,6 +540,77 @@ class TestPlayerStateObserver:
 
 
 # =================================================================
+# MIDI Observer Registration Tests
+# =================================================================
+
+@pytest.mark.unit
+class TestPlayerMidiObserverFacade:
+    """Test Player MIDI observer registration facade methods."""
+
+    @patch('launchsampler.core.player.AudioDevice')
+    @patch('launchsampler.core.player.SamplerEngine')
+    @patch('launchsampler.core.player.LaunchpadController')
+    def test_register_midi_observer_delegates_to_controller(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config):
+        """Test register_midi_observer delegates to MIDI controller."""
+        from launchsampler.protocols import MidiObserver
+
+        mock_midi = Mock()
+        mock_midi_cls.return_value = mock_midi
+
+        player = Player(mock_config)
+        player.start()
+
+        # Create mock observer
+        observer = Mock(spec=MidiObserver)
+
+        # Register via facade
+        player.register_midi_observer(observer)
+
+        # Should delegate to MIDI controller (Player itself also registers, so called twice)
+        assert mock_midi.register_observer.call_count == 2
+        mock_midi.register_observer.assert_any_call(player)  # Player registers itself
+        mock_midi.register_observer.assert_any_call(observer)  # Our observer
+
+    @patch('launchsampler.core.player.AudioDevice')
+    @patch('launchsampler.core.player.SamplerEngine')
+    @patch('launchsampler.core.player.LaunchpadController')
+    def test_unregister_midi_observer_delegates_to_controller(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config):
+        """Test unregister_midi_observer delegates to MIDI controller."""
+        from launchsampler.protocols import MidiObserver
+
+        mock_midi = Mock()
+        mock_midi_cls.return_value = mock_midi
+
+        player = Player(mock_config)
+        player.start()
+
+        # Create mock observer
+        observer = Mock(spec=MidiObserver)
+
+        # Unregister via facade
+        player.unregister_midi_observer(observer)
+
+        # Should delegate to MIDI controller
+        mock_midi.unregister_observer.assert_called_once_with(observer)
+
+    @patch('launchsampler.core.player.AudioDevice')
+    @patch('launchsampler.core.player.SamplerEngine')
+    @patch('launchsampler.core.player.LaunchpadController')
+    def test_midi_observer_registration_when_midi_not_started(self, mock_midi_cls, mock_engine_cls, mock_audio_cls, mock_config):
+        """Test MIDI observer registration is safe when MIDI not started."""
+        from launchsampler.protocols import MidiObserver
+
+        player = Player(mock_config)
+        # Don't start player - no MIDI controller
+
+        observer = Mock(spec=MidiObserver)
+
+        # Should not crash when MIDI is None
+        player.register_midi_observer(observer)
+        player.unregister_midi_observer(observer)
+
+
+# =================================================================
 # Query Methods Tests
 # =================================================================
 

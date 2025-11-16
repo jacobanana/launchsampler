@@ -433,6 +433,26 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """
         self._state_observers.unregister(observer)
 
+    def register_midi_observer(self, observer: MidiObserver) -> None:
+        """
+        Register an observer for MIDI events.
+
+        Args:
+            observer: Object implementing MidiObserver protocol
+        """
+        if self._midi:
+            self._midi.register_observer(observer)
+
+    def unregister_midi_observer(self, observer: MidiObserver) -> None:
+        """
+        Unregister a MIDI observer.
+
+        Args:
+            observer: Previously registered observer
+        """
+        if self._midi:
+            self._midi.unregister_observer(observer)
+
     def set_playback_callback(self, callback: Callable[[PlaybackEvent, int], None]) -> None:
         """
         Register callback for playback events (DEPRECATED).
