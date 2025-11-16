@@ -15,6 +15,7 @@ from launchsampler.protocols import (
     PlaybackEvent,
     StateObserver,
 )
+from launchsampler.ui_colors import get_pad_led_color, get_pad_led_palette_index
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -36,10 +37,10 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
     - MidiObserver: MIDI controller events (NOTE_ON, NOTE_OFF, etc.)
     - StateObserver: Playback events (PAD_PLAYING, PAD_STOPPED, etc.)
 
-    LED Color Scheme (mirroring TUI):
+    LED Color Scheme (synchronized with TUI via ui_colors module):
     - Empty pad: Off (black)
-    - Assigned pad: Pad's configured color (from pad.color)
-    - Playing pad: Pulsing yellow
+    - Assigned pad: Mode-specific color (red/green/blue/magenta)
+    - Playing pad: Pulsing yellow (overrides mode color)
     """
 
     def __init__(self, controller: Optional[LaunchpadController], orchestrator):
@@ -212,8 +213,9 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
 
             pad = self._current_pads[i]
             if pad:
-                # Use pad's configured color if assigned, otherwise off
-                color = pad.color if pad.is_assigned else Color.off()
+                # Get color from centralized color scheme
+                # This will return mode-specific colors for assigned pads
+                color = get_pad_led_color(pad, is_playing=False)
                 updates.append((i, color))
             else:
                 # Pad is None, turn off
@@ -226,7 +228,9 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
 
         # Set playing pads with animation
         for pad_index in self._playing_pads:
-            self.controller.set_pad_pulsing(pad_index, 13)  # Yellow
+            pad = self._current_pads[pad_index]
+            palette_color = get_pad_led_palette_index(pad, is_playing=True)
+            self.controller.set_pad_pulsing(pad_index, palette_color)
             logger.debug(f"Set playing animation for pad {pad_index}")
 
     def _sync_playing_pads(self) -> None:
@@ -255,13 +259,9 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
         if pad_index in self._playing_pads:
             return
 
-        # Set color based on pad state
-        if pad.is_assigned:
-            # Use pad's configured color
-            self.controller.set_pad_color(pad_index, pad.color)
-        else:
-            # Turn off LED for empty pad
-            self.controller.set_pad_color(pad_index, Color.off())
+        # Set color from centralized color scheme
+        color = get_pad_led_color(pad, is_playing=False)
+        self.controller.set_pad_color(pad_index, color)
 
     def _set_pad_playing_led(self, pad_index: int, is_playing: bool) -> None:
         """
@@ -276,8 +276,10 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             return
 
         if is_playing:
-            # Pulse yellow (palette color 13 is yellow on most Launchpads)
-            self.controller.set_pad_pulsing(pad_index, 13)
+            # Pulse with playing color (centralized from ui_colors)
+            pad = self._current_pads[pad_index]
+            palette_color = get_pad_led_palette_index(pad, is_playing=True)
+            self.controller.set_pad_pulsing(pad_index, palette_color)
         else:
             # Restore normal color
             pad = self._current_pads[pad_index]
