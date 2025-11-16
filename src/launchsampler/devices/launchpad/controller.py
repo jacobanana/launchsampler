@@ -69,7 +69,7 @@ class LaunchpadController:
 
     def set_pad_color(self, pad_index: int, color: Color) -> bool:
         """
-        Set LED color for a pad.
+        Set LED color for a pad (RGB mode).
 
         Args:
             pad_index: Pad 0-63
@@ -87,6 +87,72 @@ class LaunchpadController:
             return True
         except Exception as e:
             logger.error(f"Error setting pad color: {e}")
+            return False
+
+    def set_pad_flashing(self, pad_index: int, color: int) -> bool:
+        """
+        Set LED to flash using palette color.
+
+        Args:
+            pad_index: Pad 0-63
+            color: Palette color index (0-127)
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set pad flashing: No device connected")
+            return False
+
+        try:
+            self._device.output.set_led_flashing(pad_index, color)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting pad flashing: {e}")
+            return False
+
+    def set_pad_pulsing(self, pad_index: int, color: int) -> bool:
+        """
+        Set LED to pulse using palette color.
+
+        Args:
+            pad_index: Pad 0-63
+            color: Palette color index (0-127)
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set pad pulsing: No device connected")
+            return False
+
+        try:
+            self._device.output.set_led_pulsing(pad_index, color)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting pad pulsing: {e}")
+            return False
+
+    def set_pad_static(self, pad_index: int, color: int) -> bool:
+        """
+        Set LED to static palette color.
+
+        Args:
+            pad_index: Pad 0-63
+            color: Palette color index (0-127)
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set pad static: No device connected")
+            return False
+
+        try:
+            self._device.output.set_led_static(pad_index, color)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting pad static: {e}")
             return False
 
     def start(self) -> None:

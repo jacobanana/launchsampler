@@ -106,6 +106,66 @@ class LaunchpadOutput(DeviceOutput):
         else:
             logger.debug(f"Set {len(specs)} LEDs in bulk")
 
+    def set_led_flashing(self, index: int, color: int) -> None:
+        """
+        Set LED to flash using palette color.
+
+        Flashes between off (black) and the specified color.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: Palette color index (0-127)
+        """
+        note = self.mapper.index_to_note(index)
+        if note is None:
+            logger.error(f"Invalid pad index: {index}")
+            return
+
+        # Flashing requires two colors: color_b (off state), color_a (on state)
+        spec = (LightingMode.FLASHING.value, note, 0, color)
+        msg = self.sysex.led_lighting([spec])
+
+        if not self.midi.send(msg):
+            logger.warning(f"Failed to set LED {index} flashing (note {note})")
+
+    def set_led_pulsing(self, index: int, color: int) -> None:
+        """
+        Set LED to pulse using palette color.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: Palette color index (0-127)
+        """
+        note = self.mapper.index_to_note(index)
+        if note is None:
+            logger.error(f"Invalid pad index: {index}")
+            return
+
+        spec = (LightingMode.PULSING.value, note, color)
+        msg = self.sysex.led_lighting([spec])
+
+        if not self.midi.send(msg):
+            logger.warning(f"Failed to set LED {index} pulsing (note {note})")
+
+    def set_led_static(self, index: int, color: int) -> None:
+        """
+        Set LED to static palette color.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: Palette color index (0-127)
+        """
+        note = self.mapper.index_to_note(index)
+        if note is None:
+            logger.error(f"Invalid pad index: {index}")
+            return
+
+        spec = (LightingMode.STATIC.value, note, color)
+        msg = self.sysex.led_lighting([spec])
+
+        if not self.midi.send(msg):
+            logger.warning(f"Failed to set LED {index} static (note {note})")
+
     def clear_all(self) -> None:
         """Clear all LEDs (set to black)."""
         # Clear all 64 pads by iterating logical indices
