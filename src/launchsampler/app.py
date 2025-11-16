@@ -127,6 +127,13 @@ class LaunchpadSamplerApp:
             if hasattr(ui, 'register_with_services'):
                 ui.register_with_services(self)
 
+        # Start player
+        if not self.player.start():
+            logger.error("Failed to start player")
+            if not self.headless:
+                # In headless mode, we can't show notifications
+                raise RuntimeError("Failed to start player")
+
         # Load initial set (SetManagerService handles I/O)
         # Fires SET_MOUNTED event - UIs are already observing
         loaded_set = self.set_manager.load_set(
@@ -135,15 +142,10 @@ class LaunchpadSamplerApp:
         )
         self.mount_set(loaded_set)
 
+
+
         # Set initial mode - Fires MODE_CHANGED event
         self.set_mode(self._start_mode)
-
-        # Start player
-        if not self.player.start(initial_set=self.current_set):
-            logger.error("Failed to start player")
-            if not self.headless:
-                # In headless mode, we can't show notifications
-                raise RuntimeError("Failed to start player")
 
         logger.info("LaunchpadSamplerApp initialized successfully")
 
@@ -259,11 +261,17 @@ class LaunchpadSamplerApp:
 
         # Update editor (launchpad reference sync)
         if self.editor:
+            logger.info("Updating EditorService with new launchpad reference")
             self.editor.update_launchpad(self.launchpad)
+        else:
+            logger.warning("EditorService not initialized - cannot update launchpad reference")
 
         # Update player (audio engine sync)
         if self.player.is_running:
+            logger.info("Loading set into Player")
             self.player.load_set(self.current_set)
+        else:
+            logger.warning("Player not running - cannot load set")  
 
         # Notify observers (UIs will sync)
         self._notify_observers(AppEvent.SET_MOUNTED)

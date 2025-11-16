@@ -120,9 +120,9 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
 
     def _handle_mode_changed(self, **kwargs) -> None:
         """
-        Handle MODE_CHANGED event - update status bar.
+        Handle MODE_CHANGED event - update mode UI.
 
-        Updates the status bar to reflect the new mode.
+        Updates the mode UI (selection, details panel, status bar).
 
         Note: This is only called after Textual is running (from on_mount),
         so widgets are guaranteed to exist.
@@ -130,6 +130,12 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         Args:
             **kwargs: Event data (e.g., mode)
         """
+        mode = kwargs.get('mode')
+        if mode:
+            # Call TUI app's _set_mode_ui to update UI only (no feedback loop!)
+            # _set_mode_ui updates selection/details panel visibility
+            self.app._set_mode_ui(mode)
+
         # Update status bar when mode changes
         self._update_status_bar()
 
@@ -183,7 +189,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             event: The type of selection event
             pad_index: Index of selected pad (0-63), or None if cleared
         """
-        logger.debug(f"TUIService received selection event: {event.value}, pad: {pad_index}")
+        logger.info(f"TUIService received selection event: {event.value}, pad: {pad_index}")
 
         try:
             if event == SelectionEvent.CHANGED and pad_index is not None:

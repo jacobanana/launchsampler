@@ -298,8 +298,8 @@ class LaunchpadSampler(App):
         # Notify selection observers (TUIService will update UI)
         self._notify_selection_observers(SelectionEvent.CHANGED, pad_index)
 
-    def clear_selection(self) -> None:
-        """Clear pad selection (UI operation)."""
+    def clear_pad_selection(self) -> None:
+        """Clear pad selection (UI operation - renamed to avoid Textual API conflict)."""
         self._selected_pad_index = None
         self._notify_selection_observers(SelectionEvent.CLEARED, None)
 
@@ -426,35 +426,28 @@ class LaunchpadSampler(App):
         """
         self._set_mode(mode)
 
-    def _set_mode(self, mode: str) -> bool:
+    def _set_mode_ui(self, mode: str) -> None:
         """
-        Set the mode to edit or play.
+        Update UI to reflect the current mode.
 
-        This only affects UI state (what controls are enabled), not hardware.
-        MIDI and audio continue running in both modes.
+        This is called by the TUI service when MODE_CHANGED event is received.
+        It only updates UI state (selection, details panel visibility).
+        Does NOT call orchestrator - that would create a feedback loop!
 
         Args:
-            mode: Target mode ("edit" or "play")
-
-        Returns:
-            True if mode was set successfully
+            mode: Current mode ("edit" or "play")
         """
         if mode not in ("edit", "play"):
             logger.error(f"Invalid mode: {mode}")
-            return False
-
-        # Delegate to orchestrator to update mode
-        success = self.orchestrator.set_mode(mode)
-        if not success:
-            return False
+            return
 
         # Update subtitle
         self.sub_title = f"{mode.title()}: {self.current_set.name}"
 
         details = self.query_one(PadDetailsPanel)
         if mode == "play":
-            # Clear selection in play mode
-            self.clear_selection()
+            # Clear pad selection in play mode
+            self.clear_pad_selection()
             # Hide details panel in play mode
             details.display = False
         else:
@@ -470,8 +463,35 @@ class LaunchpadSampler(App):
                 # No pad selected yet, select pad 0 by default
                 self.select_pad(0)
 
-        logger.info(f"Switched to {mode} mode")
-        return True
+        logger.info(f"UI updated for {mode} mode")
+
+    def _set_mode(self, mode: str) -> bool:
+        """
+        Change the application mode (edit or play).
+
+        This delegates to the orchestrator, which will fire MODE_CHANGED event,
+        which will trigger _set_mode_ui() to update the UI.
+
+        This only affects UI state (what controls are enabled), not hardware.
+        MIDI and audio continue running in both modes.
+
+        Args:
+            mode: Target mode ("edit" or "play")
+
+        Returns:
+            True if mode was set successfully
+        """
+        if mode not in ("edit", "play"):
+            logger.error(f"Invalid mode: {mode}")
+            return False
+
+        # Delegate to orchestrator to update mode
+        # Orchestrator will fire MODE_CHANGED event
+        # TUI service will receive event and call _set_mode_ui()
+        success = self.orchestrator.set_mode(mode)
+
+        logger.info(f"Mode change requested: {mode}, success: {success}")
+        return success
 
     # =================================================================
     # Widget Message Handlers - Handle messages from Textual widgets
