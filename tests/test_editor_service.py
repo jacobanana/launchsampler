@@ -24,9 +24,16 @@ class TestEditorServiceDuplicatePad:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def editor(self, launchpad, config):
+    def mock_app(self, launchpad):
+        """Create a mock app with launchpad."""
+        app = Mock()
+        app.launchpad = launchpad
+        return app
+
+    @pytest.fixture
+    def editor(self, mock_app, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        return EditorService(mock_app, config)
 
     @pytest.mark.unit
     def test_duplicate_pad_success(self, editor, sample_audio_file):
@@ -345,9 +352,16 @@ class TestEditorServiceCopyPaste:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def editor(self, launchpad, config):
+    def mock_app(self, launchpad):
+        """Create a mock app with launchpad."""
+        app = Mock()
+        app.launchpad = launchpad
+        return app
+
+    @pytest.fixture
+    def editor(self, mock_app, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        return EditorService(mock_app, config)
 
     @pytest.mark.unit
     def test_copy_pad_success(self, editor, sample_audio_file):
@@ -535,9 +549,16 @@ class TestEditorServiceCutPad:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def editor(self, launchpad, config):
+    def mock_app(self, launchpad):
+        """Create a mock app with launchpad."""
+        app = Mock()
+        app.launchpad = launchpad
+        return app
+
+    @pytest.fixture
+    def editor(self, mock_app, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        return EditorService(mock_app, config)
 
     @pytest.mark.unit
     def test_cut_pad_success(self, editor, sample_audio_file):
@@ -605,9 +626,16 @@ class TestEditorServiceClipboardInspection:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def editor(self, launchpad, config):
+    def mock_app(self, launchpad):
+        """Create a mock app with launchpad."""
+        app = Mock()
+        app.launchpad = launchpad
+        return app
+
+    @pytest.fixture
+    def editor(self, mock_app, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        return EditorService(mock_app, config)
 
     @pytest.mark.unit
     def test_has_clipboard_empty(self, editor):
@@ -643,9 +671,16 @@ class TestEditorServiceBulkClear:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def editor(self, launchpad, config):
+    def mock_app(self, launchpad):
+        """Create a mock app with launchpad."""
+        app = Mock()
+        app.launchpad = launchpad
+        return app
+
+    @pytest.fixture
+    def editor(self, mock_app, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        return EditorService(mock_app, config)
 
     @pytest.mark.unit
     def test_clear_all_empty_launchpad(self, editor):
@@ -752,9 +787,16 @@ class TestEditorServiceEvents:
         return AppConfig(sets_dir=temp_dir)
 
     @pytest.fixture
-    def editor(self, launchpad, config):
+    def mock_app(self, launchpad):
+        """Create a mock app with launchpad."""
+        app = Mock()
+        app.launchpad = launchpad
+        return app
+
+    @pytest.fixture
+    def editor(self, mock_app, config):
         """Create editor service."""
-        return EditorService(launchpad, config)
+        return EditorService(mock_app, config)
 
     @pytest.fixture
     def observer(self):

@@ -15,6 +15,9 @@ class PadGrid(Container):
     Arranges 64 pad widgets in an 8x8 grid layout, matching the
     physical Launchpad layout. Handles pad selection visualization
     and forwards selection events to parent.
+
+    This widget is stateless - it doesn't store the launchpad model.
+    Pad data is passed explicitly when needed (data-driven approach).
     """
 
     DEFAULT_CSS = """
@@ -34,38 +37,57 @@ class PadGrid(Container):
             super().__init__()
             self.pad_index = pad_index
 
-    def __init__(self, launchpad: Launchpad) -> None:
-        """
-        Initialize pad grid.
-
-        Args:
-            launchpad: Launchpad model containing all pads
-        """
+    def __init__(self) -> None:
+        """Initialize empty pad grid."""
         super().__init__()
-        self.launchpad = launchpad
         # Map pad_index to widget
         self.pad_widgets: dict[int, PadWidget] = {}
+        self._initialized = False
 
     def compose(self) -> ComposeResult:
         """
-        Create the grid of pads.
+        Create empty grid structure.
+
+        Actual pad widgets are created later via initialize_pads()
+        after the launchpad data is available.
+        """
+        # Return empty - will be populated via initialize_pads()
+        return []
+
+    def initialize_pads(self, launchpad: Launchpad) -> None:
+        """
+        Initialize the grid with pad widgets from launchpad data.
+
+        This is called after the widget is mounted and launchpad data
+        is available.
+
+        Args:
+            launchpad: Launchpad model containing all pad data
 
         Launchpad layout: (0,0) is bottom-left, (7,7) is top-right
         Grid layout: top-left to bottom-right
         So we flip vertically: iterate from row 7 down to row 0
         """
+        if self._initialized:
+            # Clear existing widgets
+            for widget in self.pad_widgets.values():
+                widget.remove()
+            self.pad_widgets.clear()
+
         # Iterate rows from 7 (top) to 0 (bottom)
         for y in range(7, -1, -1):
             # Iterate columns from 0 (left) to 7 (right)
             for x in range(8):
                 # Calculate pad index: row * 8 + col
                 i = y * 8 + x
-                pad = self.launchpad.pads[i]
+                pad = launchpad.pads[i]
                 widget = PadWidget(i, pad)
 
                 # Store widget by pad_index
                 self.pad_widgets[i] = widget
-                yield widget
+                self.mount(widget)
+
+        self._initialized = True
 
     def update_pad(self, pad_index: int, pad: Pad) -> None:
         """
@@ -73,7 +95,7 @@ class PadGrid(Container):
 
         Args:
             pad_index: Index of pad to update (0-63)
-            pad: New pad state
+            pad: New pad state (explicitly passed)
         """
         if pad_index in self.pad_widgets:
             self.pad_widgets[pad_index].update(pad)
