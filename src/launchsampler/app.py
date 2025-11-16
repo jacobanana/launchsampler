@@ -12,6 +12,7 @@ from typing import Optional
 
 from launchsampler.core.player import Player
 from launchsampler.core.state_machine import SamplerStateMachine
+from launchsampler.devices.launchpad import LaunchpadController
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
 from launchsampler.services import EditorService, SetManagerService
@@ -67,8 +68,9 @@ class LaunchpadSamplerApp:
         self.launchpad: Launchpad = Launchpad.create_empty()
         self.current_set: Set = Set.create_empty("Untitled")
 
-        # Shared state machine - created once and injected into components
+        # Shared resources - hardware and state
         self.state_machine = SamplerStateMachine()
+        self.midi_controller: Optional[LaunchpadController] = None
 
         # Initial load parameters
         self._initial_set_name = set_name
@@ -119,6 +121,10 @@ class LaunchpadSamplerApp:
         logger.info("Initializing LaunchpadSamplerApp services")
 
         self.set_manager = SetManagerService(self.config)
+
+        # Create MIDI controller (shared resource)
+        self._start_midi()
+
         # Inject shared state machine into Player
         self.player = Player(self.config, state_machine=self.state_machine)
 
@@ -126,7 +132,11 @@ class LaunchpadSamplerApp:
         self.editor = EditorService(self.config)
         self.editor.register_observer(self.player)
 
-        # Start player (must happen BEFORE registering UI observers with MIDI)
+        # Register Player as MIDI observer (if MIDI available)
+        if self.midi_controller:
+            self.midi_controller.register_observer(self.player)
+
+        # Start player audio (must happen BEFORE loading set)
         if not self.player.start():
             logger.error("Failed to start player")
             if not self.headless:
@@ -134,7 +144,7 @@ class LaunchpadSamplerApp:
                 raise RuntimeError("Failed to start player")
 
         # Register UIs with services (editor, MIDI, player callbacks)
-        # This must happen AFTER player starts (so _midi exists) but BEFORE loading set
+        # This must happen AFTER MIDI controller is created but BEFORE loading set
         for ui in self._uis:
             # UIs should expose their observer service for edit events
             if hasattr(ui, 'register_with_services'):
@@ -199,6 +209,30 @@ class LaunchpadSamplerApp:
         # Shutdown player
         if self.player:
             self.player.stop()
+
+        # Shutdown MIDI controller
+        self._stop_midi()
+
+    def _start_midi(self) -> bool:
+        """Start MIDI controller (shared resource)."""
+        try:
+            self.midi_controller = LaunchpadController(
+                poll_interval=self.config.midi_poll_interval
+            )
+            self.midi_controller.start()
+            logger.info("MIDI controller started")
+            return True
+        except Exception as e:
+            logger.warning(f"MIDI not available: {e}")
+            self.midi_controller = None
+            return False
+
+    def _stop_midi(self) -> None:
+        """Stop MIDI controller."""
+        if self.midi_controller:
+            self.midi_controller.stop()
+            self.midi_controller = None
+            logger.info("MIDI controller stopped")
 
     def register_observer(self, observer: AppObserver) -> None:
         """

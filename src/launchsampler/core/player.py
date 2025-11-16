@@ -29,23 +29,23 @@ class Player(StateObserver, EditObserver, MidiObserver):
     """
     Core player for Launchpad sampling.
 
-    This class manages audio and MIDI without any UI dependencies.
+    This class manages audio playback without any UI dependencies.
     It can be used in any application (TUI, GUI, CLI, headless).
 
     Implements:
     - StateObserver: for playback events from audio engine
     - EditObserver: for editing events from editor service
-    - MidiObserver: for MIDI input events from controller
+    - MidiObserver: for MIDI input events (triggered by orchestrator)
 
     Responsibilities:
     - Audio engine lifecycle
-    - MIDI controller lifecycle
     - Playback state observation
     - Edit event observation and audio sync
     - MIDI input observation and audio triggering
     - Set loading into audio engine
 
     NOT responsible for:
+    - MIDI controller lifecycle (managed by orchestrator)
     - UI rendering
     - User input beyond MIDI
     - Editing operations
@@ -71,9 +71,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
         self._audio_device: Optional[AudioDevice] = None
         self._engine: Optional[SamplerEngine] = None
 
-        # MIDI components
-        self._midi: Optional[LaunchpadController] = None
-
         # Callbacks for external notification (deprecated - use register_state_observer)
         self._on_playback_change: Optional[Callable[[PlaybackEvent, int], None]] = None
 
@@ -90,7 +87,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
     def start(self, initial_set: Optional[Set] = None) -> bool:
         """
-        Start player (audio + MIDI).
+        Start player (audio only - MIDI is managed by orchestrator).
 
         Args:
             initial_set: Optional set to load on startup
@@ -111,19 +108,15 @@ class Player(StateObserver, EditObserver, MidiObserver):
             logger.error("Failed to start audio")
             return False
 
-        # Start MIDI controller (optional, don't fail if unavailable)
-        self._start_midi()
-
         self._is_running = True
         logger.info("Player started")
         return True
 
     def stop(self) -> None:
-        """Stop player (audio + MIDI)."""
+        """Stop player (audio only - MIDI is managed by orchestrator)."""
         if not self._is_running:
             return
 
-        self._stop_midi()
         self._stop_audio()
 
         self._is_running = False
@@ -172,32 +165,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
         self._audio_device = None
         logger.info("Audio engine stopped")
 
-    def _start_midi(self) -> bool:
-        """Start MIDI controller."""
-        try:
-            self._midi = LaunchpadController(
-                poll_interval=self.config.midi_poll_interval
-            )
-
-            # Register as MIDI observer
-            self._midi.register_observer(self)
-
-            # Start controller
-            self._midi.start()
-            logger.info("MIDI controller started")
-            return True
-
-        except Exception as e:
-            logger.warning(f"MIDI not available: {e}")
-            self._midi = None
-            return False
-
-    def _stop_midi(self) -> None:
-        """Stop MIDI controller."""
-        if self._midi:
-            self._midi.stop()
-            self._midi = None
-            logger.info("MIDI controller stopped")
 
     # =================================================================
     # Set Management
@@ -433,25 +400,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """
         self._state_observers.unregister(observer)
 
-    def register_midi_observer(self, observer: MidiObserver) -> None:
-        """
-        Register an observer for MIDI events.
-
-        Args:
-            observer: Object implementing MidiObserver protocol
-        """
-        if self._midi:
-            self._midi.register_observer(observer)
-
-    def unregister_midi_observer(self, observer: MidiObserver) -> None:
-        """
-        Unregister a MIDI observer.
-
-        Args:
-            observer: Previously registered observer
-        """
-        if self._midi:
-            self._midi.unregister_observer(observer)
 
     def set_playback_callback(self, callback: Callable[[PlaybackEvent, int], None]) -> None:
         """
@@ -473,10 +421,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """Check if player is running."""
         return self._is_running
 
-    @property
-    def is_midi_connected(self) -> bool:
-        """Check if MIDI is connected."""
-        return self._midi is not None and self._midi.is_connected
 
     @property
     def active_voices(self) -> int:
@@ -489,9 +433,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
         return self._audio_device.device_name if self._audio_device else "No Audio"
 
     @property
-    def midi_device_name(self) -> str:
-        """Get name of MIDI device."""
-        return self._midi.device_name if self._midi else "No MIDI"
+    def engine(self) -> Optional["SamplerEngine"]:
+        """Get the sampler engine (read-only access)."""
+        return self._engine
 
     def is_pad_playing(self, pad_index: int) -> bool:
         """

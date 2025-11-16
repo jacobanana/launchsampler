@@ -44,7 +44,7 @@ class LaunchpadLEDUI(UIAdapter):
         self.orchestrator = orchestrator
         self.poll_interval = poll_interval
 
-        # We'll reuse the Player's LaunchpadController instead of creating our own
+        # We'll use the orchestrator's LaunchpadController (shared resource)
         # This avoids MIDI port conflicts
         self.controller = None  # Will be set in register_with_services()
 
@@ -74,11 +74,11 @@ class LaunchpadLEDUI(UIAdapter):
         """
         Initialize the LED UI before the orchestrator starts.
 
-        The LED UI reuses the Player's LaunchpadController, so there's
-        nothing to initialize here. The controller is already started by the Player.
+        The LED UI uses the orchestrator's LaunchpadController (shared resource),
+        so there's nothing to initialize here. The controller is created by the orchestrator.
         """
-        logger.info("Initializing LED UI (reusing Player's LaunchpadController)")
-        # Nothing to do - we reuse the Player's controller
+        logger.info("Initializing LED UI (using orchestrator's LaunchpadController)")
+        # Nothing to do - we use the orchestrator's controller
         pass
 
     def register_with_services(self, orchestrator: "LaunchpadSamplerApp") -> None:
@@ -90,25 +90,23 @@ class LaunchpadLEDUI(UIAdapter):
         Args:
             orchestrator: The LaunchpadSamplerApp instance
         """
-        # Reuse the Player's LaunchpadController (avoid MIDI port conflicts)
-        if orchestrator.player._midi:
-            self.controller = orchestrator.player._midi
+        # Use orchestrator's MIDI controller (shared resource)
+        if orchestrator.midi_controller:
+            self.controller = orchestrator.midi_controller
             self.renderer.controller = self.controller
-            logger.info("LED UI reusing Player's LaunchpadController")
+            logger.info("LED UI using orchestrator's LaunchpadController")
         else:
             logger.warning("No MIDI controller available - LED UI will not function")
 
-        # Register with editor for edit events
+        # Register for edit events
         orchestrator.editor.register_observer(self.event_handler)
 
-        # Register for playback events (proper observer pattern)
+        # Register for playback state events
         orchestrator.player.register_state_observer(self.event_handler)
 
-        # Register as MIDI observer to receive connection events only
-        # (we ignore NOTE_ON/NOTE_OFF events in on_midi_event)
-        if orchestrator.player._midi:
-            orchestrator.player._midi.register_observer(self.event_handler)
-            logger.info("LED event handler registered for MIDI connection events")
+        # Register for MIDI events (connection/disconnection only)
+        if orchestrator.midi_controller:
+            orchestrator.midi_controller.register_observer(self.event_handler)
 
         logger.info("LED event handler registered with all services")
 
@@ -139,12 +137,11 @@ class LaunchpadLEDUI(UIAdapter):
                 self.orchestrator.editor.unregister_observer(self.event_handler)
             if self.orchestrator.player:
                 self.orchestrator.player.unregister_state_observer(self.event_handler)
-                # Unregister from MIDI controller if available
-                if self.orchestrator.player._midi:
-                    self.orchestrator.player._midi.unregister_observer(self.event_handler)
+            if self.orchestrator.midi_controller:
+                self.orchestrator.midi_controller.unregister_observer(self.event_handler)
             logger.info("LED event handler unregistered from all services")
         except Exception as e:
             logger.error(f"Error unregistering LED event handler observers: {e}")
 
-        # Don't stop the controller - we don't own it, the Player does
+        # Don't stop the controller - we don't own it, the orchestrator does
         logger.info("LED UI shut down")
