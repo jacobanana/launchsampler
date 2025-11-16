@@ -120,19 +120,19 @@ class LaunchpadSamplerApp:
         self.editor = EditorService(self.config)
         self.editor.register_observer(self.player)
 
-        # Register UIs as edit observers (so they receive edit events)
-        # This must happen BEFORE we load the set and fire events
-        for ui in self._uis:
-            # UIs should expose their observer service for edit events
-            if hasattr(ui, 'register_with_services'):
-                ui.register_with_services(self)
-
-        # Start player
+        # Start player (must happen BEFORE registering UI observers with MIDI)
         if not self.player.start():
             logger.error("Failed to start player")
             if not self.headless:
                 # In headless mode, we can't show notifications
                 raise RuntimeError("Failed to start player")
+
+        # Register UIs with services (editor, MIDI, player callbacks)
+        # This must happen AFTER player starts (so _midi exists) but BEFORE loading set
+        for ui in self._uis:
+            # UIs should expose their observer service for edit events
+            if hasattr(ui, 'register_with_services'):
+                ui.register_with_services(self)
 
         # Load initial set (SetManagerService handles I/O)
         # Fires SET_MOUNTED event - UIs are already observing

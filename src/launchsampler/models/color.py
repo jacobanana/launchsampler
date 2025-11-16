@@ -26,3 +26,18 @@ class Color(BaseModel):
     def to_rgb_tuple(self) -> tuple[int, int, int]:
         """Convert to RGB tuple."""
         return (self.r, self.g, self.b)
+
+    def to_hex(self) -> str:
+        """Convert to CSS hex color string (e.g., '#FF00FF').
+
+        Note: Launchpad uses 0-127 range, but CSS hex uses 0-255 range.
+        This method scales the values by 2 for proper CSS display.
+
+        Returns:
+            str: Hex color string in format '#RRGGBB'
+        """
+        # Scale from 0-127 to 0-255 for CSS compatibility
+        r_scaled = self.r * 2
+        g_scaled = self.g * 2
+        b_scaled = self.b * 2
+        return f"#{r_scaled:02X}{g_scaled:02X}{b_scaled:02X}"

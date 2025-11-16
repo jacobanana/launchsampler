@@ -4,6 +4,73 @@ from textual.widgets import Static
 from textual.message import Message
 
 from launchsampler.models import Pad
+from launchsampler.ui_colors import MODE_COLORS, PLAYING_COLOR
+
+
+def _generate_pad_css() -> str:
+    """Generate CSS dynamically from centralized color scheme.
+
+    CSS class names are automatically derived from PlaybackMode enum values.
+    Colors come from the LaunchpadColor enum.
+    """
+    css_lines = [
+        "PadWidget {",
+        "    width: 100%;",
+        "    height: 100%;",
+        "    border: solid $primary;",
+        "    content-align: center middle;",
+        "}",
+        "",
+    ]
+
+    # Generate mode-specific CSS from centralized colors
+    # CSS class names are derived from mode.value (e.g., "one_shot", "loop")
+    for mode, launchpad_color in MODE_COLORS.items():
+        css_class = mode.value  # e.g., "one_shot", "loop", "hold", "loop_toggle"
+        hex_color = launchpad_color.rgb.to_hex()
+        css_lines.extend([
+            f"PadWidget.{css_class} {{",
+            f"    background: {hex_color} 20%;",
+            f"    border: solid {hex_color};",
+            "}",
+            "",
+        ])
+
+    # Empty pad styling
+    css_lines.extend([
+        "PadWidget.empty {",
+        "    background: $surface 10%;",
+        "    border: solid $surface;",
+        "}",
+        "",
+    ])
+
+    # Selection styling (TUI only)
+    css_lines.extend([
+        "PadWidget.selected {",
+        "    border: double $warning 80%;",
+        "}",
+        "",
+    ])
+
+    # MIDI on styling (TUI only)
+    css_lines.extend([
+        "PadWidget.midi_on {",
+        "    border: double $primary 60%;",
+        "}",
+        "",
+    ])
+
+    # Playing/active state from centralized color
+    playing_hex = PLAYING_COLOR.rgb.to_hex()
+    css_lines.extend([
+        "PadWidget.active {",
+        f"    background: {playing_hex} 60%;",
+        f"    border: solid {playing_hex};",
+        "}",
+    ])
+
+    return "\n".join(css_lines)
 
 
 class PadWidget(Static):
@@ -15,52 +82,8 @@ class PadWidget(Static):
     containers to handle selection logic.
     """
 
-    DEFAULT_CSS = """
-    PadWidget {
-        width: 100%;
-        height: 100%;
-        border: solid $primary;
-        content-align: center middle;
-    }
-
-    PadWidget.one_shot {
-        background: $error 20%;
-        border: solid $error;
-    }
-
-    PadWidget.loop {
-        background: $success 20%;
-        border: solid $success;
-    }
-
-    PadWidget.hold {
-        background: $accent 20%;
-        border: solid $accent;
-    }
-
-    PadWidget.loop_toggle {
-        background: magenta 20%;
-        border: solid magenta;
-    }
-
-    PadWidget.empty {
-        background: $surface 10%;
-        border: solid $surface;
-    }
-
-    PadWidget.selected {
-        border: double $warning 80%;
-    }
-
-    PadWidget.midi_on {
-        border: double $primary 60%;
-    }
-
-    PadWidget.active {
-        background: $primary 60%;
-        border: solid $primary;
-    }
-    """
+    # Generate CSS dynamically from centralized color scheme
+    DEFAULT_CSS = _generate_pad_css()
 
     class Selected(Message):
         """Message posted when pad is clicked."""
@@ -104,7 +127,7 @@ class PadWidget(Static):
             name = self._pad.sample.name if self._pad.sample else "???"
             super().update(f"[b]{self.pad_index}[/b]\n{name}")
 
-            # Add mode class for styling
+            # Add mode class for styling (from centralized colors)
             self.add_class(self._pad.mode.value)
         else:
             # Empty pad
