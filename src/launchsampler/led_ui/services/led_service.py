@@ -147,9 +147,17 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
         """
         logger.debug(f"LEDService received MIDI event: {event}, pad_index: {pad_index}")
 
-        # LED UI doesn't need to react to MIDI events (controller already shows feedback)
+        # Handle device connection/disconnection events
+        if event == MidiEvent.CONTROLLER_CONNECTED:
+            logger.info("Launchpad connected - syncing LED grid")
+            # Sync all LEDs when device connects
+            self._update_all_leds()
+        elif event == MidiEvent.CONTROLLER_DISCONNECTED:
+            logger.info("Launchpad disconnected")
+            # Nothing to do - LEDs are already off
+
+        # LED UI doesn't need to react to pad press MIDI events
         # The hardware provides its own tactile feedback when pads are pressed
-        pass
 
     # =================================================================
     # StateObserver Protocol - Playback events
@@ -191,9 +199,17 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
             logger.warning("Cannot update LEDs: Controller not available or not connected")
             return
 
+        # Sync playing pads state from the player
+        self._sync_playing_pads()
+
         # Build bulk update list
         updates = []
         for i in range(64):
+            # Check if pad is currently playing
+            if i in self._playing_pads:
+                # Playing pads get pulsing yellow (set individually, not in bulk)
+                continue  # Skip bulk update, will be set with pulsing after
+
             pad = self._current_pads[i]
             if pad:
                 # Use pad's configured color if assigned, otherwise off
@@ -203,9 +219,25 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
                 # Pad is None, turn off
                 updates.append((i, Color.off()))
 
-        # Send bulk update
-        self.controller._device.output.set_leds_bulk(updates)
-        logger.info(f"Updated all {len(updates)} LEDs")
+        # Send bulk update for non-playing pads
+        if updates:
+            self.controller._device.output.set_leds_bulk(updates)
+            logger.info(f"Updated {len(updates)} non-playing LEDs")
+
+        # Set playing pads with animation
+        for pad_index in self._playing_pads:
+            self.controller.set_pad_pulsing(pad_index, 13)  # Yellow
+            logger.debug(f"Set playing animation for pad {pad_index}")
+
+    def _sync_playing_pads(self) -> None:
+        """Sync the playing pads state from the orchestrator's player."""
+        try:
+            if self.orchestrator.player and self.orchestrator.player._engine:
+                playing_pads = self.orchestrator.player.get_playing_pads()
+                self._playing_pads = set(playing_pads)
+                logger.debug(f"Synced playing pads: {self._playing_pads}")
+        except Exception as e:
+            logger.error(f"Error syncing playing pads: {e}")
 
     def _update_pad_led(self, pad_index: int, pad: "Pad") -> None:
         """

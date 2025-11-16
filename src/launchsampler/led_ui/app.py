@@ -101,10 +101,11 @@ class LaunchpadLEDUI(UIAdapter):
         # Register for playback events (proper observer pattern)
         orchestrator.player.register_state_observer(self.service)
 
-        # Register with launchpad controller for MIDI events (if available)
+        # Register as MIDI observer to receive connection events only
+        # (we ignore NOTE_ON/NOTE_OFF events in on_midi_event)
         if orchestrator.player._midi:
             orchestrator.player._midi.register_observer(self.service)
-            logger.info("LED service registered with LaunchpadController for MIDI events")
+            logger.info("LED service registered for MIDI connection events")
 
         logger.info("LED service registered with all services")
 
