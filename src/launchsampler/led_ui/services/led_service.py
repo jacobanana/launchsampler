@@ -228,7 +228,7 @@ class LEDService(AppObserver, EditObserver, MidiObserver, StateObserver):
 
         # Send bulk update for non-playing pads
         if updates:
-            self.controller._device.output.set_leds_bulk(updates)
+            self.controller.set_leds_bulk(updates)
             logger.info(f"Updated {len(updates)} non-playing LEDs")
 
         # Set playing pads with animation

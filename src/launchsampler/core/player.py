@@ -14,6 +14,7 @@ from pathlib import Path
 import logging
 
 from launchsampler.audio import AudioDevice
+from launchsampler.audio.data import AudioData
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
@@ -492,6 +493,20 @@ class Player(StateObserver, EditObserver, MidiObserver):
             List of pad indices
         """
         return self._engine.get_playing_pads() if self._engine else []
+
+    def get_audio_data(self, pad_index: int) -> Optional[AudioData]:
+        """
+        Get audio waveform data for a pad (for visualization).
+
+        Args:
+            pad_index: Index of pad to get audio data for
+
+        Returns:
+            AudioData object if pad has audio loaded, None otherwise
+        """
+        if self._engine:
+            return self._engine.get_audio_data(pad_index)
+        return None
 
     # =================================================================
     # Context Manager

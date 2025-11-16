@@ -294,8 +294,8 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             pad: Pad model
         """
         audio_data = None
-        if self.app.player._engine and pad.is_assigned:
-            audio_data = self.app.player._engine.get_audio_data(pad_index)
+        if pad.is_assigned:
+            audio_data = self.app.player.get_audio_data(pad_index)
 
         details = self.app.query_one(PadDetailsPanel)
         details.update_for_pad(pad_index, pad, audio_data=audio_data)

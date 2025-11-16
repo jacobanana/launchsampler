@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch, call
 import pytest
 
+from launchsampler.audio.data import AudioData
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Set, Launchpad, Pad, Sample, PlaybackMode, Color
 from launchsampler.protocols import PlaybackEvent, MidiEvent
@@ -655,12 +656,43 @@ class TestPlayerQueryMethods:
         mock_engine = Mock()
         mock_engine.get_playing_pads = Mock(return_value=[0, 5, 10])
         mock_engine_cls.return_value = mock_engine
-        
+
         player = Player(mock_config)
-        
+
         assert player.get_playing_pads() == []  # Not started
         player.start()
         assert player.get_playing_pads() == [0, 5, 10]
+
+    @patch('launchsampler.core.player.LaunchpadController')
+    @patch('launchsampler.core.player.SamplerEngine')
+    @patch('launchsampler.core.player.AudioDevice')
+    def test_get_audio_data(self, mock_audio_cls, mock_engine_cls, mock_midi, mock_config):
+        """Test get_audio_data delegates to engine."""
+        # Create mock audio data
+        mock_audio_data = Mock(spec=AudioData)
+        mock_audio_data.sample_rate = 44100
+        mock_audio_data.num_channels = 2
+
+        mock_engine = Mock()
+        mock_engine.get_audio_data = Mock(return_value=mock_audio_data)
+        mock_engine_cls.return_value = mock_engine
+
+        player = Player(mock_config)
+
+        # Should return None when engine not started
+        assert player.get_audio_data(0) is None
+
+        # Start player
+        player.start()
+
+        # Should delegate to engine
+        result = player.get_audio_data(5)
+        assert result == mock_audio_data
+        mock_engine.get_audio_data.assert_called_once_with(5)
+
+        # Test with no audio data (pad not loaded)
+        mock_engine.get_audio_data = Mock(return_value=None)
+        assert player.get_audio_data(10) is None
 
 
 # =================================================================

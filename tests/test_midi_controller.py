@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
+from launchsampler.models import Color
 
 
 @pytest.mark.unit
@@ -218,3 +219,46 @@ class TestLaunchpadController:
         controller._handle_message(clock_msg)
 
         assert len(observer_calls) == 0
+
+    def test_set_leds_bulk_without_device(self):
+        """Test set_leds_bulk returns False when no device connected."""
+        controller = LaunchpadController()
+        updates = [(0, Color(r=127, g=0, b=0)), (5, Color(r=0, g=127, b=0))]
+
+        # Should return False when no device
+        result = controller.set_leds_bulk(updates)
+        assert result is False
+
+    def test_set_leds_bulk_with_device(self):
+        """Test set_leds_bulk delegates to device output."""
+        controller = LaunchpadController()
+
+        # Mock device and output
+        mock_device = Mock()
+        mock_output = Mock()
+        mock_device.output = mock_output
+        controller._device = mock_device
+
+        updates = [(0, Color(r=127, g=0, b=0)), (5, Color(r=0, g=127, b=0)), (10, Color(r=0, g=0, b=127))]
+
+        # Should delegate to device output
+        result = controller.set_leds_bulk(updates)
+        assert result is True
+        mock_output.set_leds_bulk.assert_called_once_with(updates)
+
+    def test_set_leds_bulk_handles_errors(self):
+        """Test set_leds_bulk returns False on error."""
+        controller = LaunchpadController()
+
+        # Mock device that raises exception
+        mock_device = Mock()
+        mock_output = Mock()
+        mock_output.set_leds_bulk.side_effect = Exception("Test error")
+        mock_device.output = mock_output
+        controller._device = mock_device
+
+        updates = [(0, Color(r=127, g=0, b=0))]
+
+        # Should catch exception and return False
+        result = controller.set_leds_bulk(updates)
+        assert result is False

@@ -153,6 +153,27 @@ class LaunchpadController:
             logger.error(f"Error setting pad static: {e}")
             return False
 
+    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> bool:
+        """
+        Bulk update multiple LED colors (more efficient than individual updates).
+
+        Args:
+            updates: List of (pad_index, color) tuples
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set LEDs bulk: No device connected")
+            return False
+
+        try:
+            self._device.output.set_leds_bulk(updates)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting LEDs bulk: {e}")
+            return False
+
     def start(self) -> None:
         """Start monitoring for Launchpad devices."""
         self._midi.start()
