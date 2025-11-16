@@ -270,6 +270,9 @@ class LaunchpadSampler(App):
         # Set initial mode (UI state only) - will fire MODE_CHANGED event
         self._set_mode(self._start_mode)
 
+        # Ensure status bar is synced with current state after mount
+        self.tui_service._update_status_bar()
+
     def on_unmount(self) -> None:
         """Cleanup when app closes."""
         logger.info("Shutting down application")
