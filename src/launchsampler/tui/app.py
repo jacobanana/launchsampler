@@ -11,11 +11,11 @@ from textual.binding import Binding
 
 from launchsampler.core.player import Player
 from launchsampler.models import Launchpad, Set, PlaybackMode
-from launchsampler.services import SetManagerService
+from launchsampler.services import EditorService, SetManagerService
 from launchsampler.protocols import AppEvent, SelectionEvent
 
 from .decorators import edit_only
-from .services import EditorService, TUIService
+from .services import TUIService
 from .widgets import (
     PadGrid,
     PadDetailsPanel,

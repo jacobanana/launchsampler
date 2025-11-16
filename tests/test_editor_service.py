@@ -7,7 +7,7 @@ import pytest
 
 from launchsampler.models import AppConfig, Color, Launchpad, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
-from launchsampler.tui.services import EditorService
+from launchsampler.services import EditorService
 
 
 class TestEditorServiceDuplicatePad:

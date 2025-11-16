@@ -13,8 +13,7 @@ from typing import Optional
 from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver
-from launchsampler.services import SetManagerService
-from launchsampler.tui.services import EditorService
+from launchsampler.services import EditorService, SetManagerService
 
 logger = logging.getLogger(__name__)
 
