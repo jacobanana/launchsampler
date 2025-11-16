@@ -9,6 +9,7 @@ import click
 from launchsampler.models import AppConfig
 from launchsampler.app import LaunchpadSamplerApp
 from launchsampler.tui import LaunchpadSampler
+from launchsampler.led_ui import LaunchpadLEDUI
 
 
 logger = logging.getLogger(__name__)
@@ -29,12 +30,17 @@ logger = logging.getLogger(__name__)
     default='play',
     help='Start in edit or play mode (default: play)'
 )
+@click.option(
+    '--led-ui/--no-led-ui',
+    default=True,
+    help='Enable LED UI on Launchpad hardware (default: enabled)'
+)
 @click.argument(
     'samples_dir',
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     required=False
 )
-def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
+def run(set: Optional[str], mode: str, led_ui: bool, samples_dir: Optional[Path]):
     """
     Launch Launchpad Sampler TUI (Text User Interface).
 
@@ -94,6 +100,14 @@ def run(set: Optional[str], mode: str, samples_dir: Optional[Path]):
 
     # Register TUI with orchestrator
     orchestrator.register_ui(tui)
+
+    # Create and register LED UI if enabled
+    if led_ui:
+        logger.info("LED UI enabled - creating LaunchpadLEDUI")
+        led = LaunchpadLEDUI(orchestrator=orchestrator, poll_interval=5.0)
+        orchestrator.register_ui(led)
+    else:
+        logger.info("LED UI disabled")
 
     # Run orchestrator (will initialize and start UIs)
     # The TUI will initialize the orchestrator once it's running

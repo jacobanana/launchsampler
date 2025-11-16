@@ -66,8 +66,11 @@ class Player(StateObserver, EditObserver, MidiObserver):
         # MIDI components
         self._midi: Optional[LaunchpadController] = None
 
-        # Callbacks for external notification
+        # Callbacks for external notification (deprecated - use register_state_observer)
         self._on_playback_change: Optional[Callable[[PlaybackEvent, int], None]] = None
+
+        # State observers (multiple observers supported)
+        self._state_observers: list[StateObserver] = []
 
         # State
         self._is_running = False
@@ -309,10 +312,18 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """
         Handle playback events from audio engine.
 
-        This is called from the audio thread, so we just forward to callback.
+        This is called from the audio thread, so we forward to all observers.
         """
+        # Legacy callback support (deprecated)
         if self._on_playback_change:
             self._on_playback_change(event, pad_index)
+
+        # Notify all state observers
+        for observer in self._state_observers:
+            try:
+                observer.on_playback_event(event, pad_index)
+            except Exception as e:
+                logger.error(f"Error notifying state observer {observer}: {e}")
 
     # =================================================================
     # EditObserver Protocol
@@ -390,9 +401,33 @@ class Player(StateObserver, EditObserver, MidiObserver):
     # Callback Registration
     # =================================================================
 
+    def register_state_observer(self, observer: StateObserver) -> None:
+        """
+        Register an observer for playback state events.
+
+        Args:
+            observer: Object implementing StateObserver protocol
+        """
+        if observer not in self._state_observers:
+            self._state_observers.append(observer)
+            logger.info(f"Registered state observer: {observer}")
+
+    def unregister_state_observer(self, observer: StateObserver) -> None:
+        """
+        Unregister a state observer.
+
+        Args:
+            observer: Previously registered observer
+        """
+        if observer in self._state_observers:
+            self._state_observers.remove(observer)
+            logger.debug(f"Unregistered state observer: {observer}")
+
     def set_playback_callback(self, callback: Callable[[PlaybackEvent, int], None]) -> None:
         """
-        Register callback for playback events.
+        Register callback for playback events (DEPRECATED).
+
+        Use register_state_observer() instead for proper observer pattern support.
 
         Args:
             callback: Function to call on playback events (from audio engine)
