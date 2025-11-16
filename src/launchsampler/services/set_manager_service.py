@@ -117,18 +117,37 @@ class SetManagerService:
             logger.error(f"Error creating set from {samples_dir}: {e}")
             raise ValueError(f"Failed to create set from directory: {e}") from e
 
-    def save_set(self, set_obj: Set, path: Path) -> None:
+    def save_set(
+        self,
+        set_obj: Set,
+        path: Path,
+        new_name: Optional[str] = None
+    ) -> Set:
         """
         Save a set to a JSON file.
 
         Args:
             set_obj: The Set object to save
             path: Path where the set should be saved (.json)
+            new_name: Optional new name for the set
+
+        Returns:
+            The saved Set object (with updated name if provided)
 
         Raises:
             ValueError: If save operation fails
         """
         try:
+            # Update name if provided
+            if new_name and set_obj.name != new_name:
+                set_obj = Set(
+                    name=new_name,
+                    launchpad=set_obj.launchpad,
+                    samples_root=set_obj.samples_root,
+                    created_at=set_obj.created_at,
+                    modified_at=set_obj.modified_at
+                )
+
             # Ensure parent directory exists
             path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -136,11 +155,16 @@ class SetManagerService:
             set_obj.save_to_file(path)
 
             logger.info(f"Saved set '{set_obj.name}' to {path}")
+            return set_obj
         except Exception as e:
             logger.error(f"Error saving set to {path}: {e}")
             raise ValueError(f"Failed to save set: {e}") from e
 
-    def save_set_to_library(self, set_obj: Set, filename: Optional[str] = None) -> Path:
+    def save_set_to_library(
+        self,
+        set_obj: Set,
+        filename: Optional[str] = None
+    ) -> tuple[Set, Path]:
         """
         Save a set to the configured sets library directory.
 
@@ -150,7 +174,7 @@ class SetManagerService:
                      Defaults to set_obj.name
 
         Returns:
-            Path where the set was saved
+            Tuple of (saved Set object, path where it was saved)
 
         Raises:
             ValueError: If save operation fails
@@ -158,8 +182,8 @@ class SetManagerService:
         name = filename or set_obj.name
         set_path = self.config.sets_dir / f"{name}.json"
 
-        self.save_set(set_obj, set_path)
-        return set_path
+        saved_set = self.save_set(set_obj, set_path)
+        return saved_set, set_path
 
     def create_empty(self, name: str = "Untitled") -> Set:
         """
@@ -174,3 +198,52 @@ class SetManagerService:
         set_obj = Set.create_empty(name)
         logger.info(f"Created empty set '{name}'")
         return set_obj
+
+    def load_set(
+        self,
+        set_name: Optional[str] = None,
+        samples_dir: Optional[Path] = None
+    ) -> Set:
+        """
+        Load a set with smart fallback logic.
+
+        This handles the I/O operation of loading a Set from various sources
+        (disk, directory, or creating empty). The returned Set object can then
+        be mounted into the application.
+
+        Priority order:
+        1. Load from samples directory (if provided)
+        2. Load from saved set file by name
+        3. Create empty set as fallback
+
+        Args:
+            set_name: Name of set to load (defaults to "Untitled")
+            samples_dir: Directory to load samples from (highest priority)
+
+        Returns:
+            Loaded or created Set object
+        """
+        name = set_name or "Untitled"
+
+        # Priority 1: Load from samples directory
+        if samples_dir:
+            try:
+                loaded_set = self.create_from_directory(samples_dir, name)
+                logger.info(f"Loaded initial set from samples directory: {samples_dir}")
+                return loaded_set
+            except ValueError as e:
+                logger.error(f"Failed to load from samples directory: {e}")
+                # Fall through to next priority
+
+        # Priority 2: Load from saved set file
+        if name and name.lower() != "untitled":
+            loaded_set = self.open_set_by_name(name)
+            if loaded_set:
+                logger.info(f"Loaded initial set from saved file: {name}")
+                return loaded_set
+            else:
+                logger.warning(f"Set '{name}' not found, creating empty set")
+
+        # Fallback: empty set
+        logger.info(f"Creating empty set '{name}'")
+        return self.create_empty(name)

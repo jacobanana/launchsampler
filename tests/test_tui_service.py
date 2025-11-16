@@ -40,14 +40,14 @@ class TestTUIServiceObserver:
         assert isinstance(service, AppObserver)
 
     @pytest.mark.unit
-    def test_on_app_event_set_loaded(self, service, mock_app):
-        """Test handling SET_LOADED event."""
+    def test_on_app_event_set_mounted(self, service, mock_app):
+        """Test handling SET_MOUNTED event."""
         # Setup mock grid
         mock_grid = Mock()
         mock_app.query_one = Mock(return_value=mock_grid)
 
         # Call event handler
-        service.on_app_event(AppEvent.SET_LOADED)
+        service.on_app_event(AppEvent.SET_MOUNTED)
 
         # Verify grid.update_pad was called for all 64 pads
         assert mock_grid.update_pad.call_count == 64
@@ -58,8 +58,8 @@ class TestTUIServiceObserver:
             assert calls[i] == call(i, mock_app.launchpad.pads[i])
 
     @pytest.mark.unit
-    def test_on_app_event_set_loaded_with_selection(self, service, mock_app, sample_audio_file):
-        """Test SET_LOADED updates details panel when pad is selected."""
+    def test_on_app_event_set_mounted_with_selection(self, service, mock_app, sample_audio_file):
+        """Test SET_MOUNTED updates details panel when pad is selected."""
         # Setup: assign sample to pad 5 and select it
         mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
         mock_app.selected_pad_index = 5  # Selection now on app, not editor
@@ -80,7 +80,7 @@ class TestTUIServiceObserver:
         mock_app.query_one = Mock(side_effect=query_one_side_effect)
 
         # Call event handler
-        service.on_app_event(AppEvent.SET_LOADED)
+        service.on_app_event(AppEvent.SET_MOUNTED)
 
         # Verify grid was updated
         assert mock_grid.update_pad.call_count == 64
@@ -92,8 +92,8 @@ class TestTUIServiceObserver:
         assert call_args[0][1] == mock_app.launchpad.pads[5]  # pad
 
     @pytest.mark.unit
-    def test_on_app_event_set_loaded_no_selection(self, service, mock_app):
-        """Test SET_LOADED doesn't update details when no pad selected."""
+    def test_on_app_event_set_mounted_no_selection(self, service, mock_app):
+        """Test SET_MOUNTED doesn't update details when no pad selected."""
         # Setup: no pad selected
         mock_app.selected_pad_index = None
 
@@ -112,7 +112,7 @@ class TestTUIServiceObserver:
         mock_app.query_one = Mock(side_effect=query_one_side_effect)
 
         # Call event handler
-        service.on_app_event(AppEvent.SET_LOADED)
+        service.on_app_event(AppEvent.SET_MOUNTED)
 
         # Verify grid was updated
         assert mock_grid.update_pad.call_count == 64
@@ -152,7 +152,7 @@ class TestTUIServiceObserver:
         mock_app.query_one = Mock(side_effect=Exception("Test exception"))
 
         # Call event handler - should not raise
-        service.on_app_event(AppEvent.SET_LOADED)
+        service.on_app_event(AppEvent.SET_MOUNTED)
 
         # Verify error was logged (exception occurs in nested method)
         assert "error syncing ui" in caplog.text.lower() or "test exception" in caplog.text.lower()

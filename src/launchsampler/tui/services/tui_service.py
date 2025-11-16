@@ -33,7 +33,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
     application core from UI-specific update logic.
 
     Implements multiple observer protocols:
-    - AppObserver: App lifecycle events (SET_LOADED, SET_SAVED, etc.)
+    - AppObserver: App lifecycle events (SET_MOUNTED, SET_SAVED, etc.)
     - EditObserver: Editing events (PAD_ASSIGNED, PAD_CLEARED, etc.)
     - SelectionObserver: Selection events (CHANGED, CLEARED) - UI state only
     - MidiObserver: MIDI controller events (NOTE_ON, NOTE_OFF, etc.)
@@ -62,8 +62,8 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             **kwargs: Event-specific data
         """
         try:
-            if event == AppEvent.SET_LOADED:
-                self._handle_set_loaded()
+            if event == AppEvent.SET_MOUNTED:
+                self._handle_set_mounted()
             elif event == AppEvent.SET_SAVED:
                 self._handle_set_saved(**kwargs)
             elif event == AppEvent.MODE_CHANGED:
@@ -74,9 +74,9 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         except Exception as e:
             logger.error(f"Error handling app event {event}: {e}")
 
-    def _handle_set_loaded(self) -> None:
+    def _handle_set_mounted(self) -> None:
         """
-        Handle SET_LOADED event - synchronize UI with launchpad state.
+        Handle SET_MOUNTED event - synchronize UI with launchpad state.
 
         Updates all 64 pads and the details panel if a pad is selected.
         """

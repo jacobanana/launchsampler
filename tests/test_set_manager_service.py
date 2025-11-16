@@ -163,10 +163,11 @@ class TestSetManagerServiceSave:
         test_set = Set(name="myset", launchpad=launchpad)
 
         # Save to sets library
-        saved_path = service.save_set_to_library(test_set)
+        saved_set, saved_path = service.save_set_to_library(test_set)
 
         assert saved_path == temp_dir / "myset.json"
         assert saved_path.exists()
+        assert saved_set.name == "myset"
 
     @pytest.mark.unit
     def test_save_set_to_library_custom_filename(self, service, temp_dir):
@@ -175,10 +176,11 @@ class TestSetManagerServiceSave:
         test_set = Set(name="original", launchpad=launchpad)
 
         # Save with different filename
-        saved_path = service.save_set_to_library(test_set, filename="custom")
+        saved_set, saved_path = service.save_set_to_library(test_set, filename="custom")
 
         assert saved_path == temp_dir / "custom.json"
         assert saved_path.exists()
+        assert saved_set.name == "original"
 
         # Verify set name in file is still "original"
         loaded = Set.load_from_file(saved_path)

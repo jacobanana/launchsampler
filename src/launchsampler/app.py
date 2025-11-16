@@ -84,8 +84,12 @@ class LaunchpadSamplerApp:
 
         This should be called after construction to set up services and load initial state.
         """
-        # Load initial set
-        self._load_initial_set(self._initial_set_name, self._initial_samples_dir)
+        # Load initial set (SetManagerService handles I/O)
+        loaded_set = self.set_manager.load_set(
+            self._initial_set_name,
+            self._initial_samples_dir
+        )
+        self.mount_set(loaded_set)
 
         # Start player
         if not self.player.start(initial_set=self.current_set):
@@ -149,14 +153,17 @@ class LaunchpadSamplerApp:
     # Set Management
     # =================================================================
 
-    def load_set(self, loaded_set: Set) -> None:
+    def mount_set(self, loaded_set: Set) -> None:
         """
-        Load a new set.
+        Mount a set into the application.
 
-        This is the single point of truth for loading sets.
+        This activates the Set in the running application:
+        - Updates orchestrator state
+        - Syncs with player (audio engine)
+        - Fires events to notify observers (UIs)
 
         Args:
-            loaded_set: The Set to load
+            loaded_set: The Set to mount (already loaded from disk/directory)
         """
         # Update core state
         self.launchpad = loaded_set.launchpad
@@ -168,49 +175,14 @@ class LaunchpadSamplerApp:
             modified_at=loaded_set.modified_at
         )
 
-        # Update player
+        # Update player (audio engine sync)
         if self.player.is_running:
             self.player.load_set(self.current_set)
 
         # Notify observers (UIs will sync)
-        self._notify_observers(AppEvent.SET_LOADED)
+        self._notify_observers(AppEvent.SET_MOUNTED)
 
-        logger.info(f"Loaded set: {self.current_set.name} with {len(self.launchpad.assigned_pads)} samples")
-
-    def _load_initial_set(self, set_name: Optional[str], samples_dir: Optional[Path]) -> None:
-        """
-        Load initial set configuration.
-
-        Args:
-            set_name: Name of set to load
-            samples_dir: Directory to load samples from
-        """
-        name = set_name or "Untitled"
-
-        try:
-            # Priority 1: Load from samples directory
-            if samples_dir:
-                loaded_set = self.set_manager.create_from_directory(samples_dir, name)
-                self.load_set(loaded_set)
-                return
-
-            # Priority 2: Load from saved set file
-            if name and name.lower() != "untitled":
-                loaded_set = self.set_manager.open_set_by_name(name)
-                if loaded_set:
-                    self.load_set(loaded_set)
-                    return
-                else:
-                    logger.warning(f"Set '{name}' not found, creating empty set")
-
-            # Fallback: empty set
-            logger.info(f"Created empty set '{name}'")
-            self.current_set = Set.create_empty(name)
-            self.current_set.launchpad = self.launchpad
-
-        except Exception as e:
-            logger.error(f"Error loading initial set: {e}")
-            raise
+        logger.info(f"Mounted set: {self.current_set.name} with {len(self.launchpad.assigned_pads)} samples")
 
     def save_set(self, path: Path, name: Optional[str] = None) -> None:
         """

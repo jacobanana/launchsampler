@@ -151,8 +151,8 @@ class LaunchpadSampler(App):
         """
         READ-ONLY access to current set.
 
-        To load a new set, use orchestrator.load_set() which fires
-        AppEvent.SET_LOADED for observers.
+        To change sets, use orchestrator.mount_set() which fires
+        AppEvent.SET_MOUNTED for observers.
         """
         return self.orchestrator.current_set
 
@@ -293,15 +293,16 @@ class LaunchpadSampler(App):
 
     def _load_set(self, loaded_set: Set) -> None:
         """
-        Load a new set into the app.
+        Mount a set into the app.
 
-        Delegates to orchestrator's load_set method.
+        Delegates to orchestrator's mount_set method which activates the Set
+        in the running application (updates state, syncs player, fires events).
 
         Args:
-            loaded_set: The Set to load
+            loaded_set: The Set to mount (already loaded from disk/directory)
         """
         # Delegate to orchestrator
-        self.orchestrator.load_set(loaded_set)
+        self.orchestrator.mount_set(loaded_set)
 
         # Update subtitle
         if self._sampler_mode:

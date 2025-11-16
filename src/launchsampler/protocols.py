@@ -173,7 +173,7 @@ class SelectionObserver(Protocol):
 class AppEvent(Enum):
     """Events from application lifecycle and state changes."""
 
-    SET_LOADED = "set_loaded"        # Set was loaded into the application
+    SET_MOUNTED = "set_mounted"      # Set was mounted into the application
     SET_SAVED = "set_saved"          # Set was saved to disk
     MODE_CHANGED = "mode_changed"    # Application mode changed (sampler/arranger)
 
