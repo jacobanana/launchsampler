@@ -164,44 +164,44 @@ Launchsampler runs on **three independent threads** with careful synchronization
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ UI THREAD (Textual asyncio event loop)                     │
+│ UI THREAD (Textual asyncio event loop)                      │
 │                                                             │
 │ Responsibilities:                                           │
-│ - TUI rendering and user input                             │
-│ - EditorService mutations (pad data changes)               │
-│ - SelectionObserver, AppObserver events                    │
+│ - TUI rendering and user input                              │
+│ - EditorService mutations (pad data changes)                │
+│ - SelectionObserver, AppObserver events                     │
 │                                                             │
 │ Communication:                                              │
-│ → Fires EditEvent to other threads (observers notified)    │
-│ ← Receives StateEvent, MidiEvent (thread-safe callbacks)   │
+│ → Fires EditEvent to other threads (observers notified)     │
+│ ← Receives StateEvent, MidiEvent (thread-safe callbacks)    │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│ MIDI THREAD (mido blocking poll)                           │
+│ MIDI THREAD (mido blocking poll)                            │
 │                                                             │
 │ Responsibilities:                                           │
-│ - Poll MIDI hardware for messages                          │
-│ - Parse MIDI → DeviceEvent → MidiEvent                     │
-│ - Fire MidiObserver events                                 │
+│ - Poll MIDI hardware for messages                           │
+│ - Parse MIDI → DeviceEvent → MidiEvent                      │
+│ - Fire MidiObserver events                                  │
 │                                                             │
 │ Communication:                                              │
-│ → Fires MidiEvent to Player (trigger_pad via queue)        │
-│ → Notifies TUIService, LEDService (thread-safe callbacks)  │
+│ → Fires MidiEvent to Player (trigger_pad via queue)         │
+│ → Notifies TUIService, LEDService (thread-safe callbacks)   │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│ AUDIO THREAD (sounddevice callback - real-time)            │
+│ AUDIO THREAD (sounddevice callback - real-time)             │
 │                                                             │
 │ Responsibilities:                                           │
-│ - Process trigger queue (lock-free)                        │
-│ - Mix audio from multiple pads                             │
-│ - Fire StateObserver events (PAD_PLAYING, etc.)            │
+│ - Process trigger queue (lock-free)                         │
+│ - Mix audio from multiple pads                              │
+│ - Fire StateObserver events (PAD_PLAYING, etc.)             │
 │                                                             │
 │ Communication:                                              │
-│ ← Receives triggers via lock-free queue                    │
-│ → Fires StateEvent to observers (thread-safe callbacks)    │
+│ ← Receives triggers via lock-free queue                     │
+│ → Fires StateEvent to observers (thread-safe callbacks)     │
 │                                                             │
-│ Critical: NO BLOCKING in this thread (real-time audio)     │
+│ Critical: NO BLOCKING in this thread (real-time audio)      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -687,6 +687,51 @@ get_pad_led_palette_index(pad, is_playing: bool) -> int
 LaunchpadColor.RED.rgb      # → Color(255, 0, 0)
 LaunchpadColor.RED.palette  # → 5 (palette index)
 ```
+
+### 8.2 Color Management Implementation
+
+**Single Source of Truth Pattern:**
+
+All components reference colors through `ui_colors.py` to ensure consistency. The `MODE_COLORS` dictionary is the exclusive source for playback mode colors:
+
+```python
+# ui_colors.py - ONLY place where mode colors are defined
+MODE_COLORS: Dict[PlaybackMode, LaunchpadColor] = {
+    PlaybackMode.ONE_SHOT: LaunchpadColor.RED,
+    PlaybackMode.LOOP: LaunchpadColor.GREEN,
+    PlaybackMode.HOLD: LaunchpadColor.BLUE,
+    PlaybackMode.LOOP_TOGGLE: LaunchpadColor.MAGENTA,
+}
+```
+
+**Usage in Components:**
+
+All components that need to set pad colors based on playback mode use `MODE_COLORS`:
+
+```python
+# EditorService - setting color when mode changes
+from launchsampler.ui_colors import MODE_COLORS
+
+def set_pad_mode(self, pad_index: int, mode: PlaybackMode):
+    pad.mode = mode
+    pad.color = MODE_COLORS[mode].rgb  # Single source of truth
+
+# Launchpad model - setting color during auto-configuration
+def from_sample_directory(...):
+    pad.mode = cls._infer_playback_mode(sample)
+    pad.color = MODE_COLORS[pad.mode].rgb  # Same source
+```
+
+**Benefits of Centralization:**
+- **Consistency**: All UIs (TUI, LED) display identical colors for each mode
+- **Maintainability**: Color changes made in one location
+- **Type Safety**: Using `LaunchpadColor` enum ensures valid hardware colors
+- **Hardware Accuracy**: Colors use actual Launchpad RGB values (e.g., RED is `Color(r=127, g=5, b=0)` not `Color(r=127, g=0, b=0)`)
+
+**Components Using MODE_COLORS:**
+- [editor_service.py](src/launchsampler/services/editor_service.py) - Pad editing operations
+- [launchpad.py](src/launchsampler/models/launchpad.py) - Sample directory loading
+- [ui_colors.py](src/launchsampler/ui_colors.py) - `get_pad_led_color()` helper function
 
 ---
 

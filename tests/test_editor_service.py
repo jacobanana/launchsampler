@@ -8,6 +8,7 @@ import pytest
 from launchsampler.models import AppConfig, Color, Launchpad, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.services import EditorService
+from launchsampler.ui_colors import MODE_COLORS
 
 
 class TestEditorServiceDuplicatePad:
@@ -199,7 +200,7 @@ class TestEditorServiceDuplicatePad:
 
             target_pad = editor.get_pad(target_index)
             assert target_pad.mode == mode
-            assert target_pad.color == mode.get_default_color()
+            assert target_pad.color == MODE_COLORS[mode].rgb
 
     @pytest.mark.unit
     def test_duplicate_pad_volume_independence(self, editor, sample_audio_file):

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from .pad import Pad
 from .sample import Sample
 from .enums import PlaybackMode
+from launchsampler.ui_colors import MODE_COLORS
 
 logger = logging.getLogger(__name__)
 
@@ -133,11 +134,11 @@ class Launchpad(BaseModel):
             # Auto-configure mode and color if requested
             if auto_configure:
                 pad.mode = cls._infer_playback_mode(sample)
-                pad.color = pad.mode.get_default_color()
+                pad.color = MODE_COLORS[pad.mode].rgb
             else:
                 # Use defaults from Pad model
                 pad.mode = PlaybackMode.ONE_SHOT
-                pad.color = pad.mode.get_default_color()
+                pad.color = MODE_COLORS[pad.mode].rgb
 
             logger.debug(
                 f"Pad {i}: {sample.name} ({pad.mode.value}, "

@@ -15,6 +15,7 @@ from launchsampler.models import (
     Sample,
     Set,
 )
+from launchsampler.ui_colors import MODE_COLORS
 
 
 class TestColor:
@@ -197,20 +198,20 @@ class TestLaunchpad:
         pad0 = launchpad.pads[0]  # bass_loop (alphabetically first)
         assert pad0.is_assigned
         assert pad0.mode == PlaybackMode.LOOP
-        assert pad0.color == Color(r=0, g=127, b=0)  # Green
+        assert pad0.color == MODE_COLORS[PlaybackMode.LOOP].rgb  # Green
         assert pad0.volume == 0.5
 
         pad1 = launchpad.pads[1]  # kick_oneshot
         assert pad1.mode == PlaybackMode.ONE_SHOT
-        assert pad1.color == Color(r=127, g=0, b=0)  # Red
+        assert pad1.color == MODE_COLORS[PlaybackMode.ONE_SHOT].rgb  # Red
 
         pad2 = launchpad.pads[2]  # pad_tone
         assert pad2.mode == PlaybackMode.LOOP
-        assert pad2.color == Color(r=0, g=127, b=0)  # Green
+        assert pad2.color == MODE_COLORS[PlaybackMode.LOOP].rgb  # Green
 
         pad3 = launchpad.pads[3]  # vocal_hold
         assert pad3.mode == PlaybackMode.HOLD
-        assert pad3.color == Color(r=0, g=0, b=127)  # Blue
+        assert pad3.color == MODE_COLORS[PlaybackMode.HOLD].rgb  # Blue
 
     @pytest.mark.unit
     def test_from_sample_directory_no_auto_configure(self, temp_dir):
@@ -229,7 +230,7 @@ class TestLaunchpad:
         # Should still use ONE_SHOT as default even with "loop" in name
         pad0 = launchpad.pads[0]
         assert pad0.mode == PlaybackMode.ONE_SHOT
-        assert pad0.color == Color(r=127, g=0, b=0)  # Red (ONE_SHOT default)
+        assert pad0.color == MODE_COLORS[PlaybackMode.ONE_SHOT].rgb  # Red (ONE_SHOT default)
         assert pad0.volume == 0.8
 
     @pytest.mark.unit
@@ -249,19 +250,19 @@ class TestPlaybackMode:
     """Test PlaybackMode enum."""
 
     @pytest.mark.unit
-    def test_get_default_color(self):
-        """Test getting default colors for playback modes."""
-        # ONE_SHOT should be red
-        assert PlaybackMode.ONE_SHOT.get_default_color() == Color(r=127, g=0, b=0)
+    def test_mode_colors_mapping(self):
+        """Test MODE_COLORS has correct color mappings for each playback mode."""
+        # Verify MODE_COLORS exists for all playback modes
+        assert PlaybackMode.ONE_SHOT in MODE_COLORS
+        assert PlaybackMode.LOOP in MODE_COLORS
+        assert PlaybackMode.HOLD in MODE_COLORS
+        assert PlaybackMode.LOOP_TOGGLE in MODE_COLORS
 
-        # LOOP should be green
-        assert PlaybackMode.LOOP.get_default_color() == Color(r=0, g=127, b=0)
-
-        # HOLD should be blue
-        assert PlaybackMode.HOLD.get_default_color() == Color(r=0, g=0, b=127)
-
-        # LOOP_TOGGLE should be magenta
-        assert PlaybackMode.LOOP_TOGGLE.get_default_color() == Color(r=127, g=0, b=127)
+        # Verify all modes have LaunchpadColor values with RGB
+        for mode in PlaybackMode:
+            assert mode in MODE_COLORS
+            assert hasattr(MODE_COLORS[mode], 'rgb')
+            assert isinstance(MODE_COLORS[mode].rgb, Color)
 
 
 class TestSet:

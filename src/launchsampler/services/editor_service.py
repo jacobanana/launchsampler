@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.utils import ObserverManager
+from launchsampler.ui_colors import MODE_COLORS
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +185,7 @@ class EditorService:
 
         # Set default color if pad was previously empty
         if was_empty:
-            pad.color = pad.mode.get_default_color()
+            pad.color = MODE_COLORS[pad.mode].rgb
 
         # Notify observers
         self._notify_observers(EditEvent.PAD_ASSIGNED, [pad_index], [pad])
@@ -241,7 +242,7 @@ class EditorService:
             raise ValueError(f"Cannot set mode on empty pad {pad_index}")
 
         pad.mode = mode
-        pad.color = mode.get_default_color()
+        pad.color = MODE_COLORS[mode].rgb
 
         # Notify observers
         self._notify_observers(EditEvent.PAD_MODE_CHANGED, [pad_index], [pad])
