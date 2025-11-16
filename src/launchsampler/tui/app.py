@@ -225,13 +225,13 @@ class LaunchpadSampler(App):
         try:
             # Priority 1: Load from samples directory if provided
             if samples_dir:
-                loaded_set = self.set_manager.load_from_directory(samples_dir, name)
+                loaded_set = self.set_manager.create_from_directory(samples_dir, name)
                 self._load_set(loaded_set)
                 return
 
             # Priority 2: Load from saved set file
             if name and name.lower() != "untitled":
-                loaded_set = self.set_manager.load_from_file_by_name(name)
+                loaded_set = self.set_manager.open_set_by_name(name)
                 if loaded_set:
                     self._load_set(loaded_set)
                     return
@@ -683,7 +683,7 @@ class LaunchpadSampler(App):
                         )
 
                     # Save set using SetManagerService
-                    self.set_manager.save_to_file(self.current_set, save_path)
+                    self.set_manager.save_set(self.current_set, save_path)
 
                     self.notify(f"Saved set to: {save_path}")
 
@@ -711,7 +711,7 @@ class LaunchpadSampler(App):
             if set_path:
                 try:
                     # Load set using SetManagerService
-                    loaded_set = self.set_manager.load_from_file(set_path)
+                    loaded_set = self.set_manager.open_set(set_path)
 
                     # Use single load method
                     self._load_set(loaded_set)
@@ -735,7 +735,7 @@ class LaunchpadSampler(App):
             if dir_path:
                 try:
                     # Load samples using SetManagerService
-                    loaded_set = self.set_manager.load_from_directory(dir_path, dir_path.name)
+                    loaded_set = self.set_manager.create_from_directory(dir_path, dir_path.name)
 
                     # Use single load method
                     self._load_set(loaded_set)

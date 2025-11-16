@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 class SetManagerService:
     """
-    Handles set persistence and loading operations.
+    Handles set persistence and creation operations.
 
     This service is responsible for:
-    - Loading sets from files
-    - Loading sets from sample directories
+    - Opening existing sets from files
+    - Creating new sets from sample directories
     - Saving sets to files
     - Managing set file paths and naming
 
@@ -33,9 +33,9 @@ class SetManagerService:
         """
         self.config = config
 
-    def load_from_file(self, path: Path) -> Set:
+    def open_set(self, path: Path) -> Set:
         """
-        Load a set from a JSON file.
+        Open an existing set from a JSON file.
 
         Args:
             path: Path to the set file (.json)
@@ -52,15 +52,15 @@ class SetManagerService:
 
         try:
             set_obj = Set.load_from_file(path)
-            logger.info(f"Loaded set '{set_obj.name}' from {path}")
+            logger.info(f"Opened set '{set_obj.name}' from {path}")
             return set_obj
         except Exception as e:
-            logger.error(f"Error loading set from {path}: {e}")
-            raise ValueError(f"Failed to load set: {e}") from e
+            logger.error(f"Error opening set from {path}: {e}")
+            raise ValueError(f"Failed to open set: {e}") from e
 
-    def load_from_file_by_name(self, name: str) -> Optional[Set]:
+    def open_set_by_name(self, name: str) -> Optional[Set]:
         """
-        Load a set by name from the configured sets directory.
+        Open an existing set by name from the configured sets directory.
 
         Args:
             name: Name of the set (without .json extension)
@@ -75,14 +75,14 @@ class SetManagerService:
             return None
 
         try:
-            return self.load_from_file(set_path)
+            return self.open_set(set_path)
         except ValueError as e:
-            logger.error(f"Error loading set '{name}': {e}")
+            logger.error(f"Error opening set '{name}': {e}")
             return None
 
-    def load_from_directory(self, samples_dir: Path, name: Optional[str] = None) -> Set:
+    def create_from_directory(self, samples_dir: Path, name: Optional[str] = None) -> Set:
         """
-        Load samples from a directory and create a new set.
+        Create a new set from samples in a directory.
 
         Scans the directory for supported audio files and creates a set
         with samples auto-assigned to pads.
@@ -109,15 +109,15 @@ class SetManagerService:
                 auto_configure=True
             )
             logger.info(
-                f"Loaded set '{set_name}' with {len(set_obj.launchpad.assigned_pads)} "
+                f"Created set '{set_name}' with {len(set_obj.launchpad.assigned_pads)} "
                 f"samples from {samples_dir}"
             )
             return set_obj
         except Exception as e:
-            logger.error(f"Error loading samples from {samples_dir}: {e}")
-            raise ValueError(f"Failed to load samples: {e}") from e
+            logger.error(f"Error creating set from {samples_dir}: {e}")
+            raise ValueError(f"Failed to create set from directory: {e}") from e
 
-    def save_to_file(self, set_obj: Set, path: Path) -> None:
+    def save_set(self, set_obj: Set, path: Path) -> None:
         """
         Save a set to a JSON file.
 
@@ -140,9 +140,9 @@ class SetManagerService:
             logger.error(f"Error saving set to {path}: {e}")
             raise ValueError(f"Failed to save set: {e}") from e
 
-    def save_to_sets_directory(self, set_obj: Set, filename: Optional[str] = None) -> Path:
+    def save_set_to_library(self, set_obj: Set, filename: Optional[str] = None) -> Path:
         """
-        Save a set to the configured sets directory.
+        Save a set to the configured sets library directory.
 
         Args:
             set_obj: The Set object to save
@@ -158,10 +158,10 @@ class SetManagerService:
         name = filename or set_obj.name
         set_path = self.config.sets_dir / f"{name}.json"
 
-        self.save_to_file(set_obj, set_path)
+        self.save_set(set_obj, set_path)
         return set_path
 
-    def create_empty_set(self, name: str = "Untitled") -> Set:
+    def create_empty(self, name: str = "Untitled") -> Set:
         """
         Create a new empty set.
 
