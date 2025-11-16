@@ -10,17 +10,9 @@ from textual.widgets import Header, Footer, Button, RadioSet
 from textual.binding import Binding
 
 from launchsampler.core.player import Player
-from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
+from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode
 from launchsampler.services import SetManagerService
-
-from launchsampler.protocols import (
-    PlaybackEvent,
-    EditEvent,
-    EditObserver,
-    MidiEvent,
-    AppEvent,
-    AppObserver,
-)
+from launchsampler.protocols import AppEvent, AppObserver
 
 from .decorators import edit_only
 from .services import EditorService, TUIService
@@ -45,10 +37,7 @@ class LaunchpadSampler(App):
     This is a THIN UI layer that delegates to:
     - Player: Audio/MIDI/playback logic
     - EditorService: Editing operations
-
-    Implements (via duck typing due to metaclass conflicts):
-    - EditObserver: to automatically sync UI when edits occur
-    - MidiObserver: to show MIDI input feedback (green borders)
+    - TUIService: UI synchronization (observes all events)
 
     Provides two modes:
     - Edit Mode: Build sets, assign samples, test with preview audio
@@ -132,6 +121,7 @@ class LaunchpadSampler(App):
 
         # App-level observers (for lifecycle events)
         self._app_observers: list[AppObserver] = []
+        self.tui_service: Optional[TUIService] = None  # Initialized in on_mount
 
     def compose(self) -> ComposeResult:
         """Create the main layout."""
@@ -146,10 +136,6 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
-        # Create and register TUI service for app-level events
-        tui_service = TUIService(self)
-        self._app_observers.append(tui_service)
-
         # Load initial set (now that widgets are mounted)
         self._load_initial_set(self._initial_set_name, self._initial_samples_dir)
 
@@ -161,22 +147,19 @@ class LaunchpadSampler(App):
         if not self.player.start(initial_set=self.current_set):
             self.notify("Failed to start player - app may not function correctly", severity="error")
 
-        # Register as MIDI observer (controller input -> green borders)
+        # Create TUI service - handles ALL UI updates via observer pattern
+        self.tui_service = TUIService(self)
+        self._app_observers.append(self.tui_service)
+
+        # Register TUI service for all event types
+        self.editor.register_observer(self.player)           # Player observes edits for audio sync
+        self.editor.register_observer(self.tui_service)      # TUIService observes edits for UI sync
         if self.player._midi:
-            self.player._midi.register_observer(self)
+            self.player._midi.register_observer(self.tui_service)  # TUIService observes MIDI events
+        self.player.set_playback_callback(self.tui_service.on_playback_event)  # TUIService observes playback events
 
-        # Register for playback events (audio engine -> yellow backgrounds)
-        self.player.set_playback_callback(self.on_playback_event)
-
-        # Register as observer for editing events
-        self.editor.register_observer(self.player)  # Player observes edits for audio sync
-        self.editor.register_observer(self)          # App observes edits for UI sync
-
-        # Set initial mode (UI state only)
+        # Set initial mode (UI state only) - will fire MODE_CHANGED event
         self._set_mode(self._start_mode)
-
-        # Initial status bar update
-        self._update_status_bar()
 
     def on_unmount(self) -> None:
         """Cleanup when app closes."""
@@ -331,91 +314,11 @@ class LaunchpadSampler(App):
                 # No pad selected yet, select pad 0 by default
                 self.editor.select_pad(0)  # Event system handles UI sync
 
-        # Update status bar
-        self._update_status_bar()
+        # Fire MODE_CHANGED event (TUIService will update status bar)
+        self._notify_app_observers(AppEvent.MODE_CHANGED, mode=mode)
 
         logger.info(f"Switched to {mode} mode")
         return True
-
-    # =================================================================
-    # Observer Protocol Implementations - React to MIDI, playback, and edit events
-    # =================================================================
-
-    def on_midi_event(self, event: MidiEvent, pad_index: int) -> None:
-        """
-        Handle MIDI events from controller.
-
-        Called from MIDI thread via LaunchpadController, so use call_from_thread.
-
-        Args:
-            event: The MIDI event that occurred
-            pad_index: Index of the pad (0-63), or -1 for connection events
-        """
-        if event == MidiEvent.NOTE_ON:
-            # MIDI note on - show green border
-            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, True)
-        
-        elif event == MidiEvent.NOTE_OFF:
-            # MIDI note off - remove green border
-            self.call_from_thread(self._set_pad_midi_on_ui, pad_index, False)
-        
-        elif event in (MidiEvent.CONTROLLER_CONNECTED, MidiEvent.CONTROLLER_DISCONNECTED):
-            # MIDI controller connection changed - update status bar
-            self.call_from_thread(self._update_status_bar)
-
-    def on_playback_event(self, event: PlaybackEvent, pad_index: int) -> None:
-        """
-        Handle playback events from audio engine.
-
-        Called from audio thread via callback, so use call_from_thread.
-
-        Args:
-            event: The playback event that occurred
-            pad_index: Index of the pad (0-63)
-        """
-        # Handle audio playback events (yellow background)
-        if event == PlaybackEvent.PAD_PLAYING:
-            # Pad started playing - show as active
-            self.call_from_thread(self._set_pad_playing_ui, pad_index, True)
-            # Update status bar for voice count
-            self.call_from_thread(self._update_status_bar)
-        
-        elif event in (PlaybackEvent.PAD_STOPPED, PlaybackEvent.PAD_FINISHED):
-            # Pad stopped or finished - show as inactive
-            self.call_from_thread(self._set_pad_playing_ui, pad_index, False)
-            # Update status bar for voice count
-            self.call_from_thread(self._update_status_bar)
-        
-        # PAD_TRIGGERED events don't need UI updates (playing will follow immediately)
-
-    def on_edit_event(
-        self, 
-        event: EditEvent, 
-        pad_indices: list[int], 
-        pads: list[Pad]
-    ) -> None:
-        """
-        Handle editing events and update UI.
-        
-        This is called from the UI thread when editing operations occur.
-        Automatically synchronizes the UI with the new pad states.
-        
-        Args:
-            event: The type of editing event
-            pad_indices: List of affected pad indices
-            pads: List of affected pad states (post-edit)
-        """
-        logger.debug(f"App received edit event: {event.value} for pads {pad_indices}")
-        
-        if event == EditEvent.PAD_SELECTED:
-            # Handle selection - update grid selection state and details panel
-            pad_index = pad_indices[0]
-            pad = pads[0]
-            self._update_selected_pad_ui(pad_index, pad)
-        else:
-            # Update content - refresh grid and details if currently selected
-            for pad_index, pad in zip(pad_indices, pads):
-                self._update_pad_ui(pad_index, pad)
 
     # =================================================================
     # Widget Message Handlers - Handle messages from Textual widgets
@@ -538,112 +441,6 @@ class LaunchpadSampler(App):
         except Exception as e:
             logger.error(f"Error moving pad: {e}")
             self.notify(f"Error moving pad: {e}", severity="error")
-
-    # =================================================================
-    # UI Update Helpers - Update widgets to reflect state changes
-    # =================================================================
-
-    def _update_status_bar(self) -> None:
-        """Update status bar with current state."""
-        try:
-            status = self.query_one(StatusBar)
-
-            status.update_state(
-                mode=self._sampler_mode,
-                connected=self.player.is_midi_connected,
-                voices=self.player.active_voices,
-                audio_device=self.player.audio_device_name,
-                midi_device=self.player.midi_device_name
-            )
-        except Exception:
-            # Status bar might not be mounted yet
-            pass
-
-    def _update_details_panel(self, pad_index: int, pad: Pad) -> None:
-        """
-        Update the details panel for a pad.
-        
-        Fetches audio data from the engine if available and updates the panel.
-        
-        Args:
-            pad_index: Index of pad
-            pad: Pad model
-        """
-        audio_data = None
-        if self.player._engine and pad.is_assigned:
-            audio_data = self.player._engine.get_audio_data(pad_index)
-
-        details = self.query_one(PadDetailsPanel)
-        details.update_for_pad(pad_index, pad, audio_data=audio_data)
-
-    def _update_selected_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
-        """
-        Update UI for pad selection.
-
-        Args:
-            pad_index: Index of pad to select
-            pad: Pad model (fetched if None)
-        """
-        try:
-            if pad is None:
-                pad = self.editor.get_pad(pad_index)
-
-            grid = self.query_one(PadGrid)
-            grid.select_pad(pad_index)
-            self._update_details_panel(pad_index, pad)
-
-        except Exception as e:
-            logger.error(f"Error updating selected pad {pad_index} UI: {e}")
-
-    def _update_pad_ui(self, pad_index: int, pad: Optional[Pad] = None) -> None:
-        """
-        Update UI for pad content changes.
-
-        Args:
-            pad_index: Index of pad to update
-            pad: Pad model (fetched if None)
-        """
-        try:
-            if pad is None:
-                pad = self.editor.get_pad(pad_index)
-
-            grid = self.query_one(PadGrid)
-            grid.update_pad(pad_index, pad)
-
-            # Update details panel if this pad is currently selected
-            if pad_index == self.editor.selected_pad_index:
-                self._update_details_panel(pad_index, pad)
-
-        except Exception as e:
-            logger.error(f"Error updating pad {pad_index} UI: {e}")
-
-    def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:
-        """
-        Update UI to reflect pad playing state (yellow background).
-
-        Args:
-            pad_index: Index of pad (0-63)
-            is_playing: Whether pad is playing
-        """
-        try:
-            grid = self.query_one(PadGrid)
-            grid.set_pad_playing(pad_index, is_playing)
-        except Exception as e:
-            logger.debug(f"Error updating pad {pad_index} playing state: {e}")
-
-    def _set_pad_midi_on_ui(self, pad_index: int, midi_on: bool) -> None:
-        """
-        Update UI to reflect MIDI note on/off state (green border).
-
-        Args:
-            pad_index: Index of pad (0-63)
-            midi_on: Whether MIDI note is held
-        """
-        try:
-            grid = self.query_one(PadGrid)
-            grid.set_pad_midi_on(pad_index, midi_on)
-        except Exception as e:
-            logger.debug(f"Error updating pad {pad_index} MIDI state: {e}")
 
     # =================================================================
     # User Actions - File Operations - Load/save sets and browse samples
