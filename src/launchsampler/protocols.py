@@ -92,7 +92,7 @@ class StateObserver(Protocol):
 class EditObserver(Protocol):
     """
     Observer that receives editing events.
-    
+
     This protocol allows loose coupling between the editor service
     and components that need to react to edits (audio engine, UI, etc.).
     """
@@ -121,5 +121,42 @@ class EditObserver(Protocol):
             EditorService. They do not propagate to the caller, ensuring
             one failing observer doesn't break others. Observers should
             not rely on exceptions for critical error signaling.
+        """
+        ...
+
+
+class AppEvent(Enum):
+    """Events from application lifecycle and state changes."""
+
+    SET_LOADED = "set_loaded"        # Set was loaded into the application
+    SET_SAVED = "set_saved"          # Set was saved to disk
+    MODE_CHANGED = "mode_changed"    # Application mode changed (sampler/arranger)
+
+
+@runtime_checkable
+class AppObserver(Protocol):
+    """
+    Observer that receives application lifecycle events.
+
+    This protocol allows loose coupling between the application core
+    and UI/service components that need to react to app-level changes.
+    """
+
+    def on_app_event(self, event: "AppEvent", **kwargs) -> None:
+        """
+        Handle application lifecycle events.
+
+        Args:
+            event: The type of application event
+            **kwargs: Event-specific data (e.g., set_name, mode, etc.)
+
+        Threading:
+            Called from the UI thread (Textual's main asyncio loop).
+            Implementations should avoid blocking operations.
+
+        Error Handling:
+            Exceptions raised by observers are caught and logged by the
+            application. They do not propagate to the caller, ensuring
+            one failing observer doesn't break others.
         """
         ...

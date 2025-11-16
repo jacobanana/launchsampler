@@ -13,10 +13,17 @@ from launchsampler.core.player import Player
 from launchsampler.models import AppConfig, Launchpad, Set, PlaybackMode, Pad
 from launchsampler.services import SetManagerService
 
-from launchsampler.protocols import PlaybackEvent, EditEvent, EditObserver, MidiEvent
+from launchsampler.protocols import (
+    PlaybackEvent,
+    EditEvent,
+    EditObserver,
+    MidiEvent,
+    AppEvent,
+    AppObserver,
+)
 
 from .decorators import edit_only
-from .services import EditorService
+from .services import EditorService, TUIService
 from .widgets import (
     PadGrid,
     PadDetailsPanel,
@@ -123,6 +130,9 @@ class LaunchpadSampler(App):
         self.player = Player(config)
         self.editor = EditorService(self, config)  # Pass self for app reference
 
+        # App-level observers (for lifecycle events)
+        self._app_observers: list[AppObserver] = []
+
     def compose(self) -> ComposeResult:
         """Create the main layout."""
         yield Header(show_clock=True)
@@ -136,6 +146,10 @@ class LaunchpadSampler(App):
 
     def on_mount(self) -> None:
         """Initialize the app after mounting."""
+        # Create and register TUI service for app-level events
+        tui_service = TUIService(self)
+        self._app_observers.append(tui_service)
+
         # Load initial set (now that widgets are mounted)
         self._load_initial_set(self._initial_set_name, self._initial_samples_dir)
 
@@ -169,6 +183,20 @@ class LaunchpadSampler(App):
         logger.info("Shutting down application")
         self.player.stop()
 
+    def _notify_app_observers(self, event: AppEvent, **kwargs) -> None:
+        """
+        Notify all registered app observers of an event.
+
+        Args:
+            event: The app event that occurred
+            **kwargs: Event-specific data
+        """
+        for observer in self._app_observers:
+            try:
+                observer.on_app_event(event, **kwargs)
+            except Exception as e:
+                logger.error(f"Error notifying app observer {observer} of {event}: {e}")
+
     # =================================================================
     # Set Management - Loading and managing sample sets
     # =================================================================
@@ -199,8 +227,8 @@ class LaunchpadSampler(App):
         if self.player.is_running:
             self.player.load_set(self.current_set)
 
-        # Synchronize UI directly (no event needed - app-level operation)
-        self._sync_ui_with_launchpad()
+        # Notify app observers (TUIService will sync UI)
+        self._notify_app_observers(AppEvent.SET_LOADED)
 
         # Update subtitle (only if mode is set)
         if self._sampler_mode:
@@ -588,30 +616,6 @@ class LaunchpadSampler(App):
 
         except Exception as e:
             logger.error(f"Error updating pad {pad_index} UI: {e}")
-
-    def _sync_ui_with_launchpad(self) -> None:
-        """
-        Synchronize the entire UI with the current launchpad state.
-
-        Used when loading a new set or when bulk changes occur.
-        Updates all 64 pads and the details panel if a pad is selected.
-        """
-        try:
-            grid = self.query_one(PadGrid)
-
-            # Update all pads
-            for i, pad in enumerate(self.launchpad.pads):
-                grid.update_pad(i, pad)
-
-            # Update details panel if a pad is currently selected
-            if self.editor.selected_pad_index is not None:
-                self._update_selected_pad_ui(
-                    self.editor.selected_pad_index,
-                    self.launchpad.pads[self.editor.selected_pad_index]
-                )
-
-        except Exception as e:
-            logger.error(f"Error syncing UI with launchpad: {e}")
 
     def _set_pad_playing_ui(self, pad_index: int, is_playing: bool) -> None:
         """
