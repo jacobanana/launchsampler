@@ -1,0 +1,160 @@
+site_name: LaunchSampler
+site_description: Simple Launchpad Sampler - Turn your Novation Launchpad into a powerful sampler
+site_author: LaunchSampler Contributors
+site_url: https://launchsampler.dev  # Update with your actual URL
+
+repo_name: launchsampler
+repo_url: https://github.com/jacobanana/launchsampler  # Update with your repo URL
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - navigation.instant      # Instant loading
+    - navigation.tracking     # URL updates with anchor tracking
+    - navigation.tabs         # Top-level sections in tabs
+    - navigation.tabs.sticky  # Tabs always visible
+    - navigation.sections     # Sections in sidebar
+    - navigation.expand       # Expand all sections by default
+    - navigation.path         # Show path breadcrumbs
+    - navigation.indexes      # Section index pages
+    - navigation.top          # Back to top button
+    - search.suggest          # Search suggestions
+    - search.highlight        # Highlight search terms
+    - search.share            # Share search results
+    - content.code.copy       # Copy code blocks
+    - content.code.annotate   # Code annotations
+    - content.tabs.link       # Link content tabs
+    - toc.follow              # TOC follows scroll
+    - toc.integrate           # Integrate TOC into nav
+
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/music-box
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-\.]+'
+  - tags
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jacobanana/launchsampler  # Update
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/launchsampler/  # Update when published
+
+  version:
+    provider: mike
+    default: latest
+
+extra_css:
+  - stylesheets/extra.css
+
+# Documentation structure
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Configuration: getting-started/configuration.md
+  - User Guide:
+      - Overview: user-guide/overview.md
+      - Edit Mode: user-guide/edit-mode.md
+      - Play Mode: user-guide/play-mode.md
+      - Keyboard Shortcuts: user-guide/keyboard-shortcuts.md
+      - MIDI Integration: user-guide/midi-integration.md
+      - Sample Management: user-guide/sample-management.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Design Principles: architecture/design-principles.md
+      - Components: architecture/components.md
+      - Event System: architecture/event-system.md
+      - Threading Model: architecture/threading-model.md
+  - API Reference:
+      - Core:
+          - Player: api/core/player.md
+          - Sampler Engine: api/core/sampler-engine.md
+          - State Machine: api/core/state-machine.md
+      - Services:
+          - Editor Service: api/services/editor-service.md
+          - Set Manager: api/services/set-manager.md
+      - Models:
+          - Launchpad: api/models/launchpad.md
+          - Pad: api/models/pad.md
+          - Sample: api/models/sample.md
+      - Devices:
+          - MIDI Controller: api/devices/midi-controller.md
+          - Audio Device: api/devices/audio-device.md
+  - Contributing:
+      - Development Setup: contributing/development-setup.md
+      - Code Style: contributing/code-style.md
+      - Testing: contributing/testing.md
+      - Pull Requests: contributing/pull-requests.md
+  - Changelog: changelog.md
+  - License: license.md
+
+copyright: Copyright &copy; 2025 Adrien Fauconnet
