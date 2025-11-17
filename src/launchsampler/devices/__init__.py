@@ -9,12 +9,8 @@ from .protocols import (
     DeviceOutput,
 )
 
-# Backward compatibility alias
-LaunchpadController = DeviceController
-
 __all__ = [
     "DeviceController",
-    "LaunchpadController",  # Deprecated
     "DeviceEvent",
     "PadPressEvent",
     "PadReleaseEvent",

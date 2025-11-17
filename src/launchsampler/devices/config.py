@@ -5,7 +5,6 @@ created by merging family defaults with device-specific overrides.
 """
 
 from typing import Optional
-import platform
 from pydantic import BaseModel, Field, computed_field
 from .schema import DeviceCapabilities, OSPortSelection, PortSelectionRules
 

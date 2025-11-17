@@ -44,12 +44,6 @@ def get_adapter(name: str) -> Optional[Adapter]:
     return ADAPTERS.get(name)
 
 
-# Backward compatibility aliases (deprecated)
-register_implementation = register_adapter
-get_implementation = get_adapter
-Implementation = Adapter
-
-
 # Register built-in adapters
 from .launchpad_mk3 import LaunchpadMK3Mapper, LaunchpadMK3Output
 

@@ -4,7 +4,7 @@ This module defines the structure of the devices.json configuration file
 using Pydantic v2 for type safety and validation.
 """
 
-from typing import Optional, Literal
+from typing import Optional
 from pathlib import Path
 import platform
 from pydantic import BaseModel, Field, field_validator
@@ -81,7 +81,7 @@ class Device(BaseModel):
     )
     sysex_header: Optional[list[int]] = Field(
         None,
-        description="SysEx header bytes for this device"
+        description="SysEx header bytes for this device (excluding F0)"
     )
     overrides: DeviceOverrides = Field(
         default_factory=DeviceOverrides,
