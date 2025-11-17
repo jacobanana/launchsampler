@@ -4,10 +4,12 @@
 
 - DRY
 - SOLID
+- YAGNI
 - Single responsibility principle
 - Separation of concerns
 - Composition over inheritance
 - High test coverage - focus on behaviour, not implementation
+- Do not keep deprecated code during refactor
 
 ## Python management
 
