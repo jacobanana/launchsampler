@@ -407,7 +407,7 @@ class TestPlayerMIDIHandling:
     @patch('launchsampler.core.player.AudioDevice')
     @patch('launchsampler.core.player.SamplerEngine')
     def test_pad_release_ignores_oneshot_mode(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
-        """Test pad release doesn't affect ONE_SHOT mode."""
+        """Test pad release doesn't affect ONE_SHOT mode (toggle behavior)."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
 
@@ -418,7 +418,7 @@ class TestPlayerMIDIHandling:
         # Release pad 0 (ONE_SHOT mode) via MidiObserver protocol
         player.on_midi_event(MidiEvent.NOTE_OFF, 0)
 
-        # Should NOT release audio
+        # Should NOT release audio (ONE_SHOT uses toggle behavior like LOOP_TOGGLE)
         mock_engine.release_pad.assert_not_called()
     
 

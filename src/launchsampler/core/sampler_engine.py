@@ -411,8 +411,8 @@ class SamplerEngine:
                     state = self._playback_states[pad_index]
 
                     if action == "trigger" and state.audio_data is not None:
-                        # Handle LOOP_TOGGLE mode: toggle playback on each trigger
-                        if state.mode == PlaybackMode.LOOP_TOGGLE:
+                        # Handle LOOP_TOGGLE and ONE_SHOT modes: toggle playback on each trigger
+                        if state.mode in (PlaybackMode.LOOP_TOGGLE, PlaybackMode.ONE_SHOT):
                             if state.is_playing:
                                 # Second note on - stop playback
                                 state.stop()
@@ -435,7 +435,7 @@ class SamplerEngine:
                                 self._state_machine.notify_pad_playing(pad_index)
 
                     elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
-                        # Note: LOOP_TOGGLE ignores note off messages
+                        # Note: LOOP_TOGGLE and ONE_SHOT ignore note off messages
                         if state.is_playing:
                             state.stop()
                             self._state_machine.notify_pad_stopped(pad_index)
