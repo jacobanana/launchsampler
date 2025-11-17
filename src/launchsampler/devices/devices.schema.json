@@ -1,0 +1,236 @@
+{
+  "$defs": {
+    "Device": {
+      "description": "Individual device configuration within a family.",
+      "properties": {
+        "model": {
+          "description": "Device model name (e.g., 'Launchpad Mini MK3')",
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "detection_patterns": {
+          "description": "Additional patterns for detecting this specific device",
+          "items": {
+            "type": "string"
+          },
+          "title": "Detection Patterns",
+          "type": "array"
+        },
+        "sysex_header": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SysEx header bytes for this device",
+          "title": "Sysex Header"
+        },
+        "overrides": {
+          "$ref": "#/$defs/DeviceOverrides",
+          "description": "Device-specific overrides"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "Device",
+      "type": "object"
+    },
+    "DeviceCapabilities": {
+      "description": "Device hardware capabilities.",
+      "properties": {
+        "num_pads": {
+          "description": "Number of pads on the device",
+          "minimum": 1,
+          "title": "Num Pads",
+          "type": "integer"
+        },
+        "grid_size": {
+          "description": "Grid size (e.g., 8 for 8x8 grid)",
+          "minimum": 1,
+          "title": "Grid Size",
+          "type": "integer"
+        },
+        "supports_sysex": {
+          "default": true,
+          "description": "Whether device supports SysEx messages",
+          "title": "Supports Sysex",
+          "type": "boolean"
+        },
+        "supports_rgb": {
+          "default": true,
+          "description": "Whether device supports RGB colors",
+          "title": "Supports Rgb",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "num_pads",
+        "grid_size"
+      ],
+      "title": "DeviceCapabilities",
+      "type": "object"
+    },
+    "DeviceFamily": {
+      "description": "Device family configuration (e.g., Launchpad MK3 family).",
+      "properties": {
+        "family": {
+          "description": "Family identifier (e.g., 'launchpad_mk3')",
+          "minLength": 1,
+          "title": "Family",
+          "type": "string"
+        },
+        "manufacturer": {
+          "description": "Manufacturer name (e.g., 'Novation')",
+          "minLength": 1,
+          "title": "Manufacturer",
+          "type": "string"
+        },
+        "implements": {
+          "description": "Implementation name mapping to Python classes",
+          "minLength": 1,
+          "title": "Implements",
+          "type": "string"
+        },
+        "detection_patterns": {
+          "description": "Common patterns for detecting any device in this family",
+          "items": {
+            "type": "string"
+          },
+          "title": "Detection Patterns",
+          "type": "array"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/DeviceCapabilities",
+          "description": "Hardware capabilities shared by family"
+        },
+        "input_port_selection": {
+          "$ref": "#/$defs/OSPortSelection",
+          "description": "Default input port selection rules for family"
+        },
+        "output_port_selection": {
+          "$ref": "#/$defs/OSPortSelection",
+          "description": "Default output port selection rules for family"
+        },
+        "devices": {
+          "description": "List of specific devices in this family",
+          "items": {
+            "$ref": "#/$defs/Device"
+          },
+          "title": "Devices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "family",
+        "manufacturer",
+        "implements",
+        "capabilities"
+      ],
+      "title": "DeviceFamily",
+      "type": "object"
+    },
+    "DeviceOverrides": {
+      "description": "Device-specific overrides for family defaults.",
+      "properties": {
+        "input_port_selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OSPortSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "output_port_selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OSPortSelection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "DeviceOverrides",
+      "type": "object"
+    },
+    "OSPortSelection": {
+      "description": "OS-specific port selection rules.",
+      "properties": {
+        "windows": {
+          "$ref": "#/$defs/PortSelectionRules"
+        },
+        "darwin": {
+          "$ref": "#/$defs/PortSelectionRules"
+        },
+        "linux": {
+          "$ref": "#/$defs/PortSelectionRules"
+        }
+      },
+      "title": "OSPortSelection",
+      "type": "object"
+    },
+    "PortSelectionRules": {
+      "description": "Port selection rules for a specific OS.",
+      "properties": {
+        "prefer": {
+          "description": "Port patterns to prefer in order of priority",
+          "items": {
+            "type": "string"
+          },
+          "title": "Prefer",
+          "type": "array"
+        },
+        "exclude": {
+          "description": "Port patterns to exclude",
+          "items": {
+            "type": "string"
+          },
+          "title": "Exclude",
+          "type": "array"
+        },
+        "fallback": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Last resort pattern if preferred patterns don't match",
+          "title": "Fallback"
+        }
+      },
+      "title": "PortSelectionRules",
+      "type": "object"
+    }
+  },
+  "description": "Root schema for the devices.json configuration file.",
+  "properties": {
+    "families": {
+      "description": "List of device families",
+      "items": {
+        "$ref": "#/$defs/DeviceFamily"
+      },
+      "title": "Families",
+      "type": "array"
+    }
+  },
+  "title": "DeviceRegistrySchema",
+  "type": "object"
+}

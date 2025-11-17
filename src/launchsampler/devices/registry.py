@@ -1,14 +1,11 @@
-"""Device registry for loading and managing device configurations."""
+"""Device registry using Pydantic models for configuration validation."""
 
-import json
 import logging
 from pathlib import Path
 from typing import Optional
-from .config import DeviceConfig
-from .adapters import get_adapter
-from .device import GenericDevice
-from .input import GenericInput
 
+from .schema import DeviceRegistrySchema, DeviceFamily, Device, OSPortSelection
+from .config import DeviceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +14,8 @@ class DeviceRegistry:
     """
     Registry of all supported MIDI devices.
 
-    Loads device configurations from JSON and provides
-    device detection and instantiation services.
+    Loads device configurations from JSON using Pydantic validation
+    and provides device detection and instantiation services.
     """
 
     def __init__(self, config_path: Optional[Path] = None):
@@ -33,88 +30,96 @@ class DeviceRegistry:
             config_path = Path(__file__).parent / "devices.json"
 
         self.config_path = config_path
-        self.devices: list[DeviceConfig] = []
-        self._load_config()
+        self.schema: DeviceRegistrySchema = self._load_schema()
+        self.devices: list[DeviceConfig] = self._flatten_configs()
 
-    def _load_config(self) -> None:
-        """Load device configurations from JSON file."""
+    def _load_schema(self) -> DeviceRegistrySchema:
+        """Load and validate device registry schema from JSON."""
         try:
-            with open(self.config_path, "r") as f:
-                data = json.load(f)
-
-            # Parse families and devices
-            for family_data in data.get("families", []):
-                family_name = family_data["family"]
-                manufacturer = family_data["manufacturer"]
-                implements = family_data["implements"]
-                family_patterns = family_data.get("detection_patterns", [])
-                capabilities = family_data.get("capabilities", {})
-                family_input_rules = family_data.get("input_port_selection", {})
-                family_output_rules = family_data.get("output_port_selection", {})
-
-                # Process each device in the family
-                for device_data in family_data.get("devices", []):
-                    model = device_data["model"]
-                    device_patterns = device_data.get("detection_patterns", [])
-                    sysex_header = device_data.get("sysex_header")
-
-                    # Merge detection patterns (family + device)
-                    all_patterns = list(set(family_patterns + device_patterns))
-
-                    # Merge port selection rules (device overrides family)
-                    overrides = device_data.get("overrides", {})
-                    input_rules = self._merge_rules(
-                        family_input_rules,
-                        overrides.get("input_port_selection", {})
-                    )
-                    output_rules = self._merge_rules(
-                        family_output_rules,
-                        overrides.get("output_port_selection", {})
-                    )
-
-                    # Create device config
-                    config = DeviceConfig(
-                        family=family_name,
-                        model=model,
-                        manufacturer=manufacturer,
-                        implements=implements,
-                        detection_patterns=all_patterns,
-                        capabilities=capabilities,
-                        input_port_selection=input_rules,
-                        output_port_selection=output_rules,
-                        sysex_header=sysex_header
-                    )
-
-                    self.devices.append(config)
-
-            logger.info(f"Loaded {len(self.devices)} device configurations")
-
+            schema = DeviceRegistrySchema.from_json_file(self.config_path)
+            logger.info(f"Validated device registry from {self.config_path}")
+            return schema
         except Exception as e:
             logger.error(f"Failed to load device config from {self.config_path}: {e}")
             raise
 
-    def _merge_rules(self, base_rules: dict, override_rules: dict) -> dict:
+    def _flatten_configs(self) -> list[DeviceConfig]:
+        """Flatten family + device configs into runtime DeviceConfigs."""
+        configs = []
+
+        for family in self.schema.families:
+            for device in family.devices:
+                # Merge family defaults with device overrides
+                config = self._merge_family_and_device(family, device)
+                configs.append(config)
+
+        logger.info(f"Loaded {len(configs)} device configurations")
+        return configs
+
+    def _merge_family_and_device(
+        self,
+        family: DeviceFamily,
+        device: Device
+    ) -> DeviceConfig:
+        """
+        Merge family and device configs into a single DeviceConfig.
+
+        Args:
+            family: Device family configuration
+            device: Specific device configuration
+
+        Returns:
+            Merged DeviceConfig for runtime use
+        """
+        # Merge detection patterns (family + device, deduplicated)
+        all_patterns = list(set(family.detection_patterns + device.detection_patterns))
+
+        # Merge port selection rules (device overrides family)
+        input_rules = self._merge_port_rules(
+            family.input_port_selection,
+            device.overrides.input_port_selection
+        )
+        output_rules = self._merge_port_rules(
+            family.output_port_selection,
+            device.overrides.output_port_selection
+        )
+
+        return DeviceConfig(
+            family=family.family,
+            model=device.model,
+            manufacturer=family.manufacturer,
+            implements=family.implements,
+            detection_patterns=all_patterns,
+            capabilities=family.capabilities,
+            input_port_selection=input_rules,
+            output_port_selection=output_rules,
+            sysex_header=device.sysex_header
+        )
+
+    def _merge_port_rules(
+        self,
+        base: OSPortSelection,
+        override: Optional[OSPortSelection]
+    ) -> OSPortSelection:
         """
         Merge port selection rules with overrides.
 
         Args:
-            base_rules: Base rules from family
-            override_rules: Override rules from device
+            base: Base rules from family
+            override: Override rules from device (if any)
 
         Returns:
-            Merged rules dictionary
+            Merged OSPortSelection
         """
-        merged = dict(base_rules)
+        if override is None:
+            return base
 
-        for os_name, os_rules in override_rules.items():
-            if os_name in merged:
-                # Merge OS-specific rules
-                merged[os_name] = {**merged[os_name], **os_rules}
-            else:
-                # Add new OS rules
-                merged[os_name] = os_rules
-
-        return merged
+        # For each OS, use override if it has preferences, otherwise use base
+        return OSPortSelection(
+            windows=override.windows if override.windows.prefer else base.windows,
+            darwin=override.darwin if override.darwin.prefer else base.darwin,
+            linux=override.linux if override.linux.prefer else base.linux
+        )
 
     def detect_device(self, port_name: str) -> Optional[DeviceConfig]:
         """
@@ -174,6 +179,10 @@ class DeviceRegistry:
         Raises:
             ValueError: If implementation not found
         """
+        from .adapters import get_adapter
+        from .device import GenericDevice
+        from .input import GenericInput
+
         # Look up adapter classes
         adapter = get_adapter(config.implements)
         if adapter is None:
@@ -188,3 +197,15 @@ class DeviceRegistry:
 
         # Wrap in GenericDevice
         return GenericDevice(config, input_handler, output_handler)
+
+
+# Singleton instance
+_registry: Optional[DeviceRegistry] = None
+
+
+def get_registry() -> DeviceRegistry:
+    """Get singleton DeviceRegistry instance."""
+    global _registry
+    if _registry is None:
+        _registry = DeviceRegistry()
+    return _registry

@@ -1,4 +1,5 @@
 {
+  "$schema": "./devices.schema.json",
   "families": [
     {
       "family": "launchpad_mk3",
