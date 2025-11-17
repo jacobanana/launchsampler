@@ -1,0 +1,3 @@
+# Sample
+
+::: launchsampler.models.sample

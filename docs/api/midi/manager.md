@@ -1,0 +1,3 @@
+# Manager
+
+::: launchsampler.midi.manager

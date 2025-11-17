@@ -1,0 +1,47 @@
+  - API Reference:
+      - Core:
+          - Overview: api/core/index.md
+          - Player: api/core/player.md
+          - Sampler Engine: api/core/sampler_engine.md
+          - State Machine: api/core/state_machine.md
+      - Models:
+          - Overview: api/models/index.md
+          - Color: api/models/color.md
+          - Config: api/models/config.md
+          - Enums: api/models/enums.md
+          - Launchpad: api/models/launchpad.md
+          - Pad: api/models/pad.md
+          - Sample: api/models/sample.md
+          - Set: api/models/set.md
+      - Devices:
+          - Overview: api/devices/index.md
+          - Adapters: Launchpad Mk3: api/devices/adapters/launchpad_mk3.md
+          - Adapters: Launchpad Sysex: api/devices/adapters/launchpad_sysex.md
+          - Config: api/devices/config.md
+          - Controller: api/devices/controller.md
+          - Device: api/devices/device.md
+          - Input: api/devices/input.md
+          - Midi-controller: api/devices/midi-controller.md
+          - Protocols: api/devices/protocols.md
+          - Registry: api/devices/registry.md
+          - Schema: api/devices/schema.md
+      - Audio:
+          - Overview: api/audio/index.md
+          - Data: api/audio/data.md
+          - Device: api/audio/device.md
+          - Loader: api/audio/loader.md
+          - Mixer: api/audio/mixer.md
+      - Midi:
+          - Overview: api/midi/index.md
+          - Base Manager: api/midi/base_manager.md
+          - Input Manager: api/midi/input_manager.md
+          - Manager: api/midi/manager.md
+          - Output Manager: api/midi/output_manager.md
+      - Services:
+          - Overview: api/services/index.md
+          - Editor Service: api/services/editor_service.md
+          - Set Manager Service: api/services/set_manager_service.md
+      - Utils:
+          - Overview: api/utils/index.md
+          - Observer Manager: api/utils/observer_manager.md
+          - Paths: api/utils/paths.md
