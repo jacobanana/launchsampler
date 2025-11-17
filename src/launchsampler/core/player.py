@@ -17,7 +17,7 @@ from launchsampler.audio import AudioDevice
 from launchsampler.audio.data import AudioData
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.core.state_machine import SamplerStateMachine
-from launchsampler.devices.launchpad import LaunchpadController, LaunchpadDevice
+from launchsampler.devices.launchpad import LaunchpadController
 from launchsampler.models import AppConfig, Set, PlaybackMode
 from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
 from launchsampler.utils import ObserverManager
@@ -135,7 +135,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
             # Create engine with injected state machine
             self._engine = SamplerEngine(
                 audio_device=self._audio_device,
-                num_pads=LaunchpadDevice.NUM_PADS,
+                num_pads=64,  # Standard grid size for Launchpad devices
                 state_machine=self._state_machine
             )
 

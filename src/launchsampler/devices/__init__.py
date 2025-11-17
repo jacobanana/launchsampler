@@ -1,6 +1,6 @@
 """Device-specific implementations for different MIDI controllers."""
 
-from .launchpad import LaunchpadController, LaunchpadDevice
+from .launchpad import LaunchpadController
 from .protocols import (
     DeviceEvent,
     PadPressEvent,
@@ -12,7 +12,6 @@ from .protocols import (
 
 __all__ = [
     "LaunchpadController",
-    "LaunchpadDevice",
     "DeviceEvent",
     "PadPressEvent",
     "PadReleaseEvent",

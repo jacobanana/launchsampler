@@ -9,8 +9,10 @@ from launchsampler.midi import MidiManager
 from launchsampler.models import Color
 from launchsampler.protocols import MidiEvent, MidiObserver
 from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent, ControlChangeEvent
+from launchsampler.devices.registry import get_registry
+from launchsampler.devices.device import GenericDevice
+from launchsampler.devices.config import DeviceConfig
 from launchsampler.utils import ObserverManager
-from .device import LaunchpadDevice
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class LaunchpadController:
     """
     High-level Launchpad controller.
 
-    Composes MidiManager with Launchpad device protocol to provide
+    Composes MidiManager with device registry to provide
     a clean, user-facing API for Launchpad control.
     """
 
@@ -30,12 +32,18 @@ class LaunchpadController:
         Args:
             poll_interval: How often to check for device changes (seconds)
         """
-        # Use generic MidiManager with Launchpad device filter and port selectors
+        # Get device registry
+        self._registry = get_registry()
+
+        # Detected device config (set when device is detected)
+        self._detected_config: Optional[DeviceConfig] = None
+
+        # Use generic MidiManager with config-driven device filter and port selectors
         self._midi = MidiManager(
-            device_filter=LaunchpadDevice.matches,
+            device_filter=self._device_filter,
             poll_interval=poll_interval,
-            input_port_selector=LaunchpadDevice.select_input_port,
-            output_port_selector=LaunchpadDevice.select_output_port
+            input_port_selector=self._select_input_port,
+            output_port_selector=self._select_output_port
         )
         self._midi.on_message(self._handle_message)
         self._midi.on_connection_changed(self._handle_connection_changed)
@@ -43,8 +51,29 @@ class LaunchpadController:
         # Observer pattern for MIDI events
         self._observers = ObserverManager[MidiObserver](observer_type_name="MIDI")
 
-        # Launchpad device instance (created when connected)
-        self._device: Optional[LaunchpadDevice] = None
+        # Device instance (created when connected)
+        self._device: Optional[GenericDevice] = None
+
+    def _device_filter(self, port_name: str) -> bool:
+        """Filter function for MidiManager - detect if port matches any Launchpad."""
+        config = self._registry.detect_device(port_name)
+        if config:
+            # Cache detected config for port selection
+            self._detected_config = config
+            return True
+        return False
+
+    def _select_input_port(self, matching_ports: list[str]) -> Optional[str]:
+        """Select best input port using detected config."""
+        if self._detected_config is None:
+            return matching_ports[0] if matching_ports else None
+        return self._detected_config.select_input_port(matching_ports)
+
+    def _select_output_port(self, matching_ports: list[str]) -> Optional[str]:
+        """Select best output port using detected config."""
+        if self._detected_config is None:
+            return matching_ports[0] if matching_ports else None
+        return self._detected_config.select_output_port(matching_ports)
 
     def register_observer(self, observer: MidiObserver) -> None:
         """Register observer for MIDI events."""
@@ -228,18 +257,25 @@ class LaunchpadController:
         """Handle MIDI connection state changes."""
         if is_connected and port_name:
             try:
-                self._device = LaunchpadDevice(self._midi, port_name)
+                # Detect device config from port name
+                config = self._registry.detect_device(port_name)
+                if config is None:
+                    logger.error(f"No device config found for port: {port_name}")
+                    return
+
+                # Create device from config
+                self._device = self._registry.create_device(config, self._midi)
                 self._device.output.initialize()
-                logger.info(f"Launchpad device initialized: {self._device.info.model.display_name}")
+                logger.info(f"Device initialized: {self._device.display_name}")
             except Exception as e:
-                logger.error(f"Failed to initialize Launchpad device: {e}")
+                logger.error(f"Failed to initialize device: {e}")
                 self._device = None
         else:
             if self._device:
                 try:
                     self._device.output.shutdown()
                 except Exception as e:
-                    logger.error(f"Error shutting down Launchpad device: {e}")
+                    logger.error(f"Error shutting down device: {e}")
                 self._device = None
 
         event = MidiEvent.CONTROLLER_CONNECTED if is_connected else MidiEvent.CONTROLLER_DISCONNECTED
@@ -253,19 +289,17 @@ class LaunchpadController:
 
     @property
     def device_name(self) -> str:
-        """Get the name of the connected Launchpad device."""
-        if self._midi.is_connected and self._midi.current_input_port:
-            # Extract device name from port name (e.g., "Launchpad MK2:Launchpad MK2 MIDI 1 28:0")
-            port_name = self._midi.current_input_port
-            # Take the first part before the colon
-            device_name = port_name.split(':')[0] if ':' in port_name else port_name
-            return device_name
+        """Get the model name of the connected Launchpad device."""
+        if self._device:
+            return self._device.config.model
         return "No Device"
 
     @property
     def num_pads(self) -> int:
-        """Get number of pads on this Launchpad device."""
-        return LaunchpadDevice.NUM_PADS
+        """Get number of pads on this device."""
+        if self._device:
+            return self._device.num_pads
+        return 64  # Default
 
     def __enter__(self):
         """Context manager entry."""
