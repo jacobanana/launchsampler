@@ -415,27 +415,60 @@ class TestSamplerEnginePlaybackModes:
         
         # Should still be playing
         assert loaded_engine.is_pad_playing(15)
-    
-    def test_trigger_mode_restarts_sample(self, loaded_engine):
-        """Test triggering a playing pad restarts it."""
-        # Trigger pad
+
+    def test_oneshot_mode_toggles_on_trigger(self, loaded_engine):
+        """Test ONE_SHOT mode toggles playback."""
+        # First trigger - should start playing
         loaded_engine.trigger_pad(0)
         outdata = np.zeros((512, 2), dtype=np.float32)
         loaded_engine._audio_callback(outdata, 512)
-        
+        assert loaded_engine.is_pad_playing(0)
+
+        # Second trigger - should stop
+        loaded_engine.trigger_pad(0)
+        loaded_engine._audio_callback(outdata, 512)
+        assert not loaded_engine.is_pad_playing(0)
+
+        # Third trigger - should start again
+        loaded_engine.trigger_pad(0)
+        loaded_engine._audio_callback(outdata, 512)
+        assert loaded_engine.is_pad_playing(0)
+
+    def test_oneshot_ignores_release(self, loaded_engine):
+        """Test ONE_SHOT mode ignores release messages."""
+        # Start playing
+        loaded_engine.trigger_pad(0)
+        outdata = np.zeros((512, 2), dtype=np.float32)
+        loaded_engine._audio_callback(outdata, 512)
+        assert loaded_engine.is_pad_playing(0)
+
+        # Release should be ignored
+        loaded_engine.release_pad(0)
+        loaded_engine._audio_callback(outdata, 512)
+
+        # Should still be playing
+        assert loaded_engine.is_pad_playing(0)
+
+    def test_trigger_mode_restarts_sample(self, loaded_engine):
+        """Test triggering a playing pad restarts it (LOOP/HOLD modes)."""
+        # Trigger pad 5 (LOOP mode)
+        loaded_engine.trigger_pad(5)
+        outdata = np.zeros((512, 2), dtype=np.float32)
+        loaded_engine._audio_callback(outdata, 512)
+
         # Advance position
-        state = loaded_engine._playback_states[0]
+        state = loaded_engine._playback_states[5]
         initial_position = state.position
         for _ in range(5):
             loaded_engine._audio_callback(outdata, 512)
-        
+
         # Position should have advanced
         assert state.position > initial_position
-        
+
         # Trigger again - should restart
-        loaded_engine.trigger_pad(0)
+        loaded_engine.trigger_pad(5)
         loaded_engine._audio_callback(outdata, 512)
-        
+
         # Position should be back near start (starts at 0 + one callback worth of frames)
         assert state.position < 1000  # Should be near beginning
 

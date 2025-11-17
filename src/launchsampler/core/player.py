@@ -276,7 +276,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
             # MIDI pad released - release audio if mode supports it
             if self.current_set and pad_index >= 0:
                 pad = self.current_set.launchpad.pads[pad_index]
-                if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD, PlaybackMode.ONE_SHOT):
+                if pad.is_assigned and pad.mode in (PlaybackMode.LOOP, PlaybackMode.HOLD):
                     self.release_pad(pad_index)
 
         elif event == MidiEvent.CONTROL_CHANGE:
