@@ -30,11 +30,12 @@ class LaunchpadController:
         Args:
             poll_interval: How often to check for device changes (seconds)
         """
-        # Use generic MidiManager with Launchpad device filter and port selector
+        # Use generic MidiManager with Launchpad device filter and port selectors
         self._midi = MidiManager(
             device_filter=LaunchpadDevice.matches,
             poll_interval=poll_interval,
-            port_selector=LaunchpadDevice.select_port
+            input_port_selector=LaunchpadDevice.select_input_port,
+            output_port_selector=LaunchpadDevice.select_output_port
         )
         self._midi.on_message(self._handle_message)
         self._midi.on_connection_changed(self._handle_connection_changed)

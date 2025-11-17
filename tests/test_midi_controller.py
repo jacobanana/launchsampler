@@ -26,50 +26,82 @@ class TestLaunchpadDevice:
         assert not LaunchpadDevice.matches("Other MIDI Device")
         assert not LaunchpadDevice.matches("Keyboard")
 
-    def test_select_port_pro_mk3(self):
-        """Test port selection for Launchpad Pro MK3."""
+    def test_select_input_port_pro_mk3_windows(self):
+        """Test input port selection for Launchpad Pro MK3 on Windows."""
         # Pro MK3 uses MIDI 0 for note messages (not MIDI 1!)
         ports = ["LPProMK3 MIDI 0", "MIDIIN2 (LPProMK3 MIDI) 1", "MIDIIN3 (LPProMK3 MIDI) 2"]
-        assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 0"
+        assert LaunchpadDevice.select_input_port(ports) == "LPProMK3 MIDI 0"
 
         # If MIDI 0 is not available, fall back to MIDI 1
         ports = ["LPProMK3 MIDI 1", "LPProMK3 MIDI 2"]
-        assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 1"
+        assert LaunchpadDevice.select_input_port(ports) == "LPProMK3 MIDI 1"
 
         # Standard naming convention
         ports = ["LPProMK3 MIDI 0", "LPProMK3 MIDI 1", "LPProMK3 MIDI 2"]
-        assert LaunchpadDevice.select_port(ports) == "LPProMK3 MIDI 0"
+        assert LaunchpadDevice.select_input_port(ports) == "LPProMK3 MIDI 0"
 
-    def test_select_port_mini_mk3(self):
-        """Test port selection for Launchpad Mini MK3."""
+    def test_select_input_port_mini_mk3_windows(self):
+        """Test input port selection for Launchpad Mini MK3 on Windows."""
         # Mini MK3 uses MIDIIN2 pattern for note messages
         ports = [
             "LPMiniMK3 MIDI 0",
             "MIDIIN2 (LPMiniMK3 MIDI) 1",
             "MIDIIN3 (LPMiniMK3 MIDI) 2"
         ]
-        assert LaunchpadDevice.select_port(ports) == "MIDIIN2 (LPMiniMK3 MIDI) 1"
+        assert LaunchpadDevice.select_input_port(ports) == "MIDIIN2 (LPMiniMK3 MIDI) 1"
 
         # If MIDIIN2 is not available, fall back to MIDI 1
         ports = ["LPMiniMK3 MIDI 0", "LPMiniMK3 MIDI 1"]
-        assert LaunchpadDevice.select_port(ports) == "LPMiniMK3 MIDI 1"
+        assert LaunchpadDevice.select_input_port(ports) == "LPMiniMK3 MIDI 1"
 
         # If only MIDI 0 available, use it
         ports = ["LPMiniMK3 MIDI 0"]
-        assert LaunchpadDevice.select_port(ports) == "LPMiniMK3 MIDI 0"
+        assert LaunchpadDevice.select_input_port(ports) == "LPMiniMK3 MIDI 0"
 
-    def test_select_port_other_models(self):
-        """Test port selection for other Launchpad models (X, etc.)."""
-        # Other models should prefer MIDI 1
+    def test_select_input_port_mini_mk3_macos(self):
+        """Test input port selection for Launchpad Mini MK3 on macOS."""
+        # macOS: prefer "MIDI Out" over "DAW Out" for input
+        ports = [
+            "Launchpad Mini MK3 LPMiniMK3 DAW Out",
+            "Launchpad Mini MK3 LPMiniMK3 MIDI Out"
+        ]
+        assert LaunchpadDevice.select_input_port(ports) == "Launchpad Mini MK3 LPMiniMK3 MIDI Out"
+
+        # Only DAW Out available (should skip)
+        ports = ["Launchpad Mini MK3 LPMiniMK3 DAW Out"]
+        assert LaunchpadDevice.select_input_port(ports) == "Launchpad Mini MK3 LPMiniMK3 DAW Out"
+
+    def test_select_output_port_mini_mk3_macos(self):
+        """Test output port selection for Launchpad Mini MK3 on macOS."""
+        # macOS: prefer "MIDI In" over "DAW In" for output
+        ports = [
+            "Launchpad Mini MK3 LPMiniMK3 DAW In",
+            "Launchpad Mini MK3 LPMiniMK3 MIDI In"
+        ]
+        assert LaunchpadDevice.select_output_port(ports) == "Launchpad Mini MK3 LPMiniMK3 MIDI In"
+
+        # Only DAW In available (should skip)
+        ports = ["Launchpad Mini MK3 LPMiniMK3 DAW In"]
+        assert LaunchpadDevice.select_output_port(ports) == "Launchpad Mini MK3 LPMiniMK3 DAW In"
+
+    def test_select_input_port_other_models_macos(self):
+        """Test input port selection for other Launchpad models on macOS."""
+        # Other models should prefer "MIDI Out" on macOS
+        ports = ["Launchpad X MIDI Out", "Launchpad X DAW Out"]
+        assert LaunchpadDevice.select_input_port(ports) == "Launchpad X MIDI Out"
+
+    def test_select_input_port_other_models_windows(self):
+        """Test input port selection for other Launchpad models on Windows."""
+        # Other models should prefer MIDI 1 on Windows
         ports = ["Launchpad X MIDI 0", "Launchpad X MIDI 1", "Launchpad X MIDI 2"]
-        assert LaunchpadDevice.select_port(ports) == "Launchpad X MIDI 1"
+        assert LaunchpadDevice.select_input_port(ports) == "Launchpad X MIDI 1"
 
         # Without MIDI 1, takes first
         ports = ["LPX MIDI 0", "LPX MIDI 2"]
-        assert LaunchpadDevice.select_port(ports) == "LPX MIDI 0"
+        assert LaunchpadDevice.select_input_port(ports) == "LPX MIDI 0"
 
         # Empty list
-        assert LaunchpadDevice.select_port([]) is None
+        assert LaunchpadDevice.select_input_port([]) is None
 
 
 @pytest.mark.unit

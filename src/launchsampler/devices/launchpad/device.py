@@ -69,17 +69,19 @@ class LaunchpadDevice(Device):
         return any(pattern in port_name for pattern in LaunchpadDevice.PATTERNS)
 
     @staticmethod
-    def select_port(matching_ports: list[str]) -> Optional[str]:
+    def select_input_port(matching_ports: list[str]) -> Optional[str]:
         """
-        Select the best port from matching Launchpad ports.
+        Select the best input port from matching Launchpad ports.
 
-        TODO: implement a more robust selection strategy that works on any system.
+        Launchpad devices have multiple MIDI ports with different naming conventions:
 
-        Launchpad devices often have multiple MIDI ports with different naming conventions:
+        Windows:
         - Launchpad Pro MK3: Note messages on "LPProMK3 MIDI 0" (uses port 0, not port 1!)
         - Launchpad Mini MK3: Note messages on "MIDIIN2 (LPMiniMK3 MIDI) 1" (uses MIDIIN2)
 
-        For note input/output, we need to select the correct port based on the model.
+        macOS:
+        - Launchpad Mini MK3: "Launchpad Mini MK3 LPMiniMK3 MIDI Out" for input (not DAW Out)
+        - Note: On macOS, input ports end with "Out" (they output TO the computer)
 
         Args:
             matching_ports: List of port names that match Launchpad patterns
@@ -90,9 +92,14 @@ class LaunchpadDevice(Device):
         if not matching_ports:
             return None
 
-        # Check if this is a Mini MK3 (uses MIDIIN2/MIDIIN3 pattern for note messages)
+        # Check if this is a Mini MK3
         if any("LPMiniMK3" in p for p in matching_ports):
-            # For Mini MK3, prefer MIDIIN2 (LPMiniMK3 MIDI) which carries note messages
+            # macOS: prefer ports ending in "MIDI Out" (not "DAW Out")
+            midi_out_ports = [p for p in matching_ports if "MIDI Out" in p and "DAW" not in p]
+            if midi_out_ports:
+                return midi_out_ports[0]
+
+            # Windows: prefer MIDIIN2 (LPMiniMK3 MIDI) which carries note messages
             midiin2_ports = [p for p in matching_ports if "MIDIIN2" in p and "LPMiniMK3" in p]
             if midiin2_ports:
                 return midiin2_ports[0]
@@ -104,7 +111,12 @@ class LaunchpadDevice(Device):
 
         # Check if this is a Pro MK3 (uses MIDI 0 for note messages, not MIDI 1!)
         if any("LPProMK3" in p for p in matching_ports):
-            # For Pro MK3, prefer "LPProMK3 MIDI 0" which carries note messages
+            # macOS: prefer ports ending in "MIDI Out" (not "DAW Out")
+            midi_out_ports = [p for p in matching_ports if "MIDI Out" in p and "DAW" not in p]
+            if midi_out_ports:
+                return midi_out_ports[0]
+
+            # Windows: prefer "LPProMK3 MIDI 0" which carries note messages
             midi0_ports = [p for p in matching_ports if "LPProMK3 MIDI 0" in p]
             if midi0_ports:
                 return midi0_ports[0]
@@ -114,7 +126,85 @@ class LaunchpadDevice(Device):
             if midi1_ports:
                 return midi1_ports[0]
 
-        # For other Launchpad models (X, etc.), prefer "MIDI 1"
+        # For other Launchpad models (X, etc.)
+        # macOS: prefer ports ending in "MIDI Out"
+        midi_out_ports = [p for p in matching_ports if "MIDI Out" in p]
+        if midi_out_ports:
+            return midi_out_ports[0]
+
+        # Windows/other: prefer "MIDI 1"
+        midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
+        if midi1_ports:
+            return midi1_ports[0]
+
+        # Fall back to first match
+        return matching_ports[0]
+
+    @staticmethod
+    def select_output_port(matching_ports: list[str]) -> Optional[str]:
+        """
+        Select the best output port from matching Launchpad ports.
+
+        Launchpad devices have multiple MIDI ports with different naming conventions:
+
+        Windows:
+        - Launchpad Pro MK3: Note messages on "LPProMK3 MIDI 0" (uses port 0, not port 1!)
+        - Launchpad Mini MK3: Note messages on "MIDIOUT2 (LPMiniMK3 MIDI) 1" (uses MIDIOUT2)
+
+        macOS:
+        - Launchpad Mini MK3: "Launchpad Mini MK3 LPMiniMK3 MIDI In" for output (not DAW In)
+        - Note: On macOS, output ports end with "In" (they input FROM the computer)
+
+        Args:
+            matching_ports: List of port names that match Launchpad patterns
+
+        Returns:
+            Selected port name, or None if list is empty
+        """
+        if not matching_ports:
+            return None
+
+        # Check if this is a Mini MK3
+        if any("LPMiniMK3" in p for p in matching_ports):
+            # macOS: prefer ports ending in "MIDI In" (not "DAW In")
+            midi_in_ports = [p for p in matching_ports if "MIDI In" in p and "DAW" not in p]
+            if midi_in_ports:
+                return midi_in_ports[0]
+
+            # Windows: prefer MIDIOUT2 (LPMiniMK3 MIDI) which carries note messages
+            midiout2_ports = [p for p in matching_ports if "MIDIOUT2" in p and "LPMiniMK3" in p]
+            if midiout2_ports:
+                return midiout2_ports[0]
+
+            # Fall back to ports with "MIDI 1" in the name
+            midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
+            if midi1_ports:
+                return midi1_ports[0]
+
+        # Check if this is a Pro MK3 (uses MIDI 0 for note messages, not MIDI 1!)
+        if any("LPProMK3" in p for p in matching_ports):
+            # macOS: prefer ports ending in "MIDI In" (not "DAW In")
+            midi_in_ports = [p for p in matching_ports if "MIDI In" in p and "DAW" not in p]
+            if midi_in_ports:
+                return midi_in_ports[0]
+
+            # Windows: prefer "LPProMK3 MIDI 0" which carries note messages
+            midi0_ports = [p for p in matching_ports if "LPProMK3 MIDI 0" in p]
+            if midi0_ports:
+                return midi0_ports[0]
+
+            # Fall back to ports with "MIDI 1" in the name
+            midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
+            if midi1_ports:
+                return midi1_ports[0]
+
+        # For other Launchpad models (X, etc.)
+        # macOS: prefer ports ending in "MIDI In"
+        midi_in_ports = [p for p in matching_ports if "MIDI In" in p]
+        if midi_in_ports:
+            return midi_in_ports[0]
+
+        # Windows/other: prefer "MIDI 1"
         midi1_ports = [p for p in matching_ports if "MIDI 1" in p]
         if midi1_ports:
             return midi1_ports[0]
