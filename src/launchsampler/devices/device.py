@@ -3,14 +3,14 @@
 import logging
 from typing import Optional
 from launchsampler.midi import MidiManager
-from .protocols import Device, DeviceInput, DeviceOutput
+from .protocols import DeviceInput, DeviceOutput
 from .config import DeviceConfig
 from .input import GenericInput
 
 logger = logging.getLogger(__name__)
 
 
-class GenericDevice(Device):
+class GenericDevice:
     """
     Generic MIDI device implementation.
 

@@ -76,17 +76,3 @@ class DeviceOutput(Protocol):
     def clear_all(self) -> None:
         """Clear all LEDs."""
         ...
-
-
-class Device(Protocol):
-    """Complete device with input and output."""
-
-    @property
-    def input(self) -> DeviceInput:
-        """Input handler."""
-        ...
-
-    @property
-    def output(self) -> DeviceOutput:
-        """Output controller."""
-        ...

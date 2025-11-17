@@ -7,7 +7,6 @@ from .protocols import (
     PadReleaseEvent,
     DeviceInput,
     DeviceOutput,
-    Device,
 )
 
 # Backward compatibility alias
@@ -21,5 +20,4 @@ __all__ = [
     "PadReleaseEvent",
     "DeviceInput",
     "DeviceOutput",
-    "Device",
 ]
