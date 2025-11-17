@@ -2,10 +2,8 @@
 
 import logging
 from typing import Optional
-from launchsampler.midi import MidiManager
 from .protocols import DeviceInput, DeviceOutput
 from .config import DeviceConfig
-from .input import GenericInput
 
 logger = logging.getLogger(__name__)
 
