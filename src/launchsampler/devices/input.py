@@ -1,4 +1,67 @@
-"""Generic MIDI input parsing for all devices."""
+"""
+Generic MIDI input parsing for all devices.
+
+Input Flow: Button Press → Your Code
+=====================================
+
+This module handles the INPUT SIDE of device communication - transforming
+hardware MIDI messages into logical application events.
+
+The Flow
+--------
+
+::
+
+    Hardware Button Press
+          ↓
+    [MIDI Message: note_on 36, velocity 100]
+          ↓
+    ┌──────────────────────────────────────┐
+    │      GenericInput                    │
+    │       (input.py)                     │
+    │                                      │
+    │  parse_message(msg):                 │
+    │    if msg.type == 'note_on':         │
+    │      index = mapper.note_to_index(36)│
+    │      return PadPressEvent(index=5)   │
+    └────────────┬─────────────────────────┘
+                 │ Uses mapper
+                 ↓
+    ┌──────────────────────────────────────┐
+    │   LaunchpadMK3Mapper                 │
+    │   (adapters/launchpad_mk3.py)        │
+    │                                      │
+    │  note_to_index(36):                  │
+    │    offset = 11                       │
+    │    row_spacing = 10                  │
+    │    note_index = note - offset = 25   │
+    │    row = 25 // 10 = 2                │
+    │    col = 25 % 10 = 5                 │
+    │    return row * 8 + col = 21         │
+    │                                      │
+    │  Hardware layout:                    │
+    │    Note 11 = bottom-left (0,0)       │
+    │    Note 36 = pad at (2,5)            │
+    │    Logical index 21                  │
+    └──────────────────────────────────────┘
+          ↓
+    [PadPressEvent(pad_index=21, velocity=100)]
+          ↓
+    Your application observers get notified
+
+Key Concepts
+------------
+
+**Hardware Independence**: GenericInput knows nothing about specific devices.
+It just asks the mapper "what logical index is this MIDI note?"
+
+**Logical vs Hardware Indices**:
+- Hardware: MIDI note 36 (device-specific)
+- Logical: Pad index 21 (universal across all devices)
+
+**Velocity Handling**: MIDI velocity (0-127) is preserved for pressure-sensitive
+applications. Note that velocity=0 on note_on is actually a note_off.
+"""
 
 from typing import Optional, Protocol
 import mido

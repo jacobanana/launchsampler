@@ -1,4 +1,83 @@
-"""Launchpad MK3 family implementation (Pro, Mini, X)."""
+"""
+Launchpad MK3 family implementation (Pro, Mini, X).
+
+Hardware-Specific Implementation
+=================================
+
+This module contains the device-specific "brains" for Launchpad MK3 devices.
+It translates between logical pad indices and hardware MIDI notes, and builds
+SysEx messages for LED control.
+
+Mapper: Logical ↔ Hardware Translation
+---------------------------------------
+
+The LaunchpadMK3Mapper translates between logical indices and MIDI notes.
+
+**Input Side (Button Press)**::
+
+    Hardware Button Press → MIDI note 36
+                                ↓
+    LaunchpadMK3Mapper.note_to_index(36):
+      offset = 11
+      row_spacing = 10
+      note_index = 36 - 11 = 25
+      row = 25 // 10 = 2
+      col = 25 % 10 = 5
+      return row * 8 + col = 21
+                                ↓
+    Logical pad index 21
+
+**Output Side (LED Control)**::
+
+    Your code: set_pad_color(index=21, Color(255, 0, 0))
+                                ↓
+    LaunchpadMK3Mapper.index_to_note(21):
+      row = 21 // 8 = 2
+      col = 21 % 8 = 5
+      note = 11 + (row * 10) + col
+      return 11 + 20 + 5 = 36
+                                ↓
+    MIDI note 36
+                                ↓
+    LaunchpadSysEx.led_lighting([(RGB, 36, 255, 0, 0)])
+                                ↓
+    [0xF0, 0, 32, 41, 2, 14, 0x03, 3, 36, 255, 0, 0, 0xF7]
+                                ↓
+    Hardware LED turns RED
+
+Hardware Layout
+---------------
+
+Launchpad MK3 in programmer mode uses this note layout::
+
+    Row 7: 81 82 83 84 85 86 87 88    (top row)
+    Row 6: 71 72 73 74 75 76 77 78
+    Row 5: 61 62 63 64 65 66 67 68
+    Row 4: 51 52 53 54 55 56 57 58
+    Row 3: 41 42 43 44 45 46 47 48
+    Row 2: 31 32 33 34 35 36 37 38
+    Row 1: 21 22 23 24 25 26 27 28
+    Row 0: 11 12 13 14 15 16 17 18    (bottom row)
+           └─ bottom-left pad
+
+Note the row spacing of 10 (includes gaps like 19, 29, etc.)
+
+Key Design Decisions
+--------------------
+
+**Why separate Mapper from Output?**
+
+- Mapper: Pure mathematical translation (no side effects)
+- Output: Manages hardware state and sends MIDI messages
+
+This separation makes testing trivial - you can verify note mapping
+without needing actual hardware.
+
+**Why store offset/spacing as constants?**
+
+All MK3 devices (Pro, Mini, X) use the same programmer mode layout.
+If Novation releases an MK4 with different layout, create a new mapper class.
+"""
 
 import logging
 from typing import Tuple, Optional, List

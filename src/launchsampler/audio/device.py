@@ -2,7 +2,7 @@
 
 import logging
 import sys
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple, List, Any
 
 import numpy as np
 import sounddevice as sd
@@ -29,7 +29,6 @@ class AudioDevice:
         Initialize audio device.
 
         Args:
-            sample_rate: Audio sample rate in Hz
             buffer_size: Audio buffer size in frames (lower = less latency)
             num_channels: Number of output channels (1=mono, 2=stereo)
             device: Output device ID (None for default)
@@ -290,7 +289,7 @@ class AudioDevice:
             return "Unknown Device"
 
     @staticmethod
-    def list_output_devices():
+    def list_output_devices() -> Tuple[List[Tuple[int, str, str, Any]], str]:
         """
         List all available low-latency audio output devices.
 

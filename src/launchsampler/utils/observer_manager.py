@@ -12,7 +12,8 @@ from threading import Lock
 logger = logging.getLogger(__name__)
 
 # Type variable for the observer protocol
-T = TypeVar('T')
+# Bound to Any to indicate it can be any observer type
+T = TypeVar('T', bound=object)
 
 
 class ObserverManager(Generic[T]):

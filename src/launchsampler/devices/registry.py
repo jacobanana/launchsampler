@@ -1,11 +1,110 @@
-"""Device registry using Pydantic models for configuration validation."""
+"""
+Device registry using Pydantic models for configuration validation.
+
+The Smart Factory
+=================
+
+The DeviceRegistry is the "factory" that knows how to build the right device
+controller based on what's plugged into USB. It reads configuration from
+devices.json and assembles complete devices from modular components.
+
+How Device Detection Works
+---------------------------
+
+::
+
+    USB Device Connected: "Launchpad Pro MK3 MIDI"
+                                  ↓
+    Registry checks devices.json: "Does 'LPProMK3' match patterns?"
+                                  ↓ YES
+    Registry: "This is a Launchpad Pro MK3"
+             "It implements: LaunchpadMK3"
+             "Prefer port: LPProMK3 MIDI 0"
+                                  ↓
+    Registry looks up implementation: get_implementation("LaunchpadMK3")
+                                  ↓ Returns
+             (LaunchpadMK3Mapper, LaunchpadMK3Output)
+                                  ↓
+    Registry creates: GenericDevice(
+        mapper=LaunchpadMK3Mapper(),
+        input=GenericInput(mapper),
+        output=LaunchpadMK3Output(midi_manager, config)
+    )
+                                  ↓
+    Returns fully assembled device to DeviceController
+
+Device Creation Flow
+--------------------
+
+::
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                        DeviceRegistry                                │
+    │                       (registry.py)                                  │
+    │                                                                      │
+    │  🏭 What it does:                                                    │
+    │    1. Loads devices.json at startup                                 │
+    │    2. When USB device appears, checks if name matches patterns      │
+    │    3. Selects the right USB ports (OS-specific rules)               │
+    │    4. Assembles a GenericDevice from parts:                         │
+    │       - Mapper (note translation)                                   │
+    │       - Input handler (MIDI parser)                                 │
+    │       - Output handler (LED controller)                             │
+    └───────┬──────────────────────────────────────────────────────────────┘
+            │
+            │ Reads configuration
+            ↓
+    ┌────────────────────────────────────────────────────────────────────┐
+    │                        devices.json                                │
+    │                     (Configuration File)                           │
+    │                                                                    │
+    │  📋 Contains:                                                      │
+    │    - Family: "launchpad_mk3"                                       │
+    │    - Detection patterns: ["Launchpad Pro", "LPProMK3"]            │
+    │    - Capabilities: {num_pads: 64, grid_size: 8}                   │
+    │    - Port selection rules (Windows/Mac/Linux)                     │
+    │    - SysEx header: [0, 32, 41, 2, 14]                             │
+    │    - Implements: "LaunchpadMK3" ← Links to code                   │
+    └───────┬────────────────────────────────────────────────────────────┘
+            │
+            │ Points to implementation
+            ↓
+    ┌────────────────────────────────────────────────────────────────────┐
+    │              adapters/__init__.py                                  │
+    │              (Implementation Registry)                             │
+    │                                                                    │
+    │  🔍 Registry lookup:                                               │
+    │    "LaunchpadMK3" → (LaunchpadMK3Mapper, LaunchpadMK3Output)      │
+    │                                                                    │
+    │  To add new device:                                                │
+    │    register_implementation("APC40", APC40Mapper, APC40Output)     │
+    └────────────────────────────────────────────────────────────────────┘
+
+Key Features
+------------
+
+**Open/Closed Principle**: Add new devices without modifying registry code.
+Simply add a new entry to devices.json and register the implementation.
+
+**OS-Specific Port Selection**: Handles platform differences in MIDI port naming.
+Different rules for Windows, macOS, and Linux.
+
+**Declarative Configuration**: All device capabilities and quirks defined in JSON,
+not scattered through if/else statements in code.
+
+**Validation**: Pydantic models ensure devices.json is always valid at runtime.
+"""
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from .schema import DeviceRegistrySchema, DeviceFamily, Device, OSPortSelection
 from .config import DeviceConfig
+
+if TYPE_CHECKING:
+    from launchsampler.midi import MidiManager
+    from .device import GenericDevice
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +264,11 @@ class DeviceRegistry:
         """
         return self.detect_device(port_name) is not None
 
-    def create_device(self, config: DeviceConfig, midi_manager):
+    def create_device(
+        self,
+        config: DeviceConfig,
+        midi_manager: "MidiManager"
+    ) -> "GenericDevice":
         """
         Create a device instance from configuration.
 

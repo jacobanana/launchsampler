@@ -1,4 +1,75 @@
-"""Generic device controller for grid-based MIDI controllers."""
+"""
+Generic device controller for grid-based MIDI controllers.
+
+Architecture Overview
+=====================
+
+The DeviceController is the main user-facing API for interacting with MIDI grid
+controllers. It sits at the top of the device architecture and hides all hardware
+complexity from the application.
+
+Connection Flow
+---------------
+
+::
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                         USER APPLICATION                            │
+    │                    (Your Sampler Software)                          │
+    └────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                        Uses high-level API
+                                 ↓
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                    DeviceController                                 │
+    │                  (devices/controller.py)                            │
+    │                                                                     │
+    │  🎮 What it does:                                                   │
+    │    - Manages connection to the device                              │
+    │    - Provides user-friendly methods (set_pad_color, etc.)          │
+    │    - Handles observers (notify when buttons pressed)               │
+    │    - Hides all the complexity below                                │
+    └──────────┬─────────────────┬────────────────────────┬───────────────┘
+               │                 │                        │
+        Asks for help    Detects devices         Sends messages
+               ↓                 ↓                        ↓
+       ┌───────────────┐ ┌──────────────┐      ┌─────────────────┐
+       │ DeviceRegistry│ │ MidiManager  │      │  MidiManager    │
+       │ (registry.py) │ │ (generic)    │      │  (output)       │
+       └───────┬───────┘ └──────────────┘      └─────────────────┘
+               │
+        Loads config &
+        creates device
+               ↓
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                        GenericDevice                                 │
+    │                         (device.py)                                  │
+    │                                                                      │
+    │  Two sides:                                                          │
+    │    - Input: MIDI messages → Events (button presses)                 │
+    │    - Output: Commands → MIDI messages (LED control)                 │
+    └──────────────────────────────────────────────────────────────────────┘
+
+Key Design Principle
+--------------------
+
+The DeviceController knows NOTHING about:
+- MIDI note numbers
+- SysEx messages
+- Hardware-specific quirks
+
+It only deals with logical pad indices (0-63) and abstract colors.
+All hardware translation happens in the layers below.
+
+Usage Example
+-------------
+
+.. code-block:: python
+
+    controller = DeviceController()
+    controller.start()
+    controller.set_pad_color(21, Color(255, 0, 0))  # Works with ANY device!
+"""
 
 import logging
 from typing import Optional
