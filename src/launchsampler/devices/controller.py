@@ -30,6 +30,10 @@ class DeviceController:
     hardware model.
     """
 
+    # ================================================================
+    # INITIALIZATION
+    # ================================================================
+
     def __init__(self, poll_interval: float = 5.0):
         """
         Initialize device controller.
@@ -59,6 +63,42 @@ class DeviceController:
         # Device instance (created when connected)
         self._device: Optional[GenericDevice] = None
 
+    # ================================================================
+    # LIFECYCLE MANAGEMENT
+    # ================================================================
+
+    def start(self) -> None:
+        """Start monitoring for supported MIDI devices."""
+        self._midi.start()
+        logger.info("DeviceController started")
+
+    def stop(self) -> None:
+        """Stop monitoring and close connections."""
+        # Shutdown device output (exit programmer mode) before stopping MIDI
+        if self._device:
+            try:
+                self._device.output.shutdown()
+                logger.info("Device shut down")
+            except Exception as e:
+                logger.error(f"Error shutting down device: {e}")
+            self._device = None
+
+        self._midi.stop()
+        logger.info("DeviceController stopped")
+
+    def __enter__(self):
+        """Context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.stop()
+
+    # ================================================================
+    # DEVICE DETECTION & PORT SELECTION
+    # ================================================================
+
     def _device_filter(self, port_name: str) -> bool:
         """Filter function for MidiManager - detect if port matches any supported device."""
         config = self._registry.detect_device(port_name)
@@ -80,6 +120,10 @@ class DeviceController:
             return matching_ports[0] if matching_ports else None
         return self._detected_config.select_output_port(matching_ports)
 
+    # ================================================================
+    # OBSERVER PATTERN
+    # ================================================================
+
     def register_observer(self, observer: MidiObserver) -> None:
         """Register observer for MIDI events."""
         self._observers.register(observer)
@@ -99,6 +143,10 @@ class DeviceController:
             value: MIDI CC value (for CONTROL_CHANGE events)
         """
         self._observers.notify('on_midi_event', event, pad_index, control, value)
+
+    # ================================================================
+    # LED CONTROL - RGB MODE
+    # ================================================================
 
     def set_pad_color(self, pad_index: int, color: Color) -> bool:
         """
@@ -120,6 +168,53 @@ class DeviceController:
             return True
         except Exception as e:
             logger.error(f"Error setting pad color: {e}")
+            return False
+
+    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> bool:
+        """
+        Bulk update multiple LED colors (more efficient than individual updates).
+
+        Args:
+            updates: List of (pad_index, color) tuples
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set LEDs bulk: No device connected")
+            return False
+
+        try:
+            self._device.output.set_leds_bulk(updates)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting LEDs bulk: {e}")
+            return False
+
+    # ================================================================
+    # LED CONTROL - PALETTE MODE
+    # ================================================================
+
+    def set_pad_static(self, pad_index: int, color: int) -> bool:
+        """
+        Set LED to static palette color.
+
+        Args:
+            pad_index: Pad 0-63
+            color: Palette color index (0-127)
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set pad static: No device connected")
+            return False
+
+        try:
+            self._device.output.set_led_static(pad_index, color)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting pad static: {e}")
             return False
 
     def set_pad_flashing(self, pad_index: int, color: int) -> bool:
@@ -166,67 +261,9 @@ class DeviceController:
             logger.error(f"Error setting pad pulsing: {e}")
             return False
 
-    def set_pad_static(self, pad_index: int, color: int) -> bool:
-        """
-        Set LED to static palette color.
-
-        Args:
-            pad_index: Pad 0-63
-            color: Palette color index (0-127)
-
-        Returns:
-            True if sent successfully, False if not connected
-        """
-        if not self._device:
-            logger.warning("Cannot set pad static: No device connected")
-            return False
-
-        try:
-            self._device.output.set_led_static(pad_index, color)
-            return True
-        except Exception as e:
-            logger.error(f"Error setting pad static: {e}")
-            return False
-
-    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> bool:
-        """
-        Bulk update multiple LED colors (more efficient than individual updates).
-
-        Args:
-            updates: List of (pad_index, color) tuples
-
-        Returns:
-            True if sent successfully, False if not connected
-        """
-        if not self._device:
-            logger.warning("Cannot set LEDs bulk: No device connected")
-            return False
-
-        try:
-            self._device.output.set_leds_bulk(updates)
-            return True
-        except Exception as e:
-            logger.error(f"Error setting LEDs bulk: {e}")
-            return False
-
-    def start(self) -> None:
-        """Start monitoring for supported MIDI devices."""
-        self._midi.start()
-        logger.info("DeviceController started")
-
-    def stop(self) -> None:
-        """Stop monitoring and close connections."""
-        # Shutdown device output (exit programmer mode) before stopping MIDI
-        if self._device:
-            try:
-                self._device.output.shutdown()
-                logger.info("Device shut down")
-            except Exception as e:
-                logger.error(f"Error shutting down device: {e}")
-            self._device = None
-
-        self._midi.stop()
-        logger.info("DeviceController stopped")
+    # ================================================================
+    # MIDI EVENT HANDLING
+    # ================================================================
 
     def _handle_message(self, msg: mido.Message) -> None:
         """
@@ -287,6 +324,10 @@ class DeviceController:
         self._notify_observers(event, -1)  # -1 indicates no specific pad
         logger.info(f"MIDI controller {'connected' if is_connected else 'disconnected'}: {port_name}")
 
+    # ================================================================
+    # PROPERTIES
+    # ================================================================
+
     @property
     def is_connected(self) -> bool:
         """Check if a device is connected."""
@@ -305,12 +346,3 @@ class DeviceController:
         if self._device:
             return self._device.num_pads
         return 64  # Default
-
-    def __enter__(self):
-        """Context manager entry."""
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.stop()
