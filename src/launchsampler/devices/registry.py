@@ -170,16 +170,16 @@ class DeviceRegistry:
         Raises:
             ValueError: If implementation not found
         """
-        from .implementations import get_implementation
+        from .adapters import get_adapter
         from .device import GenericDevice
         from .input import GenericInput
 
-        # Look up implementation classes
-        impl = get_implementation(config.implements)
-        if impl is None:
-            raise ValueError(f"Unknown implementation: {config.implements}")
+        # Look up adapter classes
+        adapter = get_adapter(config.implements)
+        if adapter is None:
+            raise ValueError(f"Unknown adapter: {config.implements}")
 
-        MapperClass, OutputClass = impl
+        MapperClass, OutputClass = adapter
 
         # Instantiate device-specific components
         mapper = MapperClass(config)

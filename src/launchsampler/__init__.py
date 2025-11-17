@@ -6,9 +6,10 @@ __version__ = "0.1.0"
 from .core import SamplerEngine
 
 # Device controllers
-from .devices import LaunchpadController
+from .devices import DeviceController, LaunchpadController  # LaunchpadController is deprecated alias
 
 __all__ = [
     "SamplerEngine",
-    "LaunchpadController",
+    "DeviceController",
+    "LaunchpadController",  # Deprecated, use DeviceController
 ]

@@ -5,19 +5,19 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from launchsampler.devices.launchpad import LaunchpadController
+from launchsampler.devices import DeviceController
 from launchsampler.models import Color
 
 
 @pytest.mark.unit
-class TestLaunchpadController:
-    """Test LaunchpadController class."""
+class TestDeviceController:
+    """Test DeviceController class (formerly DeviceController)."""
 
     def test_observer_registration(self):
         """Test observer registration."""
         from launchsampler.protocols import MidiObserver, MidiEvent
 
-        controller = LaunchpadController()
+        controller = DeviceController()
         observer = Mock(spec=MidiObserver)
 
         controller.register_observer(observer)
@@ -33,7 +33,7 @@ class TestLaunchpadController:
         mock_get_input.return_value = []
         mock_get_output.return_value = []
 
-        controller = LaunchpadController(poll_interval=0.1)
+        controller = DeviceController(poll_interval=0.1)
 
         # Start
         controller.start()
@@ -50,7 +50,7 @@ class TestLaunchpadController:
         mock_get_input.return_value = []
         mock_get_output.return_value = []
 
-        with LaunchpadController(poll_interval=0.1) as controller:
+        with DeviceController(poll_interval=0.1) as controller:
             time.sleep(0.05)
             assert controller._midi._input_manager._running
             assert controller._midi._output_manager._running
@@ -60,7 +60,7 @@ class TestLaunchpadController:
 
     def test_set_leds_bulk_without_device(self):
         """Test set_leds_bulk returns False when no device connected."""
-        controller = LaunchpadController()
+        controller = DeviceController()
         updates = [(0, Color(r=127, g=0, b=0)), (5, Color(r=0, g=127, b=0))]
 
         # Should return False when no device
@@ -69,7 +69,7 @@ class TestLaunchpadController:
 
     def test_set_leds_bulk_with_device(self):
         """Test set_leds_bulk delegates to device output."""
-        controller = LaunchpadController()
+        controller = DeviceController()
 
         # Mock device and output
         mock_device = Mock()
@@ -86,7 +86,7 @@ class TestLaunchpadController:
 
     def test_set_leds_bulk_handles_errors(self):
         """Test set_leds_bulk returns False on error."""
-        controller = LaunchpadController()
+        controller = DeviceController()
 
         # Mock device that raises exception
         mock_device = Mock()

@@ -1,6 +1,6 @@
-"""Device-specific implementations for different MIDI controllers."""
+"""Generic device infrastructure for grid-based MIDI controllers."""
 
-from .launchpad import LaunchpadController
+from .controller import DeviceController
 from .protocols import (
     DeviceEvent,
     PadPressEvent,
@@ -10,8 +10,12 @@ from .protocols import (
     Device,
 )
 
+# Backward compatibility alias
+LaunchpadController = DeviceController
+
 __all__ = [
-    "LaunchpadController",
+    "DeviceController",
+    "LaunchpadController",  # Deprecated
     "DeviceEvent",
     "PadPressEvent",
     "PadReleaseEvent",

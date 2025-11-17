@@ -17,7 +17,7 @@ from launchsampler.audio import AudioDevice
 from launchsampler.audio.data import AudioData
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.core.state_machine import SamplerStateMachine
-from launchsampler.devices.launchpad import LaunchpadController
+from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Set, PlaybackMode
 from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
 from launchsampler.utils import ObserverManager

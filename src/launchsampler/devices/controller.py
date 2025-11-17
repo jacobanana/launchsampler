@@ -1,4 +1,4 @@
-"""Launchpad controller."""
+"""Generic device controller for grid-based MIDI controllers."""
 
 import logging
 from typing import Optional
@@ -17,17 +17,22 @@ from launchsampler.utils import ObserverManager
 logger = logging.getLogger(__name__)
 
 
-class LaunchpadController:
+class DeviceController:
     """
-    High-level Launchpad controller.
+    High-level controller for grid-based MIDI devices.
 
-    Composes MidiManager with device registry to provide
-    a clean, user-facing API for Launchpad control.
+    Composes MidiManager with device registry to provide a clean,
+    user-facing API for controlling any supported grid device
+    (Launchpad, APC, etc.).
+
+    The controller automatically detects connected devices using the
+    registry and provides a unified API regardless of the specific
+    hardware model.
     """
 
     def __init__(self, poll_interval: float = 5.0):
         """
-        Initialize Launchpad controller.
+        Initialize device controller.
 
         Args:
             poll_interval: How often to check for device changes (seconds)
@@ -55,7 +60,7 @@ class LaunchpadController:
         self._device: Optional[GenericDevice] = None
 
     def _device_filter(self, port_name: str) -> bool:
-        """Filter function for MidiManager - detect if port matches any Launchpad."""
+        """Filter function for MidiManager - detect if port matches any supported device."""
         config = self._registry.detect_device(port_name)
         if config:
             # Cache detected config for port selection
@@ -205,9 +210,9 @@ class LaunchpadController:
             return False
 
     def start(self) -> None:
-        """Start monitoring for Launchpad devices."""
+        """Start monitoring for supported MIDI devices."""
         self._midi.start()
-        logger.info("LaunchpadController started")
+        logger.info("DeviceController started")
 
     def stop(self) -> None:
         """Stop monitoring and close connections."""
@@ -215,17 +220,17 @@ class LaunchpadController:
         if self._device:
             try:
                 self._device.output.shutdown()
-                logger.info("Launchpad device shut down")
+                logger.info("Device shut down")
             except Exception as e:
-                logger.error(f"Error shutting down Launchpad device: {e}")
+                logger.error(f"Error shutting down device: {e}")
             self._device = None
 
         self._midi.stop()
-        logger.info("LaunchpadController stopped")
+        logger.info("DeviceController stopped")
 
     def _handle_message(self, msg: mido.Message) -> None:
         """
-        Handle incoming MIDI message using Launchpad protocol.
+        Handle incoming MIDI message using device-specific protocol.
 
         Called from mido's internal I/O thread.
         """
@@ -251,7 +256,7 @@ class LaunchpadController:
                 logger.debug(f"Unhandled message: {msg}")
 
         except Exception as e:
-            logger.error(f"Error handling Launchpad message: {e}")
+            logger.error(f"Error handling MIDI message: {e}")
 
     def _handle_connection_changed(self, is_connected: bool, port_name: Optional[str]) -> None:
         """Handle MIDI connection state changes."""
@@ -284,12 +289,12 @@ class LaunchpadController:
 
     @property
     def is_connected(self) -> bool:
-        """Check if Launchpad device is connected."""
+        """Check if a device is connected."""
         return self._midi.is_connected
 
     @property
     def device_name(self) -> str:
-        """Get the model name of the connected Launchpad device."""
+        """Get the model name of the connected device."""
         if self._device:
             return self._device.config.model
         return "No Device"
