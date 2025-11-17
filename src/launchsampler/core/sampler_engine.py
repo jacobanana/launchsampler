@@ -434,7 +434,7 @@ class SamplerEngine:
                             if state.is_playing and not was_playing:
                                 self._state_machine.notify_pad_playing(pad_index)
 
-                    elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
+                    elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP, PlaybackMode.ONE_SHOT):
                         # Note: LOOP_TOGGLE ignores note off messages
                         if state.is_playing:
                             state.stop()
