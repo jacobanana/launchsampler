@@ -9,7 +9,7 @@ from launchsampler.midi import MidiManager
 from launchsampler.models import Color
 from launchsampler.protocols import MidiEvent, MidiObserver
 from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent, ControlChangeEvent
-from launchsampler.devices.registry import get_registry
+from launchsampler.devices.registry import DeviceRegistry
 from launchsampler.devices.device import GenericDevice
 from launchsampler.devices.config import DeviceConfig
 from launchsampler.utils import ObserverManager
@@ -37,8 +37,8 @@ class DeviceController:
         Args:
             poll_interval: How often to check for device changes (seconds)
         """
-        # Get device registry
-        self._registry = get_registry()
+        # Create device registry
+        self._registry = DeviceRegistry()
 
         # Detected device config (set when device is detected)
         self._detected_config: Optional[DeviceConfig] = None

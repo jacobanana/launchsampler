@@ -5,6 +5,10 @@ import logging
 from pathlib import Path
 from typing import Optional
 from .config import DeviceConfig
+from .adapters import get_adapter
+from .device import GenericDevice
+from .input import GenericInput
+
 
 logger = logging.getLogger(__name__)
 
@@ -170,10 +174,6 @@ class DeviceRegistry:
         Raises:
             ValueError: If implementation not found
         """
-        from .adapters import get_adapter
-        from .device import GenericDevice
-        from .input import GenericInput
-
         # Look up adapter classes
         adapter = get_adapter(config.implements)
         if adapter is None:
@@ -188,15 +188,3 @@ class DeviceRegistry:
 
         # Wrap in GenericDevice
         return GenericDevice(config, input_handler, output_handler)
-
-
-# Singleton instance
-_registry: Optional[DeviceRegistry] = None
-
-
-def get_registry() -> DeviceRegistry:
-    """Get singleton DeviceRegistry instance."""
-    global _registry
-    if _registry is None:
-        _registry = DeviceRegistry()
-    return _registry
