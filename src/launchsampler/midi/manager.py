@@ -22,7 +22,8 @@ class MidiManager:
         self,
         device_filter: Callable[[str], bool],
         poll_interval: float = 5.0,
-        port_selector: Optional[Callable[[list[str]], Optional[str]]] = None
+        input_port_selector: Optional[Callable[[list[str]], Optional[str]]] = None,
+        output_port_selector: Optional[Callable[[list[str]], Optional[str]]] = None
     ):
         """
         Initialize MIDI manager.
@@ -30,11 +31,13 @@ class MidiManager:
         Args:
             device_filter: Function that returns True if port name matches desired device
             poll_interval: How often to check for device changes (seconds)
-            port_selector: Optional function to select best port from candidates.
-                          If None, selects first matching port.
+            input_port_selector: Optional function to select best input port from candidates.
+                                If None, selects first matching port.
+            output_port_selector: Optional function to select best output port from candidates.
+                                 If None, selects first matching port.
         """
-        self._input_manager = MidiInputManager(device_filter, poll_interval, port_selector)
-        self._output_manager = MidiOutputManager(device_filter, poll_interval, port_selector)
+        self._input_manager = MidiInputManager(device_filter, poll_interval, input_port_selector)
+        self._output_manager = MidiOutputManager(device_filter, poll_interval, output_port_selector)
 
     def on_message(self, callback: Callable[[mido.Message], None]) -> None:
         """

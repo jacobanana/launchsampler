@@ -1,9 +1,8 @@
 """Low-level SysEx message builder for Launchpad devices."""
 
 from enum import Enum
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import mido
-from .model import LaunchpadModel
 
 
 class LightingMode(Enum):
@@ -17,9 +16,28 @@ class LightingMode(Enum):
 class LaunchpadSysEx:
     """Low-level SysEx message builder for Launchpad devices."""
 
-    def __init__(self, model: LaunchpadModel):
-        self.model = model
-        self.header = model.sysex_header
+    def __init__(self, header: list[int]):
+        """
+        Initialize with SysEx header.
+
+        Args:
+            header: Raw SysEx header bytes
+        """
+        self.header = header
+        self.model = None  # Kept for backwards compatibility
+
+    @classmethod
+    def from_header(cls, header: list[int]) -> 'LaunchpadSysEx':
+        """
+        Create LaunchpadSysEx from raw SysEx header.
+
+        Args:
+            header: Raw SysEx header bytes
+
+        Returns:
+            LaunchpadSysEx instance
+        """
+        return cls(header)
 
     def programmer_mode(self, enable: bool) -> mido.Message:
         """Build programmer mode toggle message."""

@@ -6,7 +6,7 @@ import logging
 import click
 import mido
 
-from launchsampler.devices.launchpad import LaunchpadController
+from launchsampler.devices import DeviceController
 from launchsampler.models import Color
 
 logger = logging.getLogger(__name__)
@@ -30,8 +30,8 @@ def test(verbose):
 
     click.echo("Launchpad Lighting Test\n")
 
-    # Create Launchpad controller
-    controller = LaunchpadController(poll_interval=5.0)
+    # Create device controller
+    controller = DeviceController(poll_interval=5.0)
 
     # Add handler for MIDI messages
     def message_handler(msg: mido.Message) -> None:

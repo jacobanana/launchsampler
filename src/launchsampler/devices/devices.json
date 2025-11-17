@@ -1,0 +1,82 @@
+{
+  "$schema": "./devices.schema.json",
+  "families": [
+    {
+      "family": "launchpad_mk3",
+      "manufacturer": "Novation",
+      "implements": "LaunchpadMK3",
+      "detection_patterns": ["Launchpad"],
+      "capabilities": {
+        "num_pads": 64,
+        "grid_size": 8,
+        "supports_sysex": true,
+        "supports_rgb": true
+      },
+      "input_port_selection": {
+        "windows": {
+          "prefer": ["MIDI 1"]
+        },
+        "darwin": {
+          "prefer": ["MIDI Out"],
+          "exclude": ["DAW"]
+        },
+        "linux": {
+          "prefer": ["MIDI 1"]
+        }
+      },
+      "output_port_selection": {
+        "windows": {
+          "prefer": ["MIDI 1"]
+        },
+        "darwin": {
+          "prefer": ["MIDI In"],
+          "exclude": ["DAW"]
+        },
+        "linux": {
+          "prefer": ["MIDI 1"]
+        }
+      },
+      "devices": [
+        {
+          "model": "Launchpad Pro MK3",
+          "detection_patterns": ["Launchpad Pro", "LPProMK3"],
+          "sysex_header": [0, 32, 41, 2, 14],
+          "overrides": {
+            "input_port_selection": {
+              "windows": {
+                "prefer": ["LPProMK3 MIDI 0"]
+              }
+            },
+            "output_port_selection": {
+              "windows": {
+                "prefer": ["LPProMK3 MIDI 0"]
+              }
+            }
+          }
+        },
+        {
+          "model": "Launchpad Mini MK3",
+          "detection_patterns": ["Launchpad Mini", "LPMiniMK3"],
+          "sysex_header": [0, 32, 41, 2, 13],
+          "overrides": {
+            "input_port_selection": {
+              "windows": {
+                "prefer": ["MIDIIN2 (LPMiniMK3 MIDI)"]
+              }
+            },
+            "output_port_selection": {
+              "windows": {
+                "prefer": ["MIDIOUT2 (LPMiniMK3 MIDI)"]
+              }
+            }
+          }
+        },
+        {
+          "model": "Launchpad X",
+          "detection_patterns": ["Launchpad X", "LPX"],
+          "sysex_header": [0, 32, 41, 2, 12]
+        }
+      ]
+    }
+  ]
+}

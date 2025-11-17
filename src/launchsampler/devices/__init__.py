@@ -1,22 +1,19 @@
-"""Device-specific implementations for different MIDI controllers."""
+"""Generic device infrastructure for grid-based MIDI controllers."""
 
-from .launchpad import LaunchpadController, LaunchpadDevice
+from .controller import DeviceController
 from .protocols import (
     DeviceEvent,
     PadPressEvent,
     PadReleaseEvent,
     DeviceInput,
     DeviceOutput,
-    Device,
 )
 
 __all__ = [
-    "LaunchpadController",
-    "LaunchpadDevice",
+    "DeviceController",
     "DeviceEvent",
     "PadPressEvent",
     "PadReleaseEvent",
     "DeviceInput",
     "DeviceOutput",
-    "Device",
 ]

@@ -6,10 +6,9 @@ __version__ = "0.1.0"
 from .core import SamplerEngine
 
 # Device controllers
-from .devices import LaunchpadController, LaunchpadDevice
+from .devices import DeviceController
 
 __all__ = [
     "SamplerEngine",
-    "LaunchpadController",
-    "LaunchpadDevice",
+    "DeviceController",
 ]

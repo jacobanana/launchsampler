@@ -1,43 +1,146 @@
-"""Launchpad output/LED control."""
+"""Launchpad MK3 family implementation (Pro, Mini, X)."""
 
-from typing import List, Tuple, Optional
 import logging
+from typing import Tuple, Optional, List
 from launchsampler.models import Color
 from launchsampler.devices.protocols import DeviceOutput
 from launchsampler.midi import MidiManager
-from .model import LaunchpadModel, LaunchpadInfo
-from .mapper import LaunchpadNoteMapper
-from .sysex import LaunchpadSysEx, LightingMode
+from launchsampler.devices.config import DeviceConfig
+from .launchpad_sysex import LaunchpadSysEx, LightingMode
 
 logger = logging.getLogger(__name__)
 
 
-class LaunchpadOutput(DeviceOutput):
-    """Control Launchpad LED display."""
+class LaunchpadMK3Mapper:
+    """
+    Note mapper for Launchpad MK3 family devices.
 
-    def __init__(self, midi_manager: MidiManager, info: LaunchpadInfo):
+    Maps between MIDI notes and logical pad indices/coordinates.
+    All MK3 models (Pro, Mini, X) use the same note layout in programmer mode.
+    """
+
+    # Programmer mode layout
+    # Bottom-left = note 11, bottom-right = note 18
+    # Top-left = note 81, top-right = note 88
+    # Row spacing = 10 (includes non-existent notes 19, 29, etc.)
+    PROGRAMMER_MODE_OFFSET = 11
+    PROGRAMMER_MODE_ROW_SPACING = 10
+
+    def __init__(self, config: DeviceConfig):
         """
-        Initialize Launchpad output controller.
+        Initialize note mapper.
+
+        Args:
+            config: Device configuration
+        """
+        self.config = config
+        self.offset = self.PROGRAMMER_MODE_OFFSET
+        self.row_spacing = self.PROGRAMMER_MODE_ROW_SPACING
+
+    def note_to_index(self, note: int) -> Optional[int]:
+        """
+        Convert MIDI note to logical pad index (0-63).
+
+        Args:
+            note: MIDI note number
+
+        Returns:
+            Pad index (0-63) or None if invalid note
+        """
+        x, y = self.note_to_xy(note)
+        if x is None or y is None:
+            return None
+
+        return y * 8 + x
+
+    def note_to_xy(self, note: int) -> Tuple[Optional[int], Optional[int]]:
+        """
+        Convert MIDI note to (x, y) coordinates.
+
+        Args:
+            note: MIDI note number
+
+        Returns:
+            (x, y) tuple or (None, None) if invalid
+        """
+        if note < self.offset or note > (self.offset + 7 * self.row_spacing + 7):
+            return (None, None)
+
+        adjusted = note - self.offset
+        row = adjusted // self.row_spacing
+        col = adjusted % self.row_spacing
+
+        if col > 7 or row > 7:
+            return (None, None)
+
+        return (col, row)
+
+    def index_to_note(self, index: int) -> Optional[int]:
+        """
+        Convert logical pad index to MIDI note.
+
+        Args:
+            index: Pad index (0-63)
+
+        Returns:
+            MIDI note number or None if invalid index
+        """
+        if not 0 <= index < 64:
+            return None
+
+        row = index // 8
+        col = index % 8
+
+        return self.xy_to_note(col, row)
+
+    def xy_to_note(self, x: int, y: int) -> Optional[int]:
+        """
+        Convert (x, y) coordinates to MIDI note.
+
+        Args:
+            x: column (0-7)
+            y: row (0-7)
+
+        Returns:
+            MIDI note number or None if invalid coordinates
+        """
+        if not (0 <= x < 8 and 0 <= y < 8):
+            return None
+
+        return self.offset + (y * self.row_spacing) + x
+
+
+class LaunchpadMK3Output(DeviceOutput):
+    """
+    Output controller for Launchpad MK3 family.
+
+    Handles LED control and device initialization for
+    Launchpad Pro MK3, Mini MK3, and X models.
+    """
+
+    def __init__(self, midi_manager: MidiManager, config: DeviceConfig):
+        """
+        Initialize Launchpad MK3 output controller.
 
         Args:
             midi_manager: MIDI manager for sending messages
-            info: Launchpad device information
+            config: Device configuration with SysEx header
         """
         self.midi = midi_manager
-        self.info = info
-        self.mapper = LaunchpadNoteMapper(info.model)
-        self.sysex = LaunchpadSysEx(info.model)
+        self.config = config
+        self.mapper = LaunchpadMK3Mapper(config)
+        self.sysex = LaunchpadSysEx.from_header(config.sysex_header)
         self._initialized = False
 
     def initialize(self) -> None:
         """Enter programmer mode."""
         if self._initialized:
-            logger.warning("LaunchpadOutput already initialized")
+            logger.warning(f"{self.config.model} already initialized")
             return
 
         msg = self.sysex.programmer_mode(enable=True)
         if self.midi.send(msg):
-            logger.info(f"Entered programmer mode ({self.info.model.display_name})")
+            logger.info(f"Entered programmer mode ({self.config.model})")
             self._initialized = True
         else:
             logger.error("Failed to enter programmer mode")
@@ -64,13 +167,11 @@ class LaunchpadOutput(DeviceOutput):
             index: Logical pad index (0-63)
             color: RGB color (0-127 per channel)
         """
-        # Convert logical index to hardware note
         note = self.mapper.index_to_note(index)
         if note is None:
             logger.error(f"Invalid pad index: {index}")
             return
 
-        # Build SysEx with RGB mode
         spec = (LightingMode.RGB.value, note, color.r, color.g, color.b)
         msg = self.sysex.led_lighting([spec])
 
@@ -87,7 +188,6 @@ class LaunchpadOutput(DeviceOutput):
         if not updates:
             return
 
-        # Convert all indices to notes
         specs = []
         for index, color in updates:
             note = self.mapper.index_to_note(index)
@@ -110,8 +210,6 @@ class LaunchpadOutput(DeviceOutput):
         """
         Set LED to flash using palette color.
 
-        Flashes between off (black) and the specified color.
-
         Args:
             index: Logical pad index (0-63)
             color: Palette color index (0-127)
@@ -121,7 +219,6 @@ class LaunchpadOutput(DeviceOutput):
             logger.error(f"Invalid pad index: {index}")
             return
 
-        # Flashing requires two colors: color_b (off state), color_a (on state)
         spec = (LightingMode.FLASHING.value, note, 0, color)
         msg = self.sysex.led_lighting([spec])
 
@@ -168,18 +265,12 @@ class LaunchpadOutput(DeviceOutput):
 
     def set_control_led(self, cc_number: int, color: Color) -> None:
         """
-        Set LED for a control button (CC control) using RGB color.
-
-        Control buttons are the top row and side buttons on the Launchpad
-        that send CC messages rather than note messages. In programmer mode,
-        these can be lit up using their CC number directly as the LED index.
+        Set LED for control button using RGB color.
 
         Args:
-            cc_number: MIDI CC control number (e.g., 19 for panic button)
+            cc_number: MIDI CC control number
             color: RGB color (0-127 per channel)
         """
-        # In programmer mode, CC controls use their CC number as the LED index
-        # For example, CC 19 uses LED index 19
         spec = (LightingMode.RGB.value, cc_number, color.r, color.g, color.b)
         msg = self.sysex.led_lighting([spec])
 
@@ -190,7 +281,7 @@ class LaunchpadOutput(DeviceOutput):
 
     def set_control_led_static(self, cc_number: int, palette_color: int) -> None:
         """
-        Set LED for a control button using palette color.
+        Set LED for control button using palette color.
 
         Args:
             cc_number: MIDI CC control number
@@ -206,7 +297,6 @@ class LaunchpadOutput(DeviceOutput):
 
     def clear_all(self) -> None:
         """Clear all LEDs (set to black)."""
-        # Clear all 64 pads by iterating logical indices
         specs = []
         for index in range(64):
             note = self.mapper.index_to_note(index)

@@ -12,7 +12,7 @@ from typing import Optional
 
 from launchsampler.core.player import Player
 from launchsampler.core.state_machine import SamplerStateMachine
-from launchsampler.devices.launchpad import LaunchpadController
+from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
 from launchsampler.services import EditorService, SetManagerService
@@ -75,7 +75,7 @@ class LaunchpadSamplerApp:
 
         # Shared resources - hardware and state
         self.state_machine = SamplerStateMachine()
-        self.midi_controller: Optional[LaunchpadController] = None
+        self.midi_controller: Optional[DeviceController] = None
 
         # Services (domain logic)
         self.set_manager: Optional[SetManagerService] = None
@@ -216,7 +216,7 @@ class LaunchpadSamplerApp:
     def _start_midi(self) -> bool:
         """Start MIDI controller (shared resource)."""
         try:
-            self.midi_controller = LaunchpadController(
+            self.midi_controller = DeviceController(
                 poll_interval=self.config.midi_poll_interval
             )
             self.midi_controller.start()
