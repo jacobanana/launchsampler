@@ -15,7 +15,7 @@ from launchsampler.services import EditorService, SetManagerService
 from launchsampler.protocols import AppEvent, SelectionEvent
 
 from .decorators import edit_only
-from .services import TUIService
+from .services import TUIService, NavigationService
 from .widgets import (
     PadGrid,
     PadDetailsPanel,
@@ -120,7 +120,10 @@ class LaunchpadSampler(App):
         # UI-specific ephemeral state (not persisted)
         self._selected_pad_index: Optional[int] = None
 
+        # Services
         self.tui_service: Optional[TUIService] = None  # Initialized in initialize()
+        self.navigation: NavigationService = NavigationService(orchestrator.launchpad)
+
         self._selection_observers: list = []  # For SelectionObserver pattern
         self._initialized = False  # Track initialization state
         logger.info("LaunchpadSampler TUI created")
@@ -871,10 +874,8 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
-
-        if y < self.launchpad.GRID_SIZE - 1:
-            new_index = self.launchpad.xy_to_note(x, y + 1)
+        new_index = self.navigation.get_neighbor(self.selected_pad_index, "up")
+        if new_index is not None:
             try:
                 self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -885,10 +886,8 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
-
-        if y > 0:
-            new_index = self.launchpad.xy_to_note(x, y - 1)
+        new_index = self.navigation.get_neighbor(self.selected_pad_index, "down")
+        if new_index is not None:
             try:
                 self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -899,10 +898,8 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
-
-        if x > 0:
-            new_index = self.launchpad.xy_to_note(x - 1, y)
+        new_index = self.navigation.get_neighbor(self.selected_pad_index, "left")
+        if new_index is not None:
             try:
                 self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -913,10 +910,8 @@ class LaunchpadSampler(App):
         if self._sampler_mode != "edit" or self.selected_pad_index is None:
             return
 
-        x, y = self.launchpad.note_to_xy(self.selected_pad_index)
-
-        if x < self.launchpad.GRID_SIZE - 1:
-            new_index = self.launchpad.xy_to_note(x + 1, y)
+        new_index = self.navigation.get_neighbor(self.selected_pad_index, "right")
+        if new_index is not None:
             try:
                 self.select_pad(new_index)  # Event system handles UI sync
             except Exception as e:
@@ -1012,41 +1007,6 @@ class LaunchpadSampler(App):
     # Operation Helpers - Internal helpers for pad operations
     # =================================================================
 
-    def _get_directional_target(self, source_index: int, direction: str) -> Optional[int]:
-        """Get target pad index from source + direction.
-
-        Args:
-            source_index: Current pad index
-            direction: One of "up", "down", "left", "right"
-
-        Returns:
-            Target pad index, or None if at edge (cannot move in that direction)
-        """
-        x, y = self.current_set.launchpad.note_to_xy(source_index)
-
-        # Check bounds BEFORE calculating target (like navigation does)
-        if direction == "up":
-            if y >= self.launchpad.GRID_SIZE - 1:  # Already at top
-                return None
-            y = y + 1
-        elif direction == "down":
-            if y <= 0:  # Already at bottom
-                return None
-            y = y - 1
-        elif direction == "left":
-            if x <= 0:  # Already at left edge
-                return None
-            x = x - 1
-        elif direction == "right":
-            if x >= self.launchpad.GRID_SIZE - 1:  # Already at right edge
-                return None
-            x = x + 1
-        else:
-            return None
-
-        target = self.current_set.launchpad.xy_to_note(x, y)
-        return target
-
     @edit_only
     def _duplicate_directional(self, direction: str) -> None:
         """Duplicate pad in given direction."""
@@ -1055,7 +1015,7 @@ class LaunchpadSampler(App):
             self.notify("Select a pad first", severity="warning")
             return
 
-        target_index = self._get_directional_target(selected_pad, direction)
+        target_index = self.navigation.get_neighbor(selected_pad, direction)  # type: ignore
         if target_index is None:
             self.notify("Cannot duplicate: At grid edge", severity="warning")
             return
@@ -1110,7 +1070,7 @@ class LaunchpadSampler(App):
             self.notify("Select a pad first", severity="warning")
             return
 
-        target_index = self._get_directional_target(selected_pad, direction)
+        target_index = self.navigation.get_neighbor(selected_pad, direction)  # type: ignore
         if target_index is None:
             self.notify("Cannot move: At grid edge", severity="warning")
             return
