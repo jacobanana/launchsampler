@@ -40,12 +40,15 @@ This will:
 - Scan all Python modules in `src/launchsampler/`
 - Generate markdown files with `:::` directives in `docs/api/`
 - Create package overview pages
-- Update navigation structure in `docs/api_nav.yml`
+- **Automatically update the API Reference section in `mkdocs.yml`** using PyYAML for proper formatting
+- Save navigation structure to `docs/api_nav.yml` (for reference)
 
 **When to regenerate:**
 - After adding new modules or packages
 - After restructuring the codebase
 - When you want the latest docstrings in docs
+
+**No manual copying needed!** The script automatically updates `mkdocs.yml` for you.
 
 ### Serve Documentation
 

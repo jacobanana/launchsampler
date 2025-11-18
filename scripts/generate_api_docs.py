@@ -7,7 +7,8 @@ markdown files with mkdocstrings directives for each module.
 """
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Any
+import yaml
 
 
 def get_module_path(file_path: Path, src_root: Path) -> str:
@@ -71,8 +72,13 @@ def create_title_from_filename(filename: str) -> str:
 
 
 def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]) -> str:
-    """Generate navigation structure for mkdocs.yml."""
-    nav_lines = ["  - API Reference:"]
+    """
+    Generate navigation structure for mkdocs.yml using PyYAML.
+
+    This ensures proper YAML formatting with quotes where needed.
+    """
+    # Build the navigation structure as a Python data structure
+    api_reference_items = []
 
     for package_name in packages_to_document.keys():
         package_dir = docs_root / package_name
@@ -81,8 +87,9 @@ def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]
 
         # Add package section
         title = package_name.capitalize()
-        nav_lines.append(f"      - {title}:")
-        nav_lines.append(f"          - Overview: api/{package_name}/index.md")
+        package_items = [
+            {"Overview": f"api/{package_name}/index.md"}
+        ]
 
         # Find all markdown files except index
         md_files = sorted(
@@ -93,14 +100,57 @@ def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]
             rel_path = md_file.relative_to(docs_root)
             file_title = create_title_from_filename(md_file.name)
 
-            # Handle nested structure (like adapters/)
+            # Handle nested structure (like adapters/, screens/, services/, widgets/)
             if md_file.parent != package_dir:
                 subdir = md_file.parent.name.capitalize()
                 file_title = f"{subdir}: {file_title}"
 
-            nav_lines.append(f"          - {file_title}: api/{rel_path.as_posix()}")
+            package_items.append({file_title: f"api/{rel_path.as_posix()}"})
 
-    return "\n".join(nav_lines)
+        api_reference_items.append({title: package_items})
+
+    # Create the full API Reference structure
+    api_reference = [{"API Reference": api_reference_items}]
+
+    # Convert to YAML with proper indentation (2 spaces)
+    yaml_output = yaml.dump(
+        api_reference,
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+        width=1000  # Avoid line wrapping
+    )
+
+    # Add proper indentation for mkdocs.yml (starts at 2 spaces)
+    lines = yaml_output.strip().split('\n')
+    indented_lines = ['  ' + line for line in lines]
+
+    return '\n'.join(indented_lines)
+
+
+def update_mkdocs_nav(mkdocs_path: Path, new_api_nav: str) -> None:
+    """
+    Update the API Reference section in mkdocs.yml.
+
+    Args:
+        mkdocs_path: Path to mkdocs.yml
+        new_api_nav: New API Reference navigation structure
+    """
+    import re
+
+    # Read current mkdocs.yml
+    content = mkdocs_path.read_text(encoding="utf-8")
+
+    # Pattern to match the API Reference section
+    # Matches from "  - API Reference:" to the line before the next top-level section
+    pattern = r"(  - API Reference:.*?)(\n  - [A-Z])"
+
+    # Replace the API Reference section
+    replacement = new_api_nav + r"\2"
+    new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+    # Write back
+    mkdocs_path.write_text(new_content, encoding="utf-8")
 
 
 def main():
@@ -114,11 +164,13 @@ def main():
     # Configuration: which packages to document
     packages_to_document = {
         "core": "Audio playback engine and state management",
-        "models": "Pydantic data models for configuration and state",
-        "devices": "MIDI device interface and hardware adapters",
         "audio": "Low-level audio primitives and sample loading",
         "midi": "MIDI input/output management",
+        "devices": "MIDI device interface and hardware adapters",
+        "tui": "Terminal user interface",
+        "led_ui": "Hardware LED grid user interface support",
         "services": "Business logic services",
+        "models": "Pydantic data models for configuration and state",
         "utils": "Utility functions and helper classes",
     }
 
@@ -167,7 +219,13 @@ def main():
     nav_file = project_root / "docs" / "api_nav.yml"
     nav_file.write_text(nav_structure, encoding="utf-8")
     print(f"Navigation structure saved to: {nav_file.relative_to(project_root)}")
-    print("\nYou can copy this navigation structure into your mkdocs.yml file.")
+
+    # Update mkdocs.yml automatically
+    print("\nUpdating mkdocs.yml...")
+    mkdocs_file = project_root / "mkdocs.yml"
+    update_mkdocs_nav(mkdocs_file, nav_structure)
+    print(f"Updated API Reference section in mkdocs.yml")
+
     print("\nRun 'uv run mkdocs serve' to preview the documentation.")
 
 
