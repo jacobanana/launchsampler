@@ -11,7 +11,9 @@
       "Bash(done)",
       "Bash(gh pr view:*)",
       "Bash(gh pr diff:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(gh pr list:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
