@@ -27,7 +27,7 @@ class TestCLIHelp:
         result = runner.invoke(cli, ['--help'])
         assert result.exit_code == 0
         assert 'Launchpad Sampler' in result.output
-        assert 'MIDI-controlled audio sampler' in result.output
+        assert 'MIDI-controlled audio sample player' in result.output
 
     def test_version_flag(self, runner):
         """Test --version flag works."""

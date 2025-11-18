@@ -11,7 +11,7 @@ launchsampler
 The application will start in **Play Mode** with an empty set.
 
 !!! tip "First Run"
-    On first run, LaunchSampler creates a config file at `~/.config/launchsampler/config.json`
+    On first run, LaunchSampler creates a config file at `~/.launchsampler/config.json`
 
 ## 2. Switch to Edit Mode
 
@@ -68,14 +68,14 @@ Press number keys to set playback mode:
 
 ### Test Playback
 
-- Press ++space++ to test the selected pad
-- Or click the **Test** button in the details panel
+- Press the associated pad on your MIDI controller
+- Or Press ++space++ to test the selected pad
 
 ## 5. Save Your Set
 
 Press ++ctrl+s++ to save your set:
 
-1. Choose a location (defaults to `~/.config/launchsampler/sets/`)
+1. Choose a location (defaults to `~/.launchsampler/sets/`)
 2. Enter a name for your set
 3. Your set is saved as a `.json` file
 

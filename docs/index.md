@@ -28,6 +28,14 @@ Welcome to **LaunchSampler** - a powerful, Python-based sampler that transforms 
 
     [:octicons-arrow-right-24: Read the guide](user-guide/overview.md)
 
+-   :material-wrench:{ .lg .middle } __Troubleshooting__
+
+    ---
+
+    Solve common audio, MIDI, and configuration issues
+
+    [:octicons-arrow-right-24: Get help](troubleshooting.md)
+
 -   :material-file-code:{ .lg .middle } __API Reference__
 
     ---
