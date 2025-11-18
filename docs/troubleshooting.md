@@ -31,7 +31,7 @@ For more information about logging options, see the [Logging section in Configur
    Edit `~/.launchsampler/config.json`:
    ```json
    {
-     "buffer_size": 1024
+     "default_buffer_size": 1024
    }
    ```
 
@@ -50,7 +50,7 @@ For more information about logging options, see the [Logging section in Configur
 1. **Decrease buffer size** (if your system can handle it):
    ```json
    {
-     "buffer_size": 256
+     "default_buffer_size": 256
    }
    ```
 
@@ -77,7 +77,7 @@ For more information about logging options, see the [Logging section in Configur
    Note the device ID and update config:
    ```json
    {
-     "audio_device_id": 3
+     "default_audio_device": 3
    }
    ```
 
@@ -111,8 +111,8 @@ For more information about logging options, see the [Logging section in Configur
 2. **Set device explicitly in config:**
    ```json
    {
-     "audio_device_api": "WASAPI",
-     "audio_device_id": 3
+     
+     "default_audio_device": 3
    }
    ```
 
@@ -319,7 +319,7 @@ For more information about logging options, see the [Logging section in Configur
 5. **Increase buffer size** to reduce CPU load:
    ```json
    {
-     "buffer_size": 1024
+     "default_buffer_size": 1024
    }
    ```
 
@@ -395,7 +395,7 @@ For more information about logging options, see the [Logging section in Configur
 
 4. **Manually create config:**
    ```bash
-   echo '{"sample_rate": 44100, "buffer_size": 512}' > ~/.launchsampler/config.json
+   echo '{"default_buffer_size": 512}' > ~/.launchsampler/config.json
    ```
 
 ### Invalid Config Values
@@ -416,9 +416,9 @@ For more information about logging options, see the [Logging section in Configur
    ```
 
 3. **Check value ranges:**
-   - `sample_rate`: 44100, 48000, or 96000
-   - `buffer_size`: 128, 256, 512, 1024, or 2048
-   - `audio_device_id`: Valid device ID from `launchsampler audio list`
+   - `default_buffer_size`: 128, 256, 512, 1024, or 2048
+   - `default_audio_device`: Valid device ID from `launchsampler audio list`
+   - `midi_poll_interval`: Any positive float (typically 0.5 to 5.0 seconds)
 
 4. **Review config documentation:**
    See [Configuration Guide](getting-started/configuration.md) for all valid options
@@ -442,7 +442,7 @@ For logging-specific troubleshooting (log files not created, empty logs, etc.), 
 1. **Increase buffer size:**
    ```json
    {
-     "buffer_size": 1024
+     "default_buffer_size": 1024
    }
    ```
 
@@ -450,16 +450,9 @@ For logging-specific troubleshooting (log files not created, empty logs, etc.), 
    - Use one-shot mode instead of loop
    - Limit number of playing samples
 
-3. **Lower sample rate:**
-   ```json
-   {
-     "sample_rate": 44100
-   }
-   ```
+3. **Close other applications**
 
-4. **Close other applications**
-
-5. **Check for debug logging:**
+4. **Check for debug logging:**
    - Disable verbose logging in production
    - Use default logging level (WARNING)
 
@@ -512,8 +505,8 @@ For logging-specific troubleshooting (log files not created, empty logs, etc.), 
 3. **Set in LaunchSampler config:**
    ```json
    {
-     "audio_device_api": "ASIO",
-     "audio_device_id": 0
+     
+     "default_audio_device": 0
    }
    ```
 

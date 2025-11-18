@@ -219,6 +219,7 @@ nav:
       - Overview: api/utils/index.md
       - Observer Manager: api/utils/observer_manager.md
       - Paths: api/utils/paths.md
+  - Troubleshooting: troubleshooting.md
   - Contributing:
       - Development Setup: contributing/development-setup.md
       - Code Style: contributing/code-style.md

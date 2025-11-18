@@ -18,54 +18,69 @@ LaunchSampler uses a JSON configuration file to store settings. The config is au
 
 ```json
 {
-  "audio_device_api": null,
-  "audio_device_id": null,
-  "sample_rate": 44100,
-  "buffer_size": 512,
-  "default_mode": "play",
-  "sets_dir": "~/.launchsampler/sets"
+  "sets_dir": "~/.launchsampler/sets",
+  "default_audio_device": null,
+  "default_buffer_size": 512,
+  "midi_poll_interval": 2.0,
+  "panic_button_cc_control": 19,
+  "panic_button_cc_value": 127,
+  "last_set": null,
+  "auto_save": true
 }
 ```
 
 ## Configuration Options
 
-### Audio Settings
-
-#### `audio_device_api`
-- **Type:** `string | null`
-- **Default:** `null` (auto-detect)
-- **Description:** Audio API to use (e.g., "MME", "DirectSound", "WASAPI", "ASIO" on Windows)
-
-#### `audio_device_id`
-- **Type:** `integer | null`
-- **Default:** `null` (use default device)
-- **Description:** Specific audio device ID to use
-
-#### `sample_rate`
-- **Type:** `integer`
-- **Default:** `44100`
-- **Options:** `44100`, `48000`, `96000`
-- **Description:** Audio sample rate in Hz
-
-#### `buffer_size`
-- **Type:** `integer`
-- **Default:** `512`
-- **Options:** `128`, `256`, `512`, `1024`, `2048`
-- **Description:** Audio buffer size in frames
-- **Note:** Lower = less latency, higher CPU usage
-
-### Application Settings
-
-#### `default_mode`
-- **Type:** `string`
-- **Default:** `"play"`
-- **Options:** `"edit"`, `"play"`
-- **Description:** Mode to start in
+### Path Settings
 
 #### `sets_dir`
 - **Type:** `string`
 - **Default:** `"~/.launchsampler/sets"`
 - **Description:** Default directory for saving/loading sets
+
+### Audio Settings
+
+#### `default_audio_device`
+- **Type:** `integer | null`
+- **Default:** `null` (use system default)
+- **Description:** Default audio output device ID
+- **Note:** Use `launchsampler audio list` to find device IDs
+
+#### `default_buffer_size`
+- **Type:** `integer`
+- **Default:** `512`
+- **Common values:** `128`, `256`, `512`, `1024`, `2048`
+- **Description:** Audio buffer size in frames
+- **Note:** Lower = less latency but higher CPU usage; higher = more stable but more latency
+
+### MIDI Settings
+
+#### `midi_poll_interval`
+- **Type:** `float`
+- **Default:** `2.0`
+- **Description:** How often to check for MIDI device changes (in seconds)
+
+#### `panic_button_cc_control`
+- **Type:** `integer`
+- **Default:** `19`
+- **Description:** MIDI CC control number for panic button (stops all audio)
+
+#### `panic_button_cc_value`
+- **Type:** `integer`
+- **Default:** `127`
+- **Description:** MIDI CC value that triggers the panic button
+
+### Session Settings
+
+#### `last_set`
+- **Type:** `string | null`
+- **Default:** `null`
+- **Description:** Name of the last loaded set (auto-updated)
+
+#### `auto_save`
+- **Type:** `boolean`
+- **Default:** `true`
+- **Description:** Automatically save changes to sets
 
 ## Listing Available Devices
 
@@ -110,51 +125,57 @@ Available MIDI Output Devices:
 
 ## Example Configurations
 
-### Low Latency (ASIO)
+### Low Latency Setup
 
-For professional audio interfaces with ASIO support:
+For low-latency performance with a quality audio interface:
 
 ```json
 {
-  "audio_device_api": "ASIO",
-  "audio_device_id": 0,
-  "sample_rate": 48000,
-  "buffer_size": 128,
-  "default_mode": "play",
-  "sets_dir": "~/Music/LaunchSampler/Sets"
+  "sets_dir": "~/Music/LaunchSampler/Sets",
+  "default_audio_device": 2,
+  "default_buffer_size": 128,
+  "midi_poll_interval": 2.0,
+  "panic_button_cc_control": 19,
+  "panic_button_cc_value": 127,
+  "last_set": null,
+  "auto_save": true
 }
 ```
 
 !!! warning "Low Latency"
     Buffer size of 128 provides ~3ms latency but requires fast CPU and quality audio interface
 
-### High Compatibility (Default Device)
+### High Compatibility (Default)
 
-For maximum compatibility:
+For maximum compatibility using system defaults:
 
 ```json
 {
-  "audio_device_api": null,
-  "audio_device_id": null,
-  "sample_rate": 44100,
-  "buffer_size": 512,
-  "default_mode": "play",
-  "sets_dir": "~/.launchsampler/sets"
+  "sets_dir": "~/.launchsampler/sets",
+  "default_audio_device": null,
+  "default_buffer_size": 512,
+  "midi_poll_interval": 2.0,
+  "panic_button_cc_control": 19,
+  "panic_button_cc_value": 127,
+  "last_set": null,
+  "auto_save": true
 }
 ```
 
-### Production Setup (USB Audio Interface)
+### Balanced Setup
 
-For USB audio interfaces:
+For balanced performance and stability:
 
 ```json
 {
-  "audio_device_api": "WASAPI",
-  "audio_device_id": 3,
-  "sample_rate": 48000,
-  "buffer_size": 256,
-  "default_mode": "play",
-  "sets_dir": "~/Documents/LaunchSampler"
+  "sets_dir": "~/Documents/LaunchSampler",
+  "default_audio_device": 3,
+  "default_buffer_size": 256,
+  "midi_poll_interval": 1.0,
+  "panic_button_cc_control": 19,
+  "panic_button_cc_value": 127,
+  "last_set": "my-drums",
+  "auto_save": true
 }
 ```
 
@@ -182,9 +203,10 @@ from pathlib import Path
 config = AppConfig.load_or_default()
 
 # Modify settings
-config.audio_device_api = "WASAPI"
-config.buffer_size = 256
-config.sample_rate = 48000
+config.default_audio_device = 3
+config.default_buffer_size = 256
+config.midi_poll_interval = 1.0
+config.auto_save = True
 
 # Save config
 config.save()
@@ -523,7 +545,7 @@ When reporting issues or debugging problems:
 **Increase buffer size:**
 ```json
 {
-  "buffer_size": 1024
+  "default_buffer_size": 1024
 }
 ```
 
@@ -532,23 +554,21 @@ When reporting issues or debugging problems:
 **Decrease buffer size** (if your system can handle it):
 ```json
 {
-  "buffer_size": 256
+  "default_buffer_size": 256
 }
 ```
-
-Or use a better audio API (ASIO on Windows, CoreAudio on macOS).
 
 ### Wrong Audio Device
 
 **List devices and set explicitly:**
 ```bash
-launchsampler --list-audio
+launchsampler audio list
 ```
 
 Then set the device ID in config:
 ```json
 {
-  "audio_device_id": 3
+  "default_audio_device": 3
 }
 ```
 
