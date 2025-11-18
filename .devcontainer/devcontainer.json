@@ -2,10 +2,6 @@
   "name": "Launchsampler Development",
   "image": "mcr.microsoft.com/devcontainers/python:3.13",
 
-  "features": {
-    "ghcr.io/astral-sh/uv/devcontainer-feature:latest": {}
-  },
-
   "customizations": {
     "vscode": {
       "extensions": [
@@ -21,7 +17,7 @@
     }
   },
 
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libasound2-dev libjack-dev && uv sync --all-groups",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libasound2-dev libjack-dev && curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv sync --all-groups",
 
   "forwardPorts": [],
 
