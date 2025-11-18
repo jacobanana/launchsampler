@@ -35,13 +35,13 @@ class TestCLIHelp:
         assert result.exit_code == 0
         assert '0.1.0' in result.output
 
-    def test_run_help(self, runner):
-        """Test run command help."""
-        result = runner.invoke(cli, ['run', '--help'])
+    def test_main_options(self, runner):
+        """Test main CLI options (run is now default)."""
+        result = runner.invoke(cli, ['--help'])
         assert result.exit_code == 0
-        assert 'Launch Launchpad Sampler TUI' in result.output
         assert '--mode' in result.output
         assert '--set' in result.output
+        assert '--samples-dir' in result.output
 
     def test_audio_help(self, runner):
         """Test audio command help."""
@@ -61,11 +61,11 @@ class TestCLIHelp:
 
 @pytest.mark.integration
 class TestRunCommand:
-    """Test the run command argument validation."""
+    """Test the main CLI command argument validation."""
 
     def test_run_with_invalid_mode(self, runner):
         """Test that invalid mode is rejected."""
-        result = runner.invoke(cli, ['run', '--mode', 'invalid'])
+        result = runner.invoke(cli, ['--mode', 'invalid'])
         assert result.exit_code != 0
         assert 'Invalid value' in result.output or 'invalid choice' in result.output.lower()
 
@@ -75,13 +75,13 @@ class TestRunCommand:
         for mode in ['edit', 'play']:
             # We can't actually run the TUI in tests, but we can check
             # that the argument is parsed correctly by checking help
-            result = runner.invoke(cli, ['run', '--help'])
+            result = runner.invoke(cli, ['--help'])
             assert result.exit_code == 0
             assert mode in result.output.lower()
 
     def test_run_with_nonexistent_directory(self, runner):
         """Test that non-existent directory is rejected."""
-        result = runner.invoke(cli, ['run', '/nonexistent/directory/path'])
+        result = runner.invoke(cli, ['--samples-dir', '/nonexistent/directory/path'])
         assert result.exit_code != 0
         # Click will complain about the path not existing
 
@@ -93,12 +93,12 @@ class TestRunCommand:
 
         # We can't actually run the app, but we can verify the path validates
         # by mocking the actual run
-        with patch('launchsampler.cli.commands.run.LaunchpadSamplerApp'):
-            with patch('launchsampler.cli.commands.run.LaunchpadSampler'):
-                with patch('launchsampler.cli.commands.run.AppConfig') as mock_config:
+        with patch('launchsampler.cli.main.LaunchpadSamplerApp'):
+            with patch('launchsampler.cli.main.LaunchpadSampler'):
+                with patch('launchsampler.cli.main.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
                     # This will try to run, so we catch it before it actually starts
-                    result = runner.invoke(cli, ['run', str(samples_dir)], catch_exceptions=False)
+                    result = runner.invoke(cli, ['--samples-dir', str(samples_dir)], catch_exceptions=False)
                     # It should parse successfully (even if it doesn't run fully)
 
 
@@ -181,19 +181,19 @@ class TestCLIErrorHandling:
         # Click will show an error about unknown command
 
     def test_run_with_both_set_and_directory_shows_error(self, runner, temp_dir):
-        """Test that providing both --set and directory shows appropriate behavior."""
+        """Test that providing both --set and --samples-dir shows appropriate behavior."""
         samples_dir = temp_dir / "samples"
         samples_dir.mkdir()
 
-        # The run command accepts both --set and samples_dir
+        # The CLI accepts both --set and --samples-dir
         # Check that it parses correctly
-        with patch('launchsampler.cli.commands.run.LaunchpadSamplerApp'):
-            with patch('launchsampler.cli.commands.run.LaunchpadSampler'):
-                with patch('launchsampler.cli.commands.run.AppConfig') as mock_config:
+        with patch('launchsampler.cli.main.LaunchpadSamplerApp'):
+            with patch('launchsampler.cli.main.LaunchpadSampler'):
+                with patch('launchsampler.cli.main.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
                     result = runner.invoke(
                         cli,
-                        ['run', '--set', 'test-set', str(samples_dir)],
+                        ['--set', 'test-set', '--samples-dir', str(samples_dir)],
                         catch_exceptions=False
                     )
                     # Should parse (implementation accepts both)
@@ -214,7 +214,7 @@ class TestCLIIntegration:
 
     def test_cli_commands_dont_crash_on_help(self, runner):
         """Test that all commands can show help without crashing."""
-        commands = ['run', 'audio', 'midi', 'config', 'test']
+        commands = ['audio', 'midi', 'config', 'test']
 
         for cmd in commands:
             result = runner.invoke(cli, [cmd, '--help'])

@@ -55,13 +55,16 @@ Press number keys to set playback mode:
 
 - ++1++ - **One-Shot**: Play sample once from start to end
 - ++2++ - **Hold**: Play while pad is held, stop when released
-- ++3++ - **Loop**: Loop continuously until stopped
+- ++3++ - **Loop**: Loop continuously until the pad is released
 - ++4++ - **Loop Toggle**: Toggle loop on/off with each press
+
+### Sample name
+
+- Set a name for your pad, defaults to file name
 
 ### Adjust Volume
 
-- Use the volume slider in the Pad Details Panel
-- Or edit directly in the volume field
+- You can edit the volume with the volume field
 
 ### Test Playback
 
