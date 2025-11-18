@@ -111,14 +111,11 @@ class TestAudioCommands:
         result = runner.invoke(cli, ['audio', 'list', '--help'])
         assert result.exit_code == 0
 
-    @patch('launchsampler.audio.AudioDevice.list_devices')
+    @patch('launchsampler.audio.AudioDevice.list_output_devices')
     def test_audio_list_runs(self, mock_list_devices, runner):
         """Test that 'audio list' command runs without crashing."""
         # Mock the device listing
-        mock_list_devices.return_value = [
-            {'name': 'Test Device 1', 'index': 0, 'channels': 2},
-            {'name': 'Test Device 2', 'index': 1, 'channels': 2},
-        ]
+        mock_list_devices.return_value = ([], "ASIO/WASAPI")
 
         result = runner.invoke(cli, ['audio', 'list'])
         # Should succeed
@@ -209,11 +206,11 @@ class TestCLIIntegration:
     @patch('launchsampler.cli.commands.audio.AudioDevice')
     def test_audio_list_integration(self, mock_audio_device, runner):
         """Test audio list integrates with AudioDevice correctly."""
-        mock_audio_device.list_devices.return_value = []
+        mock_audio_device.list_output_devices.return_value = ([], "ASIO/WASAPI")
 
         result = runner.invoke(cli, ['audio', 'list'])
-        # Should call AudioDevice.list_devices
-        assert mock_audio_device.list_devices.called or result.exit_code == 0
+        # Should call AudioDevice.list_output_devices
+        assert mock_audio_device.list_output_devices.called or result.exit_code == 0
 
     def test_cli_commands_dont_crash_on_help(self, runner):
         """Test that all commands can show help without crashing."""

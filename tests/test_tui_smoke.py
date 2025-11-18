@@ -44,6 +44,9 @@ class TestTUILaunch:
         # Create TUI
         app = LaunchpadSampler(orchestrator, start_mode="edit")
 
+        # Initialize TUI before running
+        app.initialize()
+
         # Run TUI in test mode
         async with app.run_test() as pilot:
             # TUI should have started
@@ -61,6 +64,7 @@ class TestTUILaunch:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             # Wait for app to mount
@@ -82,6 +86,7 @@ class TestTUILaunch:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -110,6 +115,7 @@ class TestTUINavigation:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -137,6 +143,7 @@ class TestTUINavigation:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -164,6 +171,7 @@ class TestTUIModeSwitching:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="play")
         app = LaunchpadSampler(orchestrator, start_mode="play")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -189,6 +197,7 @@ class TestTUIModeSwitching:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -214,6 +223,7 @@ class TestTUIModeSwitching:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -247,6 +257,7 @@ class TestTUIKeyBindings:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -269,6 +280,7 @@ class TestTUIKeyBindings:
 
         orchestrator = LaunchpadSamplerApp(config, start_mode="play")
         app = LaunchpadSampler(orchestrator, start_mode="play")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -310,6 +322,7 @@ class TestTUIWithSamples:
             config, samples_dir=samples_dir, start_mode="edit"
         )
         app = LaunchpadSampler(orchestrator, start_mode="edit")
+        app.initialize()
 
         async with app.run_test() as pilot:
             await pilot.pause()

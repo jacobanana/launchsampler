@@ -43,34 +43,21 @@ class TestCompletePlaybackFlow:
         app = LaunchpadSamplerApp(config)
         app.initialize()
 
-        # Load a sample
-        sample = Sample.from_file(sample_audio_file)
-
-        # Assign to pad 0
-        app.editor.assign_sample(0, sample, PlaybackMode.ONE_SHOT, Color(r=127, g=0, b=0))
+        # Assign sample to pad 0
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
 
         # Trigger the pad via MIDI event
-        midi_event = MidiEvent(
-            type="NOTE_ON",
-            note=app.launchpad.pads[0].note,
-            velocity=127
-        )
-
         # In play mode, MIDI triggers should work
         app.set_mode("play")
-        app.player.on_midi_event(midi_event)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
 
         # Verify pad is playing
         pad_id = 0
         assert app.state_machine.is_pad_playing(pad_id)
 
         # Trigger note off
-        midi_off = MidiEvent(
-            type="NOTE_OFF",
-            note=app.launchpad.pads[0].note,
-            velocity=0
-        )
-        app.player.on_midi_event(midi_off)
+        app.player.on_midi_event(MidiEvent.NOTE_OFF, pad_index=0)
 
         # For ONE_SHOT mode, note off shouldn't stop it immediately
         # (it plays to completion)
@@ -91,20 +78,18 @@ class TestCompletePlaybackFlow:
         app.initialize()
 
         # Load sample and assign as ONE_SHOT
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.ONE_SHOT, Color(r=127, g=0, b=0))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
 
         app.set_mode("play")
 
         # Trigger
-        midi_on = MidiEvent(type="NOTE_ON", note=app.launchpad.pads[0].note, velocity=127)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
 
         assert app.state_machine.is_pad_playing(0)
 
         # Note off shouldn't stop ONE_SHOT
-        midi_off = MidiEvent(type="NOTE_OFF", note=app.launchpad.pads[0].note, velocity=0)
-        app.player.on_midi_event(midi_off)
+        app.player.on_midi_event(MidiEvent.NOTE_OFF, pad_index=0)
 
         # Still playing
         assert app.state_machine.is_pad_playing(0)
@@ -124,20 +109,18 @@ class TestCompletePlaybackFlow:
         app.initialize()
 
         # Load sample and assign as HOLD
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.HOLD, Color(r=0, g=127, b=0))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.HOLD)
 
         app.set_mode("play")
 
         # Trigger
-        midi_on = MidiEvent(type="NOTE_ON", note=app.launchpad.pads[0].note, velocity=127)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
 
         assert app.state_machine.is_pad_playing(0)
 
         # Note off should stop HOLD
-        midi_off = MidiEvent(type="NOTE_OFF", note=app.launchpad.pads[0].note, velocity=0)
-        app.player.on_midi_event(midi_off)
+        app.player.on_midi_event(MidiEvent.NOTE_OFF, pad_index=0)
 
         # Should have stopped
         assert not app.state_machine.is_pad_playing(0)
@@ -157,20 +140,18 @@ class TestCompletePlaybackFlow:
         app.initialize()
 
         # Load sample and assign as LOOP
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.LOOP, Color(r=0, g=0, b=127))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.LOOP)
 
         app.set_mode("play")
 
         # Trigger
-        midi_on = MidiEvent(type="NOTE_ON", note=app.launchpad.pads[0].note, velocity=127)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
 
         assert app.state_machine.is_pad_playing(0)
 
         # Note off should stop LOOP
-        midi_off = MidiEvent(type="NOTE_OFF", note=app.launchpad.pads[0].note, velocity=0)
-        app.player.on_midi_event(midi_off)
+        app.player.on_midi_event(MidiEvent.NOTE_OFF, pad_index=0)
 
         assert not app.state_machine.is_pad_playing(0)
 
@@ -194,22 +175,15 @@ class TestMultipleSamplePlayback:
         app.initialize()
 
         # Load sample and assign to multiple pads
-        sample = Sample.from_file(sample_audio_file)
         for pad_id in [0, 1, 2]:
-            app.editor.assign_sample(
-                pad_id, sample, PlaybackMode.ONE_SHOT, Color(r=127, g=0, b=0)
-            )
+            app.editor.assign_sample(pad_id, sample_audio_file)
+            app.editor.set_pad_mode(pad_id, PlaybackMode.ONE_SHOT)
 
         app.set_mode("play")
 
         # Trigger all pads
         for pad_id in [0, 1, 2]:
-            midi_on = MidiEvent(
-                type="NOTE_ON",
-                note=app.launchpad.pads[pad_id].note,
-                velocity=127
-            )
-            app.player.on_midi_event(midi_on)
+            app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=pad_id)
 
         # All should be playing
         assert app.state_machine.is_pad_playing(0)
@@ -231,23 +205,21 @@ class TestMultipleSamplePlayback:
         app.initialize()
 
         # Load sample
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.LOOP, Color(r=127, g=0, b=0))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.LOOP)
 
         app.set_mode("play")
 
         # Trigger once
-        midi_on = MidiEvent(type="NOTE_ON", note=app.launchpad.pads[0].note, velocity=127)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
         assert app.state_machine.is_pad_playing(0)
 
         # Trigger again (retrigger)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
         assert app.state_machine.is_pad_playing(0)
 
         # Should still be playing (restarted)
-        midi_off = MidiEvent(type="NOTE_OFF", note=app.launchpad.pads[0].note, velocity=0)
-        app.player.on_midi_event(midi_off)
+        app.player.on_midi_event(MidiEvent.NOTE_OFF, pad_index=0)
         assert not app.state_machine.is_pad_playing(0)
 
 
@@ -270,11 +242,10 @@ class TestModeSwitching:
         app.initialize()
 
         # Load and trigger sample
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.LOOP, Color(r=127, g=0, b=0))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.LOOP)
 
-        midi_on = MidiEvent(type="NOTE_ON", note=app.launchpad.pads[0].note, velocity=127)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
         assert app.state_machine.is_pad_playing(0)
 
         # Switch to edit mode
@@ -298,12 +269,11 @@ class TestModeSwitching:
         app.initialize()
 
         # Load sample
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.ONE_SHOT, Color(r=127, g=0, b=0))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
 
         # Try to trigger in edit mode
-        midi_on = MidiEvent(type="NOTE_ON", note=app.launchpad.pads[0].note, velocity=127)
-        app.player.on_midi_event(midi_on)
+        app.player.on_midi_event(MidiEvent.NOTE_ON, pad_index=0)
 
         # Should not be playing (edit mode)
         assert not app.state_machine.is_pad_playing(0)
@@ -323,8 +293,8 @@ class TestModeSwitching:
         app.initialize()
 
         # Assign sample in edit mode
-        sample = Sample.from_file(sample_audio_file)
-        app.editor.assign_sample(0, sample, PlaybackMode.ONE_SHOT, Color(r=127, g=0, b=0))
+        app.editor.assign_sample(0, sample_audio_file)
+        app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
 
         # Switch to play mode
         app.set_mode("play")

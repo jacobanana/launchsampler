@@ -37,7 +37,7 @@ class MockUI(UIAdapter):
 class MockUIObserver(MockUI, AppObserver):
     """Mock UI that also observes app events."""
 
-    def on_app_event(self, event: AppEvent) -> None:
+    def on_app_event(self, event: AppEvent, **kwargs) -> None:
         """Record app events."""
         self.events_received.append(event)
 
@@ -110,7 +110,7 @@ class TestAppInitialization:
         app.initialize()
 
         # Verify player is registered as observer on editor
-        assert app.player in app.editor._edit_observers._observers
+        assert app.player in app.editor._observers._observers
 
     @patch('launchsampler.app.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
@@ -129,9 +129,9 @@ class TestAppInitialization:
         app.initialize()
 
         # Check that events were fired
-        event_types = [event.type for event in observer_ui.events_received]
-        assert "SET_MOUNTED" in event_types
-        assert "MODE_CHANGED" in event_types
+        event_types = [event.value for event in observer_ui.events_received]
+        assert "set_mounted" in event_types
+        assert "mode_changed" in event_types
 
 
 @pytest.mark.integration
@@ -218,7 +218,7 @@ class TestAppModeManagement:
         assert app.mode == "play"
 
         # Check that MODE_CHANGED event was fired
-        mode_events = [e for e in observer_ui.events_received if e.type == "MODE_CHANGED"]
+        mode_events = [e for e in observer_ui.events_received if e.value == "mode_changed"]
         assert len(mode_events) >= 2  # One from init, one from set_mode
 
     @patch('launchsampler.app.DeviceController')
