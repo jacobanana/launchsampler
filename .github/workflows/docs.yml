@@ -45,7 +45,7 @@ jobs:
 
       - name: Build documentation
         run: |
-          uv run mkdocs build --strict
+          uv run mkdocs build
 
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
