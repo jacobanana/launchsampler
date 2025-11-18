@@ -12,7 +12,7 @@ from textual.binding import Binding
 from launchsampler.core.player import Player
 from launchsampler.models import Launchpad, Set, PlaybackMode
 from launchsampler.services import EditorService, SetManagerService
-from launchsampler.protocols import AppEvent, SelectionEvent
+from launchsampler.protocols import AppEvent, SelectionEvent, UIAdapter
 
 from .decorators import edit_only
 from .services import TUIService, NavigationService
@@ -38,6 +38,9 @@ class LaunchpadSampler(App):
 
     This is a PURE UI layer that delegates all business logic to the orchestrator.
     The orchestrator (LaunchpadSamplerApp) owns all state and services.
+
+    Implements UIAdapter protocol via structural subtyping (no explicit inheritance
+    to avoid metaclass conflicts between App and Protocol).
 
     Responsibilities:
     - Textual framework integration (widgets, layouts, bindings)
