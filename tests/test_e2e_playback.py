@@ -37,6 +37,7 @@ class TestCompletePlaybackFlow:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         # Create app and initialize
@@ -72,6 +73,7 @@ class TestCompletePlaybackFlow:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config)
@@ -103,6 +105,7 @@ class TestCompletePlaybackFlow:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config)
@@ -134,6 +137,7 @@ class TestCompletePlaybackFlow:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config)
@@ -169,6 +173,7 @@ class TestMultipleSamplePlayback:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config)
@@ -199,6 +204,7 @@ class TestMultipleSamplePlayback:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config)
@@ -236,6 +242,7 @@ class TestModeSwitching:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config, start_mode="play")
@@ -263,6 +270,7 @@ class TestModeSwitching:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config, start_mode="edit")
@@ -287,6 +295,7 @@ class TestModeSwitching:
         # Mock audio device
         mock_device_instance = Mock()
         mock_device_instance.start.return_value = True
+        mock_device_instance.sample_rate = 44100  # Standard sample rate
         mock_audio_device.return_value = mock_device_instance
 
         app = LaunchpadSamplerApp(config, start_mode="edit")
@@ -301,11 +310,11 @@ class TestModeSwitching:
 
         # Pad should still have the sample
         assert app.launchpad.pads[0].sample is not None
-        assert app.launchpad.pads[0].sample.name == sample.name
+        assert app.launchpad.pads[0].sample.path == sample_audio_file
 
         # Switch back to edit
         app.set_mode("edit")
 
         # Still there
         assert app.launchpad.pads[0].sample is not None
-        assert app.launchpad.pads[0].sample.name == sample.name
+        assert app.launchpad.pads[0].sample.path == sample_audio_file

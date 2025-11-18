@@ -71,9 +71,9 @@ class TestTUILaunch:
             await pilot.pause()
 
             # Verify key widgets are present
-            assert app.query_one("#pad-grid") is not None
-            assert app.query_one("#pad-details") is not None
-            assert app.query_one("#status-bar") is not None
+            assert app.query_one("PadGrid") is not None
+            assert app.query_one("PadDetailsPanel") is not None
+            assert app.query_one("StatusBar") is not None
 
     @patch('launchsampler.app.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
@@ -148,7 +148,7 @@ class TestTUINavigation:
         async with app.run_test() as pilot:
             await pilot.pause()
 
-            pad_grid = app.query_one("#pad-grid")
+            pad_grid = app.query_one("PadGrid")
             assert pad_grid is not None
 
             # Grid should have widgets for all pads
@@ -229,7 +229,7 @@ class TestTUIModeSwitching:
             await pilot.pause()
 
             # Get status bar
-            status_bar = app.query_one("#status-bar")
+            status_bar = app.query_one("StatusBar")
             assert status_bar is not None
 
             # Switch modes
@@ -331,5 +331,5 @@ class TestTUIWithSamples:
             assert app.orchestrator.launchpad.pads[0].sample is not None
 
             # Pad details should show the sample info
-            pad_details = app.query_one("#pad-details")
+            pad_details = app.query_one("PadDetailsPanel")
             assert pad_details is not None
