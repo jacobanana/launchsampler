@@ -5,8 +5,8 @@ LaunchSampler can be installed using pip or uv. We recommend using `uv` for fast
 ## Requirements
 
 - **Python 3.12 or higher**
-- **Novation Launchpad** (Mini MK3, Pro MK3, X, or compatible device)
 - **Audio output device** (soundcard)
+- Optional: **Novation Launchpad** (Mini MK3, Pro MK3, X, or compatible device)
 
 ### Supported Platforms
 
@@ -16,83 +16,83 @@ LaunchSampler can be installed using pip or uv. We recommend using `uv` for fast
 
 ## Installation Methods
 
-=== "Using uv (Recommended)"
+=== "Using pipx (Recommended for CLI usage)"
 
-    [uv](https://github.com/astral-sh/uv) is a fast Python package installer and resolver.
+    Install once, use anywhere. After installation, simply run `launchsampler` from any directory.
+
+    ```bash
+    # Install pipx (if not already installed)
+    pip install pipx
+    pipx ensurepath
+
+    # Install launchsampler
+    pipx install git+https://github.com/jacobanana/launchsampler
+    ```
+
+    Now you can run:
+    ```bash
+    launchsampler --help
+    ```
+
+=== "Using uvx (Faster, but requires full command)"
+
+    [uv](https://github.com/astral-sh/uv) is significantly faster but requires the full git URL each time.
 
     ```bash
     # Install uv (if not already installed)
     curl -LsSf https://astral.sh/uv/install.sh | sh
 
-    # Install LaunchSampler
-    uv pip install launchsampler
-
-    # Or install from source
-    git clone https://github.com/jacobanana/launchsampler.git
-    cd launchsampler
-    uv sync
-    ```
-
-=== "Using pip"
-
-    ```bash
-    # Install from PyPI (when published)
-    pip install launchsampler
-
-    # Or install from source
-    git clone https://github.com/jacobanana/launchsampler.git
-    cd launchsampler
-    pip install -e .
+    # Run directly (no installation needed)
+    uvx git+https://github.com/jacobanana/launchsampler
     ```
 
 ## Verify Installation
 
 After installation, verify that LaunchSampler is installed correctly:
 
-```bash
-# Check version
-launchsampler --version
+=== "pipx"
 
-# Show help
-launchsampler --help
-```
+    ```bash
+    # Check version
+    launchsampler --version
+
+    # Show help
+    launchsampler --help
+    ```
+
+=== "uvx"
+
+    ```bash
+    # Check version
+    uvx git+https://github.com/jacobanana/launchsampler --version
+
+    # Show help
+    uvx git+https://github.com/jacobanana/launchsampler --help
+    ```
 
 ## Development Installation
 
-For development, clone the repository and install with development dependencies:
+For development, install uv and clone the repository and install with development dependencies:
 
 ```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Clone the repository
 git clone https://github.com/jacobanana/launchsampler.git
 cd launchsampler
 
 # Install with development dependencies using uv
-uv sync --all-extras
-
-# Or using pip
-pip install -e ".[dev]"
+uv sync
 
 # Run tests to verify
 uv run pytest
+
+# Run app
+uv run launchsampler
 ```
 
 ## Troubleshooting
-
-### MIDI Device Not Found
-
-If LaunchSampler cannot detect your Launchpad:
-
-1. **Check USB connection** - Ensure the Launchpad is connected
-2. **Install drivers** - Some systems may need MIDI drivers
-3. **List devices** - Run `launchsampler --list-midi` to see available devices
-
-### Audio Issues
-
-If you experience audio problems:
-
-1. **Check audio device** - Run `launchsampler --list-audio` to see available devices
-2. **Configure audio** - Edit `~/.config/launchsampler/config.json` to select device
-3. **Test playback** - Try playing a sample in edit mode (Space key)
 
 ### Permission Errors (Linux)
 
