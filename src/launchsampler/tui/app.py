@@ -76,9 +76,10 @@ class LaunchpadSampler(App):
         Binding("d", "delete_pad", "Delete", show=True),
         Binding("space", "toggle_test", "Test/Stop", show=False),
         Binding("1", "set_mode_one_shot", "One-Shot", show=False),
-        Binding("2", "set_mode_hold", "Hold", show=False),
-        Binding("3", "set_mode_loop", "Loop", show=False),
-        Binding("4", "set_mode_loop_toggle", "Loop Toggle", show=False),
+        Binding("2", "set_mode_toggle", "Toggle", show=False),
+        Binding("3", "set_mode_hold", "Hold", show=False),
+        Binding("4", "set_mode_loop", "Loop", show=False),
+        Binding("5", "set_mode_loop_toggle", "Loop Toggle", show=False),
         Binding("up", "navigate_up", "Up", show=False),
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
@@ -571,8 +572,9 @@ class LaunchpadSampler(App):
         # Map radio button IDs to playback modes
         mode_map = {
             "mode-oneshot": PlaybackMode.ONE_SHOT,
-            "mode-loop": PlaybackMode.LOOP,
+            "mode-toggle": PlaybackMode.TOGGLE,
             "mode-hold": PlaybackMode.HOLD,
+            "mode-loop": PlaybackMode.LOOP,
             "mode-looptoggle": PlaybackMode.LOOP_TOGGLE
         }
 
@@ -1014,13 +1016,17 @@ class LaunchpadSampler(App):
         """Set selected pad to one-shot mode."""
         self._set_pad_mode(PlaybackMode.ONE_SHOT)
 
-    def action_set_mode_loop(self) -> None:
-        """Set selected pad to loop mode."""
-        self._set_pad_mode(PlaybackMode.LOOP)
+    def action_set_mode_toggle(self) -> None:
+        """Set selected pad to toggle mode."""
+        self._set_pad_mode(PlaybackMode.TOGGLE)
 
     def action_set_mode_hold(self) -> None:
         """Set selected pad to hold mode."""
         self._set_pad_mode(PlaybackMode.HOLD)
+
+    def action_set_mode_loop(self) -> None:
+        """Set selected pad to loop mode."""
+        self._set_pad_mode(PlaybackMode.LOOP)
 
     def action_set_mode_loop_toggle(self) -> None:
         """Set selected pad to loop toggle mode."""

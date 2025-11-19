@@ -155,7 +155,7 @@ class PadWidget(Static):
     def update_display(self) -> None:
         """Render current pad state."""
         # Clear mode classes (but preserve playing/midi state classes)
-        self.remove_class("one_shot", "loop", "hold", "loop_toggle", "empty")
+        self.remove_class("one_shot", "toggle", "hold", "loop", "loop_toggle", "empty")
 
         if self._pad.is_assigned:
             # Show pad index and sample name with warning if unavailable

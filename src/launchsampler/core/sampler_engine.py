@@ -188,11 +188,10 @@ class SamplerEngine:
 
     def release_pad(self, pad_index: int) -> None:
         """
-        Release pad (for HOLD and LOOP modes).
+        Release pad (for HOLD mode).
 
         For HOLD mode: Stops playback immediately
-        For LOOP mode: Stops looping
-        For ONE_SHOT mode: Does nothing (sample plays fully)
+        For other modes: Ignored (sample plays according to mode)
         
         Lock-free implementation using queue for minimal latency.
         Safe to call from any thread (e.g., MIDI input thread).
@@ -411,8 +410,8 @@ class SamplerEngine:
                     state = self._playback_states[pad_index]
 
                     if action == "trigger" and state.audio_data is not None:
-                        # Handle LOOP_TOGGLE and ONE_SHOT modes: toggle playback on each trigger
-                        if state.mode in (PlaybackMode.LOOP_TOGGLE, PlaybackMode.ONE_SHOT):
+                        # Handle TOGGLE and LOOP_TOGGLE modes: toggle playback on each trigger
+                        if state.mode in (PlaybackMode.LOOP_TOGGLE, PlaybackMode.TOGGLE):
                             if state.is_playing:
                                 # Second note on - stop playback
                                 state.stop()
@@ -425,7 +424,7 @@ class SamplerEngine:
                                 if state.is_playing:
                                     self._state_machine.notify_pad_playing(pad_index)
                         else:
-                            # Normal behavior for other modes
+                            # Normal behavior: restart on each note_on (ONE_SHOT, LOOP, HOLD)
                             was_playing = state.is_playing
                             state.start()
 
@@ -434,8 +433,9 @@ class SamplerEngine:
                             if state.is_playing and not was_playing:
                                 self._state_machine.notify_pad_playing(pad_index)
 
-                    elif action == "release" and state.mode in (PlaybackMode.HOLD, PlaybackMode.LOOP):
-                        # Note: LOOP_TOGGLE and ONE_SHOT ignore note off messages
+                    elif action == "release" and state.mode == PlaybackMode.HOLD:
+                        # HOLD mode: stop on note_off
+                        # Other modes ignore note_off
                         if state.is_playing:
                             state.stop()
                             self._state_machine.notify_pad_stopped(pad_index)

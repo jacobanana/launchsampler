@@ -282,9 +282,10 @@ class PadDetailsPanel(Vertical, can_focus=True):
 
         with RadioSet(id="mode-radio"):
             yield RadioButton("\\[1] One Shot", id="mode-oneshot", disabled=True)
-            yield RadioButton("\\[2] Hold", id="mode-hold", disabled=True)
-            yield RadioButton("\\[3] Loop", id="mode-loop", disabled=True)
-            yield RadioButton("\\[4] Loop Toggle", id="mode-looptoggle", disabled=True)
+            yield RadioButton("\\[2] Toggle", id="mode-toggle", disabled=True)
+            yield RadioButton("\\[3] Hold", id="mode-hold", disabled=True)
+            yield RadioButton("\\[4] Loop", id="mode-loop", disabled=True)
+            yield RadioButton("\\[5] Loop Toggle", id="mode-looptoggle", disabled=True)
 
         yield Rule()
         with Grid(classes="button-grid"):
@@ -394,8 +395,9 @@ class PadDetailsPanel(Vertical, can_focus=True):
         if pad.is_assigned:
             mode_map = {
                 "one_shot": "mode-oneshot",
-                "loop": "mode-loop",
+                "toggle": "mode-toggle",
                 "hold": "mode-hold",
+                "loop": "mode-loop",
                 "loop_toggle": "mode-looptoggle"
             }
             radio_id = mode_map.get(pad.mode.value)

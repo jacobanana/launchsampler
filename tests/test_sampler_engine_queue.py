@@ -60,7 +60,14 @@ def loaded_engine(engine, sample_audio_file):
     pad15.mode = PlaybackMode.LOOP_TOGGLE
     pad15.volume = 1.0
     engine.load_sample(15, pad15)
-    
+
+    # Load pad 20 - TOGGLE
+    pad20 = Pad(x=4, y=2)
+    pad20.sample = sample
+    pad20.mode = PlaybackMode.TOGGLE
+    pad20.volume = 1.0
+    engine.load_sample(20, pad20)
+
     return engine
 
 
@@ -139,23 +146,23 @@ class TestSamplerEngineQueue:
     
     def test_queue_processes_release_in_callback(self, loaded_engine):
         """Test queue release action is processed in audio callback."""
-        # Start pad playing (LOOP mode)
-        loaded_engine.trigger_pad(5)
+        # Start HOLD mode pad playing (pad 10)
+        loaded_engine.trigger_pad(10)
         outdata = np.zeros((512, 2), dtype=np.float32)
         loaded_engine._audio_callback(outdata, 512)
-        assert loaded_engine.is_pad_playing(5)
-        
+        assert loaded_engine.is_pad_playing(10)
+
         # Queue release
-        loaded_engine.release_pad(5)
-        
+        loaded_engine.release_pad(10)
+
         # Process release in callback
         loaded_engine._audio_callback(outdata, 512)
-        
+
         # Queue should be empty
         assert loaded_engine._trigger_queue.empty()
-        
-        # Pad should be stopped (LOOP mode responds to release)
-        assert not loaded_engine.is_pad_playing(5)
+
+        # Pad should be stopped (HOLD mode responds to release)
+        assert not loaded_engine.is_pad_playing(10)
     
     def test_queue_processes_stop_in_callback(self, loaded_engine):
         """Test queue stop action is processed in audio callback."""
@@ -192,15 +199,15 @@ class TestSamplerEngineQueue:
     
     def test_queue_ignores_unloaded_pads(self, loaded_engine):
         """Test queue processing ignores triggers for unloaded pads."""
-        # Trigger unloaded pad
-        loaded_engine.trigger_pad(20)
-        
+        # Trigger unloaded pad (pad 25 is not loaded)
+        loaded_engine.trigger_pad(25)
+
         # Process in callback
         outdata = np.zeros((512, 2), dtype=np.float32)
         loaded_engine._audio_callback(outdata, 512)
-        
+
         # Should not crash, pad should not be playing
-        assert not loaded_engine.is_pad_playing(20)
+        assert not loaded_engine.is_pad_playing(25)
     
     def test_queue_full_drops_trigger(self, loaded_engine):
         """Test queue drops triggers when full rather than blocking."""
@@ -353,20 +360,20 @@ class TestSamplerEnginePlaybackModes:
         assert state.mode == PlaybackMode.LOOP
         assert state.is_playing
     
-    def test_loop_mode_stops_on_release(self, loaded_engine):
-        """Test LOOP mode stops when released."""
+    def test_loop_mode_ignores_release(self, loaded_engine):
+        """Test LOOP mode continues playing after release (unlike HOLD)."""
         # Start LOOP
         loaded_engine.trigger_pad(5)
         outdata = np.zeros((512, 2), dtype=np.float32)
         loaded_engine._audio_callback(outdata, 512)
         assert loaded_engine.is_pad_playing(5)
-        
-        # Release
+
+        # Release - should keep playing
         loaded_engine.release_pad(5)
         loaded_engine._audio_callback(outdata, 512)
-        
-        # Should be stopped
-        assert not loaded_engine.is_pad_playing(5)
+
+        # Should still be playing (LOOP ignores release)
+        assert loaded_engine.is_pad_playing(5)
     
     def test_hold_mode_stops_on_release(self, loaded_engine):
         """Test HOLD mode stops when released."""
@@ -416,23 +423,61 @@ class TestSamplerEnginePlaybackModes:
         # Should still be playing
         assert loaded_engine.is_pad_playing(15)
 
-    def test_oneshot_mode_toggles_on_trigger(self, loaded_engine):
-        """Test ONE_SHOT mode toggles playback."""
+    def test_oneshot_mode_restarts_on_trigger(self, loaded_engine):
+        """Test ONE_SHOT mode restarts playback on each trigger."""
         # First trigger - should start playing
         loaded_engine.trigger_pad(0)
         outdata = np.zeros((512, 2), dtype=np.float32)
         loaded_engine._audio_callback(outdata, 512)
         assert loaded_engine.is_pad_playing(0)
 
-        # Second trigger - should stop
+        # Get initial position
+        state = loaded_engine._playback_states[0]
+        initial_position = state.position
+
+        # Let it play a bit
+        loaded_engine._audio_callback(outdata, 512)
+        assert state.position > initial_position
+
+        # Second trigger - should restart from beginning
         loaded_engine.trigger_pad(0)
         loaded_engine._audio_callback(outdata, 512)
-        assert not loaded_engine.is_pad_playing(0)
+        # Position should be reset (close to 0, accounting for the frames just processed)
+        assert state.position < initial_position + 1024  # Within 2 callback frames
+        assert loaded_engine.is_pad_playing(0)
+
+    def test_toggle_mode_toggles_on_trigger(self, loaded_engine):
+        """Test TOGGLE mode toggles playback on/off."""
+        # First trigger - should start playing
+        loaded_engine.trigger_pad(20)
+        outdata = np.zeros((512, 2), dtype=np.float32)
+        loaded_engine._audio_callback(outdata, 512)
+        assert loaded_engine.is_pad_playing(20)
+
+        # Second trigger - should stop
+        loaded_engine.trigger_pad(20)
+        loaded_engine._audio_callback(outdata, 512)
+        assert not loaded_engine.is_pad_playing(20)
 
         # Third trigger - should start again
-        loaded_engine.trigger_pad(0)
+        loaded_engine.trigger_pad(20)
         loaded_engine._audio_callback(outdata, 512)
-        assert loaded_engine.is_pad_playing(0)
+        assert loaded_engine.is_pad_playing(20)
+
+    def test_toggle_ignores_release(self, loaded_engine):
+        """Test TOGGLE mode ignores release messages."""
+        # Start playing
+        loaded_engine.trigger_pad(20)
+        outdata = np.zeros((512, 2), dtype=np.float32)
+        loaded_engine._audio_callback(outdata, 512)
+        assert loaded_engine.is_pad_playing(20)
+
+        # Release - should keep playing
+        loaded_engine.release_pad(20)
+        loaded_engine._audio_callback(outdata, 512)
+
+        # Should still be playing
+        assert loaded_engine.is_pad_playing(20)
 
     def test_oneshot_ignores_release(self, loaded_engine):
         """Test ONE_SHOT mode ignores release messages."""

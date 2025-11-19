@@ -5,7 +5,7 @@ Both UIs should synchronize their colors based on these definitions.
 
 Color Scheme:
 - Empty pads: Off (black)
-- Assigned pads: Mode-specific colors (one_shot=red, loop=green, hold=blue, loop_toggle=magenta)
+- Assigned pads: Mode-specific colors (one_shot=red, toggle=orange, hold=blue, loop=green, loop_toggle=magenta)
 - Playing pads: Yellow
 - Selected pads (TUI only): Warning color
 - MIDI-triggered pads (TUI only): Primary color
@@ -24,8 +24,9 @@ from launchsampler.models import Color, LaunchpadColor, PlaybackMode
 # Maps each playback mode to its corresponding LaunchpadColor
 MODE_COLORS: Dict[PlaybackMode, LaunchpadColor] = {
     PlaybackMode.ONE_SHOT: LaunchpadColor.RED,
-    PlaybackMode.LOOP: LaunchpadColor.GREEN,
+    PlaybackMode.TOGGLE: LaunchpadColor.ORANGE,
     PlaybackMode.HOLD: LaunchpadColor.BLUE,
+    PlaybackMode.LOOP: LaunchpadColor.GREEN,
     PlaybackMode.LOOP_TOGGLE: LaunchpadColor.MAGENTA,
 }
 
