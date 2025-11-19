@@ -58,10 +58,21 @@ try:
     spec.loader.exec_module(observer_manager)
     ObserverManager = observer_manager.ObserverManager
 
-    # Create utils module and expose ObserverManager
+    # Load persistence module directly
+    spec = importlib.util.spec_from_file_location(
+        "persistence",
+        Path(__file__).parent / "src/launchsampler/utils/persistence.py"
+    )
+    persistence_module = importlib.util.module_from_spec(spec)
+    sys.modules['launchsampler.utils.persistence'] = persistence_module
+    spec.loader.exec_module(persistence_module)
+    PydanticPersistence = persistence_module.PydanticPersistence
+
+    # Create utils module and expose both ObserverManager and PydanticPersistence
     import types
     utils_module = types.ModuleType('launchsampler.utils')
     utils_module.ObserverManager = ObserverManager
+    utils_module.PydanticPersistence = PydanticPersistence
     sys.modules['launchsampler.utils'] = utils_module
 
     # Load config_service module directly

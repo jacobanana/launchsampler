@@ -8,7 +8,7 @@ from threading import Lock
 from pydantic import BaseModel, ValidationError
 
 from launchsampler.protocols import ConfigEvent, ConfigObserver
-from launchsampler.utils import ObserverManager
+from launchsampler.utils import ObserverManager, PydanticPersistence
 
 logger = logging.getLogger(__name__)
 
@@ -354,16 +354,8 @@ class ConfigService(Generic[ConfigType]):
         if file_path is None:
             raise ValueError("No path specified and no default_path set")
 
-        # Load and validate from file
-        try:
-            config_json = Path(file_path).read_text()
-            new_config = self._config_type.model_validate_json(config_json)
-        except ValidationError as e:
-            logger.error(f"Validation error loading config from {file_path}: {e}")
-            raise
-        except FileNotFoundError as e:
-            logger.error(f"Config file not found: {file_path}")
-            raise
+        # Load and validate from file using shared utility
+        new_config = PydanticPersistence.load_json(file_path, self._config_type)
 
         with self._lock:
             self._config = new_config
@@ -403,13 +395,14 @@ class ConfigService(Generic[ConfigType]):
         if file_path is None:
             raise ValueError("No path specified and no default_path set")
 
-        with self._lock:
-            config_json = self._config.model_dump_json(indent=2)
-
-        # Write to file (outside lock - I/O can be slow)
         file_path = Path(file_path)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(config_json)
+
+        # Get config copy while holding lock
+        with self._lock:
+            config_copy = self._config.model_copy(deep=True)
+
+        # Write to file using shared utility (outside lock - I/O can be slow)
+        PydanticPersistence.save_json(config_copy, file_path)
 
         # Notify observers (outside lock)
         self._notify_observers(

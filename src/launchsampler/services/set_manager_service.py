@@ -8,7 +8,7 @@ from typing import Optional
 
 from launchsampler.models import Set
 from launchsampler.models.config import AppConfig
-from launchsampler.utils import find_common_path
+from launchsampler.utils import find_common_path, PydanticPersistence
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,15 @@ class SetManagerService:
         Returns:
             Set: Loaded set with resolved absolute paths
         """
-        set_obj = Set.model_validate_json(path.read_text())
+        # Load and validate using shared utility
+        set_obj = PydanticPersistence.load_json(path, Set)
 
-        # Get the root for path resolution
+        # Get the root for path resolution (domain-specific logic)
         root = set_obj.get_samples_root(path)
         logger.debug(f"Resolving paths relative to: {root}")
         logger.debug(f"samples_root from file: {set_obj.samples_root}")
 
-        # Resolve all relative paths to absolute
+        # Resolve all relative paths to absolute (domain-specific logic)
         for pad in set_obj.launchpad.pads:
             if pad.is_assigned and pad.sample:
                 original_path = pad.sample.path
@@ -239,8 +240,8 @@ class SetManagerService:
         # Update modified timestamp in the copy
         set_copy.modified_at = datetime.now()
 
-        # Save the copy, not the original
-        path.write_text(set_copy.model_dump_json(indent=2))
+        # Save the copy using shared utility (not the original)
+        PydanticPersistence.save_json(set_copy, path)
         logger.info(f"Saved set to {path}")
 
         # Create updated set with new timestamp and samples_root
@@ -285,10 +286,7 @@ class SetManagerService:
                     modified_at=set_obj.modified_at
                 )
 
-            # Ensure parent directory exists
-            path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Save the set (using internal implementation)
+            # Save the set (using internal implementation that creates parent directories)
             saved_set = self._save_set_to_file(set_obj, path)
 
             logger.info(f"Saved set '{saved_set.name}' to {path}")

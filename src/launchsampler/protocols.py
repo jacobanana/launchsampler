@@ -1,10 +1,15 @@
 """Protocol definitions for observer patterns and interfaces."""
 
 from enum import Enum
-from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
+from pathlib import Path
+from typing import Generic, Optional, Protocol, TypeVar, runtime_checkable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
+    from pydantic import BaseModel
+
+# Type variable for persistence services
+T = TypeVar('T', bound='BaseModel')
 
 
 class MidiEvent(Enum):
@@ -306,3 +311,71 @@ class UIAdapter(Protocol):
         - Release resources
         """
         ...
+
+
+@runtime_checkable
+class PersistenceService(Protocol, Generic[T]):
+    """
+    Protocol for services that persist Pydantic models to/from JSON files.
+
+    This protocol defines a common interface for services that handle
+    loading and saving Pydantic models, ensuring consistency across
+    ConfigService, SetManagerService, and other persistence services.
+
+    Type Parameter:
+        T: The Pydantic BaseModel type this service persists
+
+    Design Philosophy:
+        - Explicit interface for persistence operations
+        - Allows both stateful (ConfigService) and stateless (SetManagerService) implementations
+        - Does not prescribe internal state management or caching
+        - Enables composition over inheritance
+
+    Example Implementations:
+        - ConfigService: Stateful service with mutable config and observers
+        - SetManagerService: Stateless service that operates on Set objects
+        - DeviceRegistry: Read-only service that loads once at init
+    """
+
+    def load(self, path: Path) -> T:
+        """
+        Load a Pydantic model from a JSON file.
+
+        Args:
+            path: Path to the JSON file
+
+        Returns:
+            Loaded and validated model instance
+
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            ValidationError: If the file content is invalid
+            ValueError: If the file format is incorrect
+
+        Thread-Safety:
+            Implementations should document their thread-safety guarantees.
+        """
+        ...
+
+    def save(self, data: T, path: Path) -> None:
+        """
+        Save a Pydantic model to a JSON file.
+
+        Args:
+            data: The model instance to save
+            path: Path where the file should be saved
+
+        Raises:
+            ValueError: If save operation fails
+            OSError: If file cannot be written
+
+        Notes:
+            - Implementations should create parent directories if needed
+            - Implementations may perform transformations before saving
+              (e.g., SetManagerService resolves relative paths)
+
+        Thread-Safety:
+            Implementations should document their thread-safety guarantees.
+        """
+        ...
+
