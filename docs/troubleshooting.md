@@ -196,27 +196,23 @@ LaunchSampler automatically handles invalid or unavailable audio devices with th
 
 **Solutions:**
 
-1. **Ensure LED UI is enabled:**
-   ```bash
-   launchsampler --led-ui
-   ```
 
-2. **Check Launchpad mode:**
+1. **Check Launchpad mode:**
    - Some Launchpads have different modes
    - Ensure it's in "Programmer" or "Live" mode
    - Refer to your Launchpad's manual
 
-3. **Verify MIDI output connection:**
+2. **Verify MIDI output connection:**
    ```bash
    launchsampler midi list
    ```
    Check that MIDI output port is detected
 
-4. **Reset Launchpad:**
+3. **Reset Launchpad:**
    - Disconnect and reconnect USB
    - Power cycle if battery-powered
 
-5. **Check logs for LED errors:**
+4. **Check logs for LED errors:**
    ```bash
    launchsampler --debug
    grep -i "led" launchsampler-debug.log
