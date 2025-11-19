@@ -15,9 +15,17 @@ Error Handling:
     Uses the centralized error handler (utils/error_handler.py) to convert
     low-level Pydantic/IO errors into user-friendly LaunchSamplerError exceptions
     with recovery hints and consistent messaging.
+
+Safety Features:
+    - Automatic .bak backups before overwriting files
+    - Atomic writes using temp file + rename
+    - Never auto-saves over corrupted files
+    - Only auto-saves when file is missing (FileNotFoundError)
 """
 
+import json
 import logging
+import shutil
 from pathlib import Path
 from typing import Callable, Optional, Type, TypeVar
 
@@ -135,21 +143,24 @@ class PydanticPersistence:
         data: BaseModel,
         path: Path,
         indent: int = 2,
-        create_parents: bool = True
+        create_parents: bool = True,
+        backup: bool = True
     ) -> None:
         """
-        Save a Pydantic model to a JSON file.
+        Save a Pydantic model to a JSON file with automatic backup and atomic write.
 
-        This method:
-        1. Serializes the Pydantic model to JSON
-        2. Creates parent directories (if requested)
-        3. Writes the JSON to the file
+        This method implements safety features to prevent data loss:
+        1. Creates .bak backup of existing file before overwriting
+        2. Uses atomic write (temp file + rename) to prevent corruption
+        3. Serializes the Pydantic model to JSON
+        4. Creates parent directories (if requested)
 
         Args:
             data: The Pydantic model instance to save
             path: Path where the file should be saved
             indent: JSON indentation level (default: 2 spaces)
             create_parents: Create parent directories if they don't exist (default: True)
+            backup: Create .bak backup before overwriting existing file (default: True)
 
         Raises:
             OSError: If the file cannot be written (permission denied, disk full, etc.)
@@ -160,12 +171,14 @@ class PydanticPersistence:
             PydanticPersistence.save_json(
                 data=config,
                 path=Path("~/.config/app.json"),
-                indent=2
+                indent=2,
+                backup=True  # Creates app.json.bak before overwriting
             )
             ```
 
-        Notes:
-            - The file will be overwritten if it exists
+        Safety Notes:
+            - Backup file (.bak) is created before overwriting (if file exists)
+            - Atomic write prevents corruption if write is interrupted
             - Parent directories are created by default
             - JSON is pretty-printed with configurable indentation
         """
@@ -174,13 +187,26 @@ class PydanticPersistence:
             if create_parents and path.parent:
                 path.parent.mkdir(parents=True, exist_ok=True)
 
+            # Create backup if file exists and backup is requested
+            if backup and path.exists():
+                backup_path = path.with_suffix(path.suffix + '.bak')
+                shutil.copy2(path, backup_path)
+                logger.debug(f"Created backup: {backup_path}")
+
             # Serialize to JSON
             json_content = data.model_dump_json(indent=indent)
 
-            # Write to file
-            path.write_text(json_content)
-
-            logger.debug(f"Saved {type(data).__name__} to {path}")
+            # Atomic write: write to temp file first, then rename
+            temp_path = path.with_suffix(path.suffix + '.tmp')
+            try:
+                temp_path.write_text(json_content, encoding='utf-8')
+                # Atomic rename (overwrites destination on most systems)
+                temp_path.replace(path)
+                logger.debug(f"Saved {type(data).__name__} to {path}")
+            finally:
+                # Clean up temp file if it still exists (failed rename)
+                if temp_path.exists():
+                    temp_path.unlink()
 
         except OSError as e:
             # File system errors (permission, disk full, etc.) - re-raise as-is
@@ -193,7 +219,7 @@ class PydanticPersistence:
             raise ConfigurationError(
                 user_message=f"Failed to save configuration to {path}",
                 technical_message=f"Failed to save {type(data).__name__}: {e}",
-                recovery_hint="Check file permissions and disk space"
+                recovery_hint="Check file permissions and disk space. Backup file (.bak) may be available."
             ) from e
 
     @staticmethod
@@ -292,16 +318,16 @@ class PydanticPersistence:
         """
         Ensure a valid JSON file exists, creating a default if needed.
 
-        This method:
+        This method implements safe default handling:
         1. Tries to load the file
-        2. If file doesn't exist or is invalid, creates a default
-        3. Optionally saves the default to disk
+        2. If file doesn't exist: creates default and saves (if auto_save=True)
+        3. If file is corrupted: creates default but DOES NOT save over corrupted file
 
         Args:
             path: Path to the JSON file
             model_type: The Pydantic model class
             default_factory: Optional callable that returns a default instance
-            auto_save: Automatically save default to disk if created (default: True)
+            auto_save: Automatically save default to disk if file is missing (default: True)
 
         Returns:
             Valid model instance (loaded or newly created)
@@ -313,17 +339,20 @@ class PydanticPersistence:
                 model_type=AppConfig,
                 auto_save=True
             )
-            # config.json is guaranteed to exist with valid data
+            # config.json exists with valid data (or defaults are used without overwriting)
             ```
 
-        Notes:
-            - Configuration errors trigger default creation (file missing/corrupted)
-            - The default is saved to disk if auto_save=True
+        Safety Notes:
+            - ONLY auto-saves when file is missing (FileNotFoundError)
+            - NEVER overwrites corrupted files (ConfigurationError)
+            - Corrupted files are preserved for manual recovery
+            - Creates .bak backup before any overwrite (when auto_save=True)
         """
         try:
             return PydanticPersistence.load_json(path, model_type)
-        except (FileNotFoundError, ConfigurationError) as e:
-            logger.warning(f"Creating default {model_type.__name__}: {e}")
+        except FileNotFoundError:
+            # File doesn't exist - safe to create and save default
+            logger.info(f"File not found: {path}, creating default {model_type.__name__}")
 
             # Create default instance
             if default_factory:
@@ -331,9 +360,23 @@ class PydanticPersistence:
             else:
                 instance = model_type()
 
-            # Auto-save if requested
+            # Auto-save if requested (no backup needed since file doesn't exist)
             if auto_save:
-                PydanticPersistence.save_json(instance, path)
+                PydanticPersistence.save_json(instance, path, backup=False)
                 logger.info(f"Saved default {model_type.__name__} to {path}")
 
             return instance
+
+        except ConfigurationError as e:
+            # File exists but is corrupted - DO NOT auto-save over it!
+            logger.error(f"Failed to load {path}: {e.user_message}")
+            logger.warning(
+                f"Using default {model_type.__name__} configuration "
+                f"(existing file NOT overwritten - manual recovery may be possible)"
+            )
+
+            # Return default but preserve corrupted file
+            if default_factory:
+                return default_factory()
+            else:
+                return model_type()
