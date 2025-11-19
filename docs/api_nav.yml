@@ -53,6 +53,7 @@
       - 'Services: Led Renderer': api/led_ui/services/led_renderer.md
     - Services:
       - Overview: api/services/index.md
+      - Config Service: api/services/config_service.md
       - Editor Service: api/services/editor_service.md
       - Set Manager Service: api/services/set_manager_service.md
     - Models:
@@ -69,3 +70,4 @@
       - Error Handler: api/utils/error_handler.md
       - Observer Manager: api/utils/observer_manager.md
       - Paths: api/utils/paths.md
+      - Persistence: api/utils/persistence.md
