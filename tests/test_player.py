@@ -123,9 +123,11 @@ class TestPlayerLifecycle:
     def test_player_handles_audio_device_failure(self, mock_audio, mock_config):
         """Test player handles audio device initialization failure gracefully."""
         player = Player(mock_config)
-        result = player.start()
 
-        assert result is False
+        # Player now raises the exception instead of returning False
+        with pytest.raises(Exception, match="Audio init failed"):
+            player.start()
+
         assert not player.is_running
         assert player._audio_device is None
         assert player._engine is None

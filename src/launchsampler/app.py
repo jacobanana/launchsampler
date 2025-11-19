@@ -137,11 +137,14 @@ class LaunchpadSamplerApp:
             self.midi_controller.register_observer(self.player)
 
         # Start player audio (must happen BEFORE loading set)
-        if not self.player.start():
-            logger.error("Failed to start player")
+        try:
+            self.player.start()
+        except RuntimeError as e:
+            logger.error(f"Failed to start player: {e}")
             if not self.headless:
                 # In headless mode, we can't show notifications
-                raise RuntimeError("Failed to start player")
+                # Re-raise with the original error message
+                raise
 
         # Register UIs with services (editor, MIDI, player callbacks)
         # This must happen AFTER MIDI controller is created but BEFORE loading set

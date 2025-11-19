@@ -129,6 +129,7 @@ class LaunchpadSampler(App):
 
         self._selection_observers: list = []  # For SelectionObserver pattern
         self._initialized = False  # Track initialization state
+        self._startup_error: Optional[str] = None  # Store startup errors to display after exit
         logger.info("LaunchpadSampler TUI created")
 
     # =================================================================
@@ -194,6 +195,9 @@ class LaunchpadSampler(App):
 
         This is called by the orchestrator after initialization completes.
         The orchestrator has already fired startup events which the TUI received.
+
+        Raises:
+            RuntimeError: If a startup error occurred (e.g., audio device in use)
         """
         if not self._initialized:
             raise RuntimeError("TUI must be initialized before running")
@@ -201,6 +205,10 @@ class LaunchpadSampler(App):
         logger.info("Starting Textual TUI")
         # Call Textual's run method (blocks until app exits)
         super().run()
+
+        # After Textual exits, check if there was a startup error
+        if self._startup_error:
+            raise RuntimeError(self._startup_error)
 
     def shutdown(self) -> None:
         """
@@ -367,7 +375,19 @@ class LaunchpadSampler(App):
         # 2. Call ui.register_with_services() to register observers
         # 3. Fire SET_MOUNTED and MODE_CHANGED events (TUI service receives and processes them)
         logger.info("Initializing orchestrator from TUI on_mount")
-        self.orchestrator.initialize()
+        try:
+            self.orchestrator.initialize()
+        except RuntimeError as e:
+            # Handle initialization errors (e.g., audio device in use)
+            error_msg = str(e)
+            logger.error(f"Failed to initialize orchestrator: {error_msg}")
+
+            # Store error message to display after Textual exits
+            self._startup_error = error_msg
+
+            # Exit the app with error code
+            self.exit(1)
+            return
 
         # Update subtitle (events have already synced the widgets)
         if self.orchestrator.mode:

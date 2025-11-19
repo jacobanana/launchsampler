@@ -205,3 +205,20 @@ class TestAudioDevice:
 
             # Should be stopped after exit
             assert not device.is_running
+
+    def test_device_in_use_error_message(self):
+        """Test that device-in-use errors provide helpful message."""
+        from unittest.mock import patch, MagicMock
+        import sounddevice as sd
+
+        # Mock sounddevice to raise an error with PaErrorCode -9996
+        mock_stream = MagicMock()
+        mock_stream.side_effect = Exception("Error opening OutputStream: Invalid device [PaErrorCode -9996]")
+
+        with patch.object(sd, 'OutputStream', mock_stream):
+            device = AudioDevice(device=None)
+            device.set_callback(lambda outdata, frames: None)
+
+            # Should raise RuntimeError with helpful message
+            with pytest.raises(RuntimeError, match="Audio device is already in use"):
+                device.start()

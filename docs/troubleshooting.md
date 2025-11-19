@@ -128,6 +128,56 @@ LaunchSampler automatically handles invalid or unavailable audio devices with th
 3. **Searches for any low-latency device** if OS default doesn't support low-latency APIs
 4. **Shows error** only if NO valid low-latency devices are found
 
+### Audio Device Already in Use
+
+**Symptoms:** Application fails to start with error:
+```
+Error opening OutputStream: Invalid device [PaErrorCode -9996]
+```
+
+**Cause:** The audio device is currently in use by another application or instance of LaunchSampler.
+
+**Solutions:**
+
+1. **Check for running instances:**
+   - Close any other running instances of LaunchSampler
+   - Check task manager/activity monitor for multiple processes
+
+2. **Close other audio applications:**
+   - Close DAWs, music players, or other audio software
+   - Check system tray for hidden audio applications
+
+3. **Restart audio services (if needed):**
+
+   === "Windows"
+       ```powershell
+       # Restart Windows Audio service
+       net stop audiosrv && net start audiosrv
+       ```
+
+   === "macOS"
+       ```bash
+       # Restart CoreAudio
+       sudo killall coreaudiod
+       ```
+
+   === "Linux"
+       ```bash
+       # Kill processes using audio device
+       sudo fuser -k /dev/snd/*
+
+       # Or restart PulseAudio
+       pulseaudio -k && pulseaudio --start
+       ```
+
+4. **Try a different audio device:**
+   ```bash
+   launchsampler audio list
+   launchsampler config --audio-device <different-device-id>
+   ```
+
+5. **Reboot your computer** to release all audio device locks
+
 ---
 
 ## MIDI Issues

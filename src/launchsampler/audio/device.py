@@ -277,16 +277,29 @@ class AudioDevice:
 
     def _start_stream(self, config: dict) -> None:
         """Create and start the stream with the given configuration."""
+        try:
+            self._stream = sd.OutputStream(**config)
+            self._stream.start()
+            self._is_running = True
 
-        self._stream = sd.OutputStream(**config)
-        self._stream.start()
-        self._is_running = True
+            latency_ms = self._stream.latency * 1000
+            buffer_ms = self.buffer_size / self.sample_rate * 1000
+            logger.info("Audio stream started")
+            logger.info(f"  Buffer size: {self.buffer_size} frames ({buffer_ms:.1f}ms)")
+            logger.info(f"  Total latency: {latency_ms:.1f}ms")
 
-        latency_ms = self._stream.latency * 1000
-        buffer_ms = self.buffer_size / self.sample_rate * 1000
-        logger.info("Audio stream started")
-        logger.info(f"  Buffer size: {self.buffer_size} frames ({buffer_ms:.1f}ms)")
-        logger.info(f"  Total latency: {latency_ms:.1f}ms")
+        except Exception as e:
+            error_msg = str(e)
+            # Check for common "device in use" error codes
+            if "PaErrorCode -9996" in error_msg or "Invalid device" in error_msg:
+                raise RuntimeError(
+                    "Audio device is already in use by another application.\n"
+                    "Please close other instances of LaunchSampler or other audio applications.\n"
+                    f"Original error: {error_msg}"
+                ) from e
+            else:
+                # Re-raise other errors with original message
+                raise
 
 
     def _audio_callback(

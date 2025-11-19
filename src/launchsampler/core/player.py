@@ -79,6 +79,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
         # State
         self._is_running = False
+        self._last_error: Optional[Exception] = None
         logger.info("Player initialized")
 
     # =================================================================
@@ -94,6 +95,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
         Returns:
             True if started successfully
+
+        Raises:
+            RuntimeError: If audio engine fails to start
         """
         if self._is_running:
             logger.warning("Player already running")
@@ -106,7 +110,11 @@ class Player(StateObserver, EditObserver, MidiObserver):
         # Start audio engine
         if not self._start_audio():
             logger.error("Failed to start audio")
-            return False
+            # Re-raise the stored exception with better context
+            if self._last_error:
+                raise self._last_error
+            else:
+                raise RuntimeError("Failed to start audio - unknown error")
 
         self._is_running = True
         logger.info("Player started")
@@ -154,6 +162,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
             logger.error(f"Failed to start audio: {e}", exc_info=True)
             self._audio_device = None
             self._engine = None
+            self._last_error = e
             return False
 
     def _stop_audio(self) -> None:

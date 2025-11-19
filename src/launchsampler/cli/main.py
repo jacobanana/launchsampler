@@ -243,6 +243,13 @@ def cli(
         # Clean exit on Ctrl+C
         logger.info("Application interrupted by user")
         click.echo("\nShutting down...", err=True)
+    except SystemExit as e:
+        # Handle clean exit from TUI (e.g., when audio device fails)
+        # SystemExit is a clean exit - don't show traceback, just exit with the code
+        if e.code != 0:
+            logger.error(f"Application exited with error code: {e.code}")
+        import sys
+        sys.exit(e.code)
     except click.Abort:
         # Re-raise Click's Abort exception without modification
         raise
@@ -250,7 +257,7 @@ def cli(
         logger.exception("Error running application")
         # Show clean error message without traceback
         click.echo("\n" + "="*70, err=True)
-        click.echo(f"ERROR: {type(e).__name__}: {e}", err=True)
+        click.echo(f"ERROR: {e}", err=True)
         click.echo("="*70, err=True)
         click.echo(f"\nFor details, check the log file: {log_path}", err=True)
         click.echo("For logging options, run: launchsampler --help", err=True)
