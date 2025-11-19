@@ -92,10 +92,10 @@ class TestRunCommand:
         samples_dir.mkdir()
 
         # We can't actually run the app, but we can verify the path validates
-        # by mocking the actual run
-        with patch('launchsampler.cli.main.LaunchpadSamplerApp'):
-            with patch('launchsampler.cli.main.LaunchpadSampler'):
-                with patch('launchsampler.cli.main.AppConfig') as mock_config:
+        # by mocking the actual run (patch at source since imports are lazy)
+        with patch('launchsampler.app.LaunchpadSamplerApp'):
+            with patch('launchsampler.tui.LaunchpadSampler'):
+                with patch('launchsampler.models.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
                     # This will try to run, so we catch it before it actually starts
                     result = runner.invoke(cli, ['--samples-dir', str(samples_dir)], catch_exceptions=False)
@@ -186,10 +186,10 @@ class TestCLIErrorHandling:
         samples_dir.mkdir()
 
         # The CLI accepts both --set and --samples-dir
-        # Check that it parses correctly
-        with patch('launchsampler.cli.main.LaunchpadSamplerApp'):
-            with patch('launchsampler.cli.main.LaunchpadSampler'):
-                with patch('launchsampler.cli.main.AppConfig') as mock_config:
+        # Check that it parses correctly (patch at source since imports are lazy)
+        with patch('launchsampler.app.LaunchpadSamplerApp'):
+            with patch('launchsampler.tui.LaunchpadSampler'):
+                with patch('launchsampler.models.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
                     result = runner.invoke(
                         cli,

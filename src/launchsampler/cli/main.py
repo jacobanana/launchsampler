@@ -8,11 +8,6 @@ from typing import Optional
 import click
 
 from .commands import audio_group, midi_group, config, test
-from launchsampler.models import AppConfig
-from launchsampler.app import LaunchpadSamplerApp
-from launchsampler.tui import LaunchpadSampler
-from launchsampler.led_ui import LaunchpadLEDUI
-
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +181,12 @@ def cli(
     # If a subcommand was invoked, don't run the app
     if ctx.invoked_subcommand is not None:
         return
+
+    # Lazy imports to avoid loading heavy dependencies during doc generation
+    from launchsampler.models import AppConfig
+    from launchsampler.app import LaunchpadSamplerApp
+    from launchsampler.tui import LaunchpadSampler
+    from launchsampler.led_ui import LaunchpadLEDUI
 
     # Setup logging (TUI uses stdout, so we log to files)
     setup_logging(verbose, debug, log_file, log_level)
