@@ -198,7 +198,7 @@ class TestModelManagerServiceMutation:
         mock_observer.on_model_event.assert_called_once()
         call_args = mock_observer.on_model_event.call_args
         assert call_args[0][0] == ModelEvent.MODEL_RESET
-        assert "config" in call_args[1]
+        assert "model" in call_args[1]
 
 
 class TestModelManagerServicePersistence:

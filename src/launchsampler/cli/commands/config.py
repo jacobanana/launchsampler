@@ -89,8 +89,8 @@ config = builder.build_group(
 )
 
 
-# The config command now has:
-# - config show [--field FIELD]
-# - config set --audio-device N --buffer-size N ...
-# - config validate
-# - config reset [--field FIELD]
+# The config command structure:
+# - config [--field FIELD]                      # Shows config values (default, human-readable)
+# - config set --audio-device N --buffer-size N # Set field values and save
+# - config validate [field1 field2 ...]         # Validate with [OK]/[FAIL] and type info
+# - config reset [field1 field2 ...]            # Reset to defaults (prompts for confirmation)

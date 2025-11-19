@@ -298,58 +298,6 @@ class ModelCLIBuilder(Generic[ModelType]):
             help=help_text
         )
 
-    def build_show_command(self) -> click.Command:
-        """
-        Build a 'show' command that displays current configuration.
-
-        Returns:
-            Click Command for showing configuration
-
-        Command:
-            ```
-            config show              # Show all fields
-            config show --field name # Show specific field
-            ```
-        """
-        @click.command(name='show')
-        @click.option(
-            '--field',
-            '-f',
-            type=str,
-            default=None,
-            help='Show specific field instead of all fields'
-        )
-        def show(field: Optional[str]):
-            """Display current model configuration."""
-            try:
-                # Load model
-                model = self.model_type.load_or_default(self.config_path)
-
-                if field:
-                    # Show specific field
-                    if hasattr(model, field):
-                        value = getattr(model, field)
-                        click.echo(f"{field}: {value}")
-                    else:
-                        click.echo(f"Error: Field '{field}' does not exist", err=True)
-                        return
-                else:
-                    # Show all fields
-                    model_dict = model.model_dump()
-                    click.echo(f"\n{self.model_type.__name__} Configuration:")
-                    click.echo("=" * 60)
-                    for key, value in model_dict.items():
-                        if self._should_expose(key):
-                            click.echo(f"  {key}: {value}")
-                    click.echo("")
-
-            except ConfigurationError as e:
-                click.echo(f"Error: {e.user_message}", err=True)
-                if e.recovery_hint:
-                    click.echo(f"Hint: {e.recovery_hint}", err=True)
-
-        return show
-
     def build_set_command(self) -> click.Command:
         """
         Build a 'set' command that updates field values.
@@ -399,9 +347,9 @@ class ModelCLIBuilder(Generic[ModelType]):
 
                         # Show validation message if provided
                         if message:
-                            click.echo(f"✓ {field_name}: {message}")
+                            click.echo(f"[OK] {field_name}: {message}")
                         else:
-                            click.echo(f"✓ {field_name} = {value}")
+                            click.echo(f"[OK] {field_name} = {value}")
 
                     # Save
                     service.save()
@@ -418,7 +366,7 @@ class ModelCLIBuilder(Generic[ModelType]):
             for field_name, field_info in self.model_type.model_fields.items():
                 if self._should_expose(field_name):
                     option = self._field_to_option(field_name, field_info)
-                    set_cmd = option(set_cmd)
+                    set_cmd.params.append(option)
 
             return set_cmd
 
@@ -433,23 +381,91 @@ class ModelCLIBuilder(Generic[ModelType]):
 
         Command:
             ```
-            config validate  # Validate configuration file
+            config validate                        # Validate all fields
+            config validate field1 field2          # Validate specific fields
             ```
         """
         @click.command(name='validate')
-        def validate():
-            """Validate the model configuration file."""
+        @click.argument('fields', nargs=-1, type=str)
+        def validate(fields: tuple[str, ...]):
+            """Validate the model configuration file.
+
+            FIELDS: Optional field names to validate (validates all if not specified)
+            """
+            # Use ASCII-safe symbols that work across platforms
+            CHECK = "[OK]"
+            CROSS = "[FAIL]"
+
             try:
                 # Try to load - this will validate
                 model = self.model_type.load_or_default(self.config_path)
-                click.echo(f"✓ {self.config_path} is valid")
-                click.echo(f"  Model: {self.model_type.__name__}")
-                click.echo(f"  Fields: {len(model.model_fields)}")
+
+                if fields:
+                    # Validate specific fields
+                    click.echo("")
+                    has_errors = False
+
+                    for field in fields:
+                        if not hasattr(model, field):
+                            click.echo(f"{CROSS} Field '{field}' does not exist", err=True)
+                            has_errors = True
+                            continue
+
+                        value = getattr(model, field)
+                        field_info = model.model_fields.get(field)
+                        field_type = field_info.annotation if field_info else "unknown"
+
+                        # Format the type name nicely
+                        if hasattr(field_type, '__name__'):
+                            type_name = field_type.__name__
+                        else:
+                            type_name = str(field_type).replace('typing.', '')
+
+                        click.echo(f"{CHECK} {field:28s} {type_name:15s} = {value}")
+
+                        if field_info and field_info.description:
+                            click.echo(f"    {field_info.description}")
+
+                    click.echo("")
+
+                    if has_errors:
+                        return 1
+                else:
+                    # Validate all fields
+                    model_dict = model.model_dump()
+                    exposed_fields = [k for k in model_dict.keys() if self._should_expose(k)]
+
+                    click.echo(f"\n{CHECK} Configuration is valid")
+                    click.echo(f"  File: {self.config_path}")
+                    click.echo(f"  Model: {self.model_type.__name__}")
+                    click.echo(f"  Total fields: {len(model.model_fields)}")
+                    click.echo(f"  Exposed fields: {len(exposed_fields)}")
+                    click.echo("")
+                    click.echo("Field Summary:")
+                    click.echo("=" * 70)
+                    for key in exposed_fields:
+                        value = model_dict[key]
+                        field_info = model.model_fields.get(key)
+                        field_type = field_info.annotation if field_info else "unknown"
+
+                        # Format the type name nicely
+                        if hasattr(field_type, '__name__'):
+                            type_name = field_type.__name__
+                        else:
+                            type_name = str(field_type).replace('typing.', '')
+
+                        click.echo(f"  {CHECK} {key:28s} {type_name:15s} = {value}")
+                    click.echo("")
 
             except ConfigurationError as e:
-                click.echo(f"✗ Validation failed: {e.user_message}", err=True)
+                if fields:
+                    click.echo(f"\n{CROSS} Field validation failed", err=True)
+                else:
+                    click.echo(f"\n{CROSS} Configuration validation failed", err=True)
+                click.echo(f"  Error: {e.user_message}", err=True)
                 if e.recovery_hint:
                     click.echo(f"  Hint: {e.recovery_hint}", err=True)
+                click.echo("")
                 return 1
 
         return validate
@@ -463,26 +479,23 @@ class ModelCLIBuilder(Generic[ModelType]):
 
         Command:
             ```
-            config reset              # Reset all fields
-            config reset --field name # Reset specific field
+            config reset                  # Reset all fields
+            config reset field1 field2    # Reset specific fields
             ```
         """
         @click.command(name='reset')
-        @click.option(
-            '--field',
-            '-f',
-            type=str,
-            default=None,
-            help='Reset specific field instead of all fields'
-        )
+        @click.argument('fields', nargs=-1, type=str)
         @click.confirmation_option(
             prompt='Are you sure you want to reset configuration?'
         )
-        def reset(field: Optional[str]):
-            """Reset configuration to defaults."""
+        def reset(fields: tuple[str, ...]):
+            """Reset configuration to defaults.
+
+            FIELDS: Optional field names to reset (resets all if not specified)
+            """
             try:
-                if field:
-                    # Reset specific field
+                if fields:
+                    # Reset specific fields
                     model = self.model_type.load_or_default(self.config_path)
                     service = ModelManagerService[self.model_type](
                         self.model_type,
@@ -490,15 +503,23 @@ class ModelCLIBuilder(Generic[ModelType]):
                         default_path=self.config_path
                     )
 
-                    # Get default value
+                    # Get default model
                     default_model = self.model_type()
-                    default_value = getattr(default_model, field)
 
-                    # Set to default
-                    service.set(field, default_value)
+                    click.echo("")
+                    for field in fields:
+                        if not hasattr(model, field):
+                            click.echo(f"[FAIL] Field '{field}' does not exist", err=True)
+                            continue
+
+                        default_value = getattr(default_model, field)
+                        service.set(field, default_value)
+                        click.echo(f"[OK] Reset {field} to default: {default_value}")
+
                     service.save()
-
-                    click.echo(f"✓ Reset {field} to default: {default_value}")
+                    click.echo("")
+                    click.echo(f"Configuration saved to {self.config_path}")
+                    click.echo("")
                 else:
                     # Reset all fields
                     default_model = self.model_type()
@@ -509,9 +530,10 @@ class ModelCLIBuilder(Generic[ModelType]):
                     )
                     service.save()
 
-                    click.echo(f"✓ Reset all fields to defaults")
-
-                click.echo(f"  Configuration saved to {self.config_path}")
+                    click.echo("")
+                    click.echo(f"[OK] Reset all fields to defaults")
+                    click.echo(f"Configuration saved to {self.config_path}")
+                    click.echo("")
 
             except ConfigurationError as e:
                 click.echo(f"Error: {e.user_message}", err=True)
@@ -524,25 +546,90 @@ class ModelCLIBuilder(Generic[ModelType]):
         """
         Build a complete Click group with all commands.
 
+        When called without a subcommand, displays the current configuration
+        (same as the old behavior where 'config' alone would show values).
+
         Args:
             name: Name of the command group
             help: Help text for the group
 
         Returns:
-            Click Group with show/set/validate/reset commands
+            Click Group with set/validate/reset commands and default show behavior
 
         Example:
             ```python
             builder = ModelCLIBuilder(AppConfig, ...)
             config = builder.build_group()
             cli.add_command(config)
+
+            # Usage:
+            # config              -> shows all fields
+            # config set --field value
+            # config validate     -> validates with checkmark output
+            # config reset [--field name]
             ```
         """
         if help is None:
             help = f"Manage {self.model_type.__name__} configuration"
 
-        group = click.Group(name=name, help=help)
-        group.add_command(self.build_show_command())
+        # Create the show logic for the group callback
+        def show_config(**kwargs):
+            """Display current configuration when no subcommand is provided."""
+            field = kwargs.get('field')
+            try:
+                # Load model
+                model = self.model_type.load_or_default(self.config_path)
+
+                if field:
+                    # Show specific field
+                    if hasattr(model, field):
+                        value = getattr(model, field)
+                        click.echo(f"{field}: {value}")
+                    else:
+                        click.echo(f"Error: Field '{field}' does not exist", err=True)
+                        return
+                else:
+                    # Show all fields
+                    model_dict = model.model_dump()
+                    click.echo(f"\n{self.model_type.__name__} Configuration:")
+                    click.echo("=" * 60)
+                    for key, value in model_dict.items():
+                        if self._should_expose(key):
+                            click.echo(f"  {key}: {value}")
+                    click.echo("")
+
+            except ConfigurationError as e:
+                click.echo(f"Error: {e.user_message}", err=True)
+                if e.recovery_hint:
+                    click.echo(f"Hint: {e.recovery_hint}", err=True)
+
+        # Create a custom group class that shows config by default
+        class DefaultShowGroup(click.Group):
+            def invoke(self, ctx):
+                # Call parent first to handle subcommands
+                result = super().invoke(ctx)
+
+                # If no subcommand was invoked, show the configuration
+                if ctx.invoked_subcommand is None:
+                    show_config(**ctx.params)
+
+                return result
+
+        group = DefaultShowGroup(
+            name=name,
+            help=help,
+            invoke_without_command=True,
+            params=[
+                click.Option(
+                    ['--field', '-f'],
+                    type=str,
+                    default=None,
+                    help='Show specific field instead of all fields'
+                )
+            ]
+        )
+
+        # Add subcommands (no 'show' - that's the default behavior)
         group.add_command(self.build_set_command())
         group.add_command(self.build_validate_command())
         group.add_command(self.build_reset_command())
