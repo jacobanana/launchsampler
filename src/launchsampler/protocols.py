@@ -173,6 +173,15 @@ class SelectionObserver(Protocol):
         ...
 
 
+class ConfigEvent(Enum):
+    """Events from configuration changes."""
+
+    CONFIG_LOADED = "config_loaded"    # Configuration was loaded from disk
+    CONFIG_SAVED = "config_saved"      # Configuration was saved to disk
+    CONFIG_UPDATED = "config_updated"  # Configuration value(s) were updated
+    CONFIG_RESET = "config_reset"      # Configuration was reset to defaults
+
+
 class AppEvent(Enum):
     """Events from application lifecycle and state changes."""
 
@@ -180,6 +189,38 @@ class AppEvent(Enum):
     SET_SAVED = "set_saved"          # Set was saved to disk
     SET_AUTO_CREATED = "set_auto_created"  # Set was auto-created because file didn't exist
     MODE_CHANGED = "mode_changed"    # Application mode changed (sampler/arranger)
+
+
+@runtime_checkable
+class ConfigObserver(Protocol):
+    """
+    Observer that receives configuration change events.
+
+    This protocol allows loose coupling between the config service
+    and components that need to react to configuration changes.
+    """
+
+    def on_config_event(self, event: "ConfigEvent", **kwargs) -> None:
+        """
+        Handle configuration change events.
+
+        Args:
+            event: The type of configuration event
+            **kwargs: Event-specific data:
+                - For CONFIG_UPDATED: 'keys' (list of changed keys), 'values' (dict of new values)
+                - For CONFIG_LOADED/CONFIG_SAVED: 'path' (Path to config file)
+                - For CONFIG_RESET: 'config' (the new default config)
+
+        Threading:
+            Called from the thread that initiated the config change.
+            Implementations should be thread-safe and avoid blocking operations.
+
+        Error Handling:
+            Exceptions raised by observers are caught and logged by the
+            ConfigService. They do not propagate to the caller, ensuring
+            one failing observer doesn't break others.
+        """
+        ...
 
 
 @runtime_checkable
