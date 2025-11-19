@@ -12,8 +12,8 @@ from launchsampler.models import AppConfig
 from launchsampler.model_manager import ModelEvent, ModelObserver, ModelManagerService
 
 
-# Test configuration model
-class TestConfig(BaseModel):
+# Test configuration model (renamed to avoid pytest collection warning)
+class SampleConfig(BaseModel):
     """Simple config model for testing."""
 
     string_field: str = "default_string"
@@ -30,17 +30,17 @@ class TestModelManagerServiceBasics:
     @pytest.fixture
     def config(self):
         """Create a test config instance."""
-        return TestConfig()
+        return SampleConfig()
 
     @pytest.fixture
     def service(self, config):
         """Create a ModelManagerService instance."""
-        return ModelManagerService[TestConfig](TestConfig, config)
+        return ModelManagerService[SampleConfig](SampleConfig, config)
 
     @pytest.mark.unit
     def test_initialization(self, service):
         """Test service initializes correctly."""
-        assert service._model_type == TestConfig
+        assert service._model_type == SampleConfig
         assert service._model is not None
         assert service._default_path is None
 
@@ -48,7 +48,7 @@ class TestModelManagerServiceBasics:
     def test_initialization_with_default_path(self, config, temp_dir):
         """Test service initializes with default path."""
         default_path = temp_dir / "config.json"
-        service = ModelManagerService[TestConfig](TestConfig, config, default_path)
+        service = ModelManagerService[SampleConfig](SampleConfig, config, default_path)
         assert service._default_path == default_path
 
     @pytest.mark.unit
@@ -79,7 +79,7 @@ class TestModelManagerServiceBasics:
     def test_get_model(self, service):
         """Test getting a copy of the config object."""
         config_copy = service.get_model()
-        assert isinstance(config_copy, TestConfig)
+        assert isinstance(config_copy, SampleConfig)
         assert config_copy.string_field == "default_string"
 
         # Verify it's a deep copy
@@ -93,12 +93,12 @@ class TestModelManagerServiceMutation:
     @pytest.fixture
     def config(self):
         """Create a test config instance."""
-        return TestConfig()
+        return SampleConfig()
 
     @pytest.fixture
     def service(self, config):
         """Create a ModelManagerService instance."""
-        return ModelManagerService[TestConfig](TestConfig, config)
+        return ModelManagerService[SampleConfig](SampleConfig, config)
 
     @pytest.fixture
     def mock_observer(self):
@@ -206,13 +206,13 @@ class TestModelManagerServicePersistence:
     @pytest.fixture
     def config(self):
         """Create a test config instance."""
-        return TestConfig(string_field="test_value", int_field=123)
+        return SampleConfig(string_field="test_value", int_field=123)
 
     @pytest.fixture
     def service(self, config, temp_dir):
         """Create a ModelManagerService instance with default path."""
         default_path = temp_dir / "config.json"
-        return ModelManagerService[TestConfig](TestConfig, config, default_path)
+        return ModelManagerService[SampleConfig](SampleConfig, config, default_path)
 
     @pytest.fixture
     def mock_observer(self):
@@ -250,7 +250,7 @@ class TestModelManagerServicePersistence:
     @pytest.mark.unit
     def test_save_without_path_raises_error(self, config):
         """Test saving without path raises ValueError."""
-        service = ModelManagerService[TestConfig](TestConfig, config)  # No default path
+        service = ModelManagerService[SampleConfig](SampleConfig, config)  # No default path
         with pytest.raises(ValueError, match="No path specified"):
             service.save()
 
@@ -263,8 +263,8 @@ class TestModelManagerServicePersistence:
         service.save()
 
         # Create new service and load
-        new_config = TestConfig()
-        new_service = ModelManagerService[TestConfig](TestConfig, new_config, temp_dir / "config.json")
+        new_config = SampleConfig()
+        new_service = ModelManagerService[SampleConfig](SampleConfig, new_config, temp_dir / "config.json")
         new_service.register_observer(mock_observer)
         new_service.load()
 
@@ -284,8 +284,8 @@ class TestModelManagerServicePersistence:
         service.save(custom_path)
 
         # Load from custom path
-        new_config = TestConfig()
-        new_service = ModelManagerService[TestConfig](TestConfig, new_config)
+        new_config = SampleConfig()
+        new_service = ModelManagerService[SampleConfig](SampleConfig, new_config)
         new_service.load(custom_path)
 
         assert new_service.get("string_field") == "custom_saved"
@@ -293,7 +293,7 @@ class TestModelManagerServicePersistence:
     @pytest.mark.unit
     def test_load_without_path_raises_error(self, config):
         """Test loading without path raises ValueError."""
-        service = ModelManagerService[TestConfig](TestConfig, config)  # No default path
+        service = ModelManagerService[SampleConfig](SampleConfig, config)  # No default path
         with pytest.raises(ValueError, match="No path specified"):
             service.load()
 
@@ -323,7 +323,7 @@ class TestModelManagerServicePersistence:
     def test_save_creates_parent_directories(self, config, temp_dir):
         """Test save creates parent directories if they don't exist."""
         nested_path = temp_dir / "nested" / "dir" / "config.json"
-        service = ModelManagerService[TestConfig](TestConfig, config, nested_path)
+        service = ModelManagerService[SampleConfig](SampleConfig, config, nested_path)
         service.save()
 
         assert nested_path.exists()
@@ -336,12 +336,12 @@ class TestModelManagerServiceObservers:
     @pytest.fixture
     def config(self):
         """Create a test config instance."""
-        return TestConfig()
+        return SampleConfig()
 
     @pytest.fixture
     def service(self, config):
         """Create a ModelManagerService instance."""
-        return ModelManagerService[TestConfig](TestConfig, config)
+        return ModelManagerService[SampleConfig](SampleConfig, config)
 
     @pytest.mark.unit
     def test_register_observer(self, service):
@@ -403,12 +403,12 @@ class TestModelManagerServiceThreadSafety:
     @pytest.fixture
     def config(self):
         """Create a test config instance."""
-        return TestConfig()
+        return SampleConfig()
 
     @pytest.fixture
     def service(self, config):
         """Create a ModelManagerService instance."""
-        return ModelManagerService[TestConfig](TestConfig, config)
+        return ModelManagerService[SampleConfig](SampleConfig, config)
 
     @pytest.mark.unit
     def test_concurrent_reads(self, service):
