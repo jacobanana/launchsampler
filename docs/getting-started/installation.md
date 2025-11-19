@@ -28,9 +28,14 @@ LaunchSampler can be installed using pip or uv. We recommend using `uv` for fast
     # Install launchsampler
     pipx install git+https://github.com/jacobanana/launchsampler
     ```
+    
+    After installation, verify that LaunchSampler is installed correctly:
 
-    Now you can run:
     ```bash
+    # Check version
+    launchsampler --version
+
+    # Show help
     launchsampler --help
     ```
 
@@ -46,21 +51,7 @@ LaunchSampler can be installed using pip or uv. We recommend using `uv` for fast
     uvx git+https://github.com/jacobanana/launchsampler
     ```
 
-## Verify Installation
-
-After installation, verify that LaunchSampler is installed correctly:
-
-=== "pipx"
-
-    ```bash
-    # Check version
-    launchsampler --version
-
-    # Show help
-    launchsampler --help
-    ```
-
-=== "uvx"
+    After installation, verify that LaunchSampler is installed correctly:
 
     ```bash
     # Check version
@@ -92,20 +83,10 @@ uv run pytest
 uv run launchsampler
 ```
 
-## Troubleshooting
-
-### Permission Errors (Linux)
-
-On Linux, you may need to add your user to the `audio` group:
-
-```bash
-sudo usermod -a -G audio $USER
-```
-
-Then log out and log back in for changes to take effect.
 
 ## Next Steps
 
 - [Quick Start Guide](quick-start.md) - Learn the basics
 - [Configuration](configuration.md) - Customize your setup
 - [User Guide](../user-guide/overview.md) - Master all features
+- [Troubleshooting](../troubleshooting.md) - Figure out why something's not working

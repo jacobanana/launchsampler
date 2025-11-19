@@ -18,6 +18,17 @@ For more information about logging options, see the [Logging section in Configur
 
 ---
 
+### Permission Errors (Linux)
+
+On Linux, you may need to add your user to the `audio` group:
+
+```bash
+sudo usermod -a -G audio $USER
+```
+
+Then log out and log back in for changes to take effect.
+
+
 ## Audio Issues
 
 ### Audio Dropouts / Glitches
@@ -28,11 +39,8 @@ For more information about logging options, see the [Logging section in Configur
 
 1. **Increase buffer size:**
 
-   Edit `~/.launchsampler/config.json`:
-   ```json
-   {
-     "default_buffer_size": 1024
-   }
+   ```bash
+   launchsampler config --buffer-size 1024
    ```
 
 2. **Close other audio applications** that might be competing for the audio device
@@ -48,10 +56,8 @@ For more information about logging options, see the [Logging section in Configur
 **Solutions:**
 
 1. **Decrease buffer size** (if your system can handle it):
-   ```json
-   {
-     "default_buffer_size": 256
-   }
+   ```bash
+   launchsampler config --buffer-size 32
    ```
 
 2. **Use a better audio API:**
@@ -75,10 +81,8 @@ For more information about logging options, see the [Logging section in Configur
    ```
 
    Note the device ID and update config:
-   ```json
-   {
-     "default_audio_device": 3
-   }
+   ```bash
+   launchsampler config --audio-device 3
    ```
 
 2. **Verify sample files exist** and are valid audio files
@@ -86,8 +90,9 @@ For more information about logging options, see the [Logging section in Configur
 3. **Check system volume** and ensure LaunchSampler isn't muted
 
 4. **Try a different audio device:**
+   By default, the `audio list` command will only show low latency devices, you can see the full list with:
    ```bash
-   launchsampler audio list
+   launchsampler audio list --all
    ```
    Choose a different device ID
 
@@ -109,11 +114,8 @@ For more information about logging options, see the [Logging section in Configur
    ```
 
 2. **Set device explicitly in config:**
-   ```json
-   {
-     
-     "default_audio_device": 3
-   }
+   ```bash
+   launchsampler config --audio-device 3
    ```
 
 3. **Restart LaunchSampler** after changing config
