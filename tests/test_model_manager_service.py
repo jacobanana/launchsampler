@@ -1,4 +1,4 @@
-"""Unit tests for ConfigService."""
+"""Unit tests for ModelManagerService."""
 
 from pathlib import Path
 from unittest.mock import Mock
@@ -9,8 +9,8 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 
 from launchsampler.models import AppConfig
-from launchsampler.protocols import ConfigEvent, ConfigObserver
-from launchsampler.services.config_service import ConfigService
+from launchsampler.protocols import ModelEvent, ModelObserver
+from launchsampler.services.config_service import ModelManagerService
 
 
 # Test configuration model
@@ -25,8 +25,8 @@ class TestConfig(BaseModel):
     path_field: Path = Field(default_factory=lambda: Path("/tmp/test"))
 
 
-class TestConfigServiceBasics:
-    """Test basic ConfigService functionality."""
+class TestModelManagerServiceBasics:
+    """Test basic ModelManagerService functionality."""
 
     @pytest.fixture
     def config(self):
@@ -35,21 +35,21 @@ class TestConfigServiceBasics:
 
     @pytest.fixture
     def service(self, config):
-        """Create a ConfigService instance."""
-        return ConfigService[TestConfig](TestConfig, config)
+        """Create a ModelManagerService instance."""
+        return ModelManagerService[TestConfig](TestConfig, config)
 
     @pytest.mark.unit
     def test_initialization(self, service):
         """Test service initializes correctly."""
-        assert service._config_type == TestConfig
-        assert service._config is not None
+        assert service._model_type == TestConfig
+        assert service._model is not None
         assert service._default_path is None
 
     @pytest.mark.unit
     def test_initialization_with_default_path(self, config, temp_dir):
         """Test service initializes with default path."""
         default_path = temp_dir / "config.json"
-        service = ConfigService[TestConfig](TestConfig, config, default_path)
+        service = ModelManagerService[TestConfig](TestConfig, config, default_path)
         assert service._default_path == default_path
 
     @pytest.mark.unit
@@ -77,9 +77,9 @@ class TestConfigServiceBasics:
         assert "path_field" in all_config
 
     @pytest.mark.unit
-    def test_get_config(self, service):
+    def test_get_model(self, service):
         """Test getting a copy of the config object."""
-        config_copy = service.get_config()
+        config_copy = service.get_model()
         assert isinstance(config_copy, TestConfig)
         assert config_copy.string_field == "default_string"
 
@@ -88,8 +88,8 @@ class TestConfigServiceBasics:
         assert service.get("string_field") == "default_string"
 
 
-class TestConfigServiceMutation:
-    """Test ConfigService mutation operations."""
+class TestModelManagerServiceMutation:
+    """Test ModelManagerService mutation operations."""
 
     @pytest.fixture
     def config(self):
@@ -98,13 +98,13 @@ class TestConfigServiceMutation:
 
     @pytest.fixture
     def service(self, config):
-        """Create a ConfigService instance."""
-        return ConfigService[TestConfig](TestConfig, config)
+        """Create a ModelManagerService instance."""
+        return ModelManagerService[TestConfig](TestConfig, config)
 
     @pytest.fixture
     def mock_observer(self):
         """Create a mock observer."""
-        observer = Mock(spec=ConfigObserver)
+        observer = Mock(spec=ModelObserver)
         return observer
 
     @pytest.mark.unit
@@ -116,9 +116,9 @@ class TestConfigServiceMutation:
         assert service.get("string_field") == "new_value"
 
         # Verify observer was notified
-        mock_observer.on_config_event.assert_called_once()
-        call_args = mock_observer.on_config_event.call_args
-        assert call_args[0][0] == ConfigEvent.CONFIG_UPDATED
+        mock_observer.on_model_event.assert_called_once()
+        call_args = mock_observer.on_model_event.call_args
+        assert call_args[0][0] == ModelEvent.MODEL_UPDATED
         assert call_args[1]["keys"] == ["string_field"]
         assert call_args[1]["values"] == {"string_field": "new_value"}
 
@@ -162,9 +162,9 @@ class TestConfigServiceMutation:
         assert service.get("bool_field") is False
 
         # Verify single notification with all updates
-        mock_observer.on_config_event.assert_called_once()
-        call_args = mock_observer.on_config_event.call_args
-        assert call_args[0][0] == ConfigEvent.CONFIG_UPDATED
+        mock_observer.on_model_event.assert_called_once()
+        call_args = mock_observer.on_model_event.call_args
+        assert call_args[0][0] == ModelEvent.MODEL_UPDATED
         assert set(call_args[1]["keys"]) == {"string_field", "int_field", "bool_field"}
         assert call_args[1]["values"] == updates
 
@@ -195,14 +195,14 @@ class TestConfigServiceMutation:
         assert service.get("bool_field") is True
 
         # Verify observer was notified
-        mock_observer.on_config_event.assert_called_once()
-        call_args = mock_observer.on_config_event.call_args
-        assert call_args[0][0] == ConfigEvent.CONFIG_RESET
+        mock_observer.on_model_event.assert_called_once()
+        call_args = mock_observer.on_model_event.call_args
+        assert call_args[0][0] == ModelEvent.MODEL_RESET
         assert "config" in call_args[1]
 
 
-class TestConfigServicePersistence:
-    """Test ConfigService persistence operations."""
+class TestModelManagerServicePersistence:
+    """Test ModelManagerService persistence operations."""
 
     @pytest.fixture
     def config(self):
@@ -211,14 +211,14 @@ class TestConfigServicePersistence:
 
     @pytest.fixture
     def service(self, config, temp_dir):
-        """Create a ConfigService instance with default path."""
+        """Create a ModelManagerService instance with default path."""
         default_path = temp_dir / "config.json"
-        return ConfigService[TestConfig](TestConfig, config, default_path)
+        return ModelManagerService[TestConfig](TestConfig, config, default_path)
 
     @pytest.fixture
     def mock_observer(self):
         """Create a mock observer."""
-        return Mock(spec=ConfigObserver)
+        return Mock(spec=ModelObserver)
 
     @pytest.mark.unit
     def test_save_with_default_path(self, service, temp_dir, mock_observer):
@@ -230,9 +230,9 @@ class TestConfigServicePersistence:
         assert config_path.exists()
 
         # Verify observer was notified
-        mock_observer.on_config_event.assert_called_once()
-        call_args = mock_observer.on_config_event.call_args
-        assert call_args[0][0] == ConfigEvent.CONFIG_SAVED
+        mock_observer.on_model_event.assert_called_once()
+        call_args = mock_observer.on_model_event.call_args
+        assert call_args[0][0] == ModelEvent.MODEL_SAVED
         assert call_args[1]["path"] == config_path
 
     @pytest.mark.unit
@@ -245,13 +245,13 @@ class TestConfigServicePersistence:
         assert custom_path.exists()
 
         # Verify observer was notified with correct path
-        call_args = mock_observer.on_config_event.call_args
+        call_args = mock_observer.on_model_event.call_args
         assert call_args[1]["path"] == custom_path
 
     @pytest.mark.unit
     def test_save_without_path_raises_error(self, config):
         """Test saving without path raises ValueError."""
-        service = ConfigService[TestConfig](TestConfig, config)  # No default path
+        service = ModelManagerService[TestConfig](TestConfig, config)  # No default path
         with pytest.raises(ValueError, match="No path specified"):
             service.save()
 
@@ -265,7 +265,7 @@ class TestConfigServicePersistence:
 
         # Create new service and load
         new_config = TestConfig()
-        new_service = ConfigService[TestConfig](TestConfig, new_config, temp_dir / "config.json")
+        new_service = ModelManagerService[TestConfig](TestConfig, new_config, temp_dir / "config.json")
         new_service.register_observer(mock_observer)
         new_service.load()
 
@@ -273,9 +273,9 @@ class TestConfigServicePersistence:
         assert new_service.get("int_field") == 999
 
         # Verify observer was notified
-        mock_observer.on_config_event.assert_called_once()
-        call_args = mock_observer.on_config_event.call_args
-        assert call_args[0][0] == ConfigEvent.CONFIG_LOADED
+        mock_observer.on_model_event.assert_called_once()
+        call_args = mock_observer.on_model_event.call_args
+        assert call_args[0][0] == ModelEvent.MODEL_LOADED
 
     @pytest.mark.unit
     def test_load_with_explicit_path(self, service, temp_dir):
@@ -286,7 +286,7 @@ class TestConfigServicePersistence:
 
         # Load from custom path
         new_config = TestConfig()
-        new_service = ConfigService[TestConfig](TestConfig, new_config)
+        new_service = ModelManagerService[TestConfig](TestConfig, new_config)
         new_service.load(custom_path)
 
         assert new_service.get("string_field") == "custom_saved"
@@ -294,7 +294,7 @@ class TestConfigServicePersistence:
     @pytest.mark.unit
     def test_load_without_path_raises_error(self, config):
         """Test loading without path raises ValueError."""
-        service = ConfigService[TestConfig](TestConfig, config)  # No default path
+        service = ModelManagerService[TestConfig](TestConfig, config)  # No default path
         with pytest.raises(ValueError, match="No path specified"):
             service.load()
 
@@ -324,15 +324,15 @@ class TestConfigServicePersistence:
     def test_save_creates_parent_directories(self, config, temp_dir):
         """Test save creates parent directories if they don't exist."""
         nested_path = temp_dir / "nested" / "dir" / "config.json"
-        service = ConfigService[TestConfig](TestConfig, config, nested_path)
+        service = ModelManagerService[TestConfig](TestConfig, config, nested_path)
         service.save()
 
         assert nested_path.exists()
         assert nested_path.parent.is_dir()
 
 
-class TestConfigServiceObservers:
-    """Test ConfigService observer functionality."""
+class TestModelManagerServiceObservers:
+    """Test ModelManagerService observer functionality."""
 
     @pytest.fixture
     def config(self):
@@ -341,33 +341,33 @@ class TestConfigServiceObservers:
 
     @pytest.fixture
     def service(self, config):
-        """Create a ConfigService instance."""
-        return ConfigService[TestConfig](TestConfig, config)
+        """Create a ModelManagerService instance."""
+        return ModelManagerService[TestConfig](TestConfig, config)
 
     @pytest.mark.unit
     def test_register_observer(self, service):
         """Test registering an observer."""
-        observer = Mock(spec=ConfigObserver)
+        observer = Mock(spec=ModelObserver)
         service.register_observer(observer)
         # Should not raise
 
     @pytest.mark.unit
     def test_unregister_observer(self, service):
         """Test unregistering an observer."""
-        observer = Mock(spec=ConfigObserver)
+        observer = Mock(spec=ModelObserver)
         service.register_observer(observer)
         service.unregister_observer(observer)
 
         # Should not be notified after unregistration
         service.set("string_field", "test")
-        observer.on_config_event.assert_not_called()
+        observer.on_model_event.assert_not_called()
 
     @pytest.mark.unit
     def test_multiple_observers(self, service):
         """Test multiple observers receive notifications."""
-        observer1 = Mock(spec=ConfigObserver)
-        observer2 = Mock(spec=ConfigObserver)
-        observer3 = Mock(spec=ConfigObserver)
+        observer1 = Mock(spec=ModelObserver)
+        observer2 = Mock(spec=ModelObserver)
+        observer3 = Mock(spec=ModelObserver)
 
         service.register_observer(observer1)
         service.register_observer(observer2)
@@ -375,17 +375,17 @@ class TestConfigServiceObservers:
 
         service.set("string_field", "broadcast")
 
-        observer1.on_config_event.assert_called_once()
-        observer2.on_config_event.assert_called_once()
-        observer3.on_config_event.assert_called_once()
+        observer1.on_model_event.assert_called_once()
+        observer2.on_model_event.assert_called_once()
+        observer3.on_model_event.assert_called_once()
 
     @pytest.mark.unit
     def test_observer_exception_does_not_propagate(self, service):
         """Test that observer exceptions are caught and don't propagate."""
-        failing_observer = Mock(spec=ConfigObserver)
-        failing_observer.on_config_event.side_effect = Exception("Observer failed")
+        failing_observer = Mock(spec=ModelObserver)
+        failing_observer.on_model_event.side_effect = Exception("Observer failed")
 
-        working_observer = Mock(spec=ConfigObserver)
+        working_observer = Mock(spec=ModelObserver)
 
         service.register_observer(failing_observer)
         service.register_observer(working_observer)
@@ -394,12 +394,12 @@ class TestConfigServiceObservers:
         service.set("string_field", "test")
 
         # Both observers should have been called
-        failing_observer.on_config_event.assert_called_once()
-        working_observer.on_config_event.assert_called_once()
+        failing_observer.on_model_event.assert_called_once()
+        working_observer.on_model_event.assert_called_once()
 
 
-class TestConfigServiceThreadSafety:
-    """Test ConfigService thread safety."""
+class TestModelManagerServiceThreadSafety:
+    """Test ModelManagerService thread safety."""
 
     @pytest.fixture
     def config(self):
@@ -408,8 +408,8 @@ class TestConfigServiceThreadSafety:
 
     @pytest.fixture
     def service(self, config):
-        """Create a ConfigService instance."""
-        return ConfigService[TestConfig](TestConfig, config)
+        """Create a ModelManagerService instance."""
+        return ModelManagerService[TestConfig](TestConfig, config)
 
     @pytest.mark.unit
     def test_concurrent_reads(self, service):
@@ -473,8 +473,8 @@ class TestConfigServiceThreadSafety:
         assert len(read_results) == 500  # 5 readers * 100 reads each
 
 
-class TestConfigServiceWithAppConfig:
-    """Test ConfigService with real AppConfig model."""
+class TestModelManagerServiceWithAppConfig:
+    """Test ModelManagerService with real AppConfig model."""
 
     @pytest.fixture
     def app_config(self, temp_dir):
@@ -483,8 +483,8 @@ class TestConfigServiceWithAppConfig:
 
     @pytest.fixture
     def service(self, app_config, temp_dir):
-        """Create a ConfigService for AppConfig."""
-        return ConfigService[AppConfig](
+        """Create a ModelManagerService for AppConfig."""
+        return ModelManagerService[AppConfig](
             AppConfig,
             app_config,
             temp_dir / "app_config.json"
@@ -518,7 +518,7 @@ class TestConfigServiceWithAppConfig:
 
         # Load in new service
         new_config = AppConfig()
-        new_service = ConfigService[AppConfig](
+        new_service = ModelManagerService[AppConfig](
             AppConfig,
             new_config,
             service._default_path

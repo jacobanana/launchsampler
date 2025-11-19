@@ -178,13 +178,13 @@ class SelectionObserver(Protocol):
         ...
 
 
-class ConfigEvent(Enum):
-    """Events from configuration changes."""
+class ModelEvent(Enum):
+    """Events from model changes (configuration, sets, etc.)."""
 
-    CONFIG_LOADED = "config_loaded"    # Configuration was loaded from disk
-    CONFIG_SAVED = "config_saved"      # Configuration was saved to disk
-    CONFIG_UPDATED = "config_updated"  # Configuration value(s) were updated
-    CONFIG_RESET = "config_reset"      # Configuration was reset to defaults
+    MODEL_LOADED = "model_loaded"    # Model was loaded from disk
+    MODEL_SAVED = "model_saved"      # Model was saved to disk
+    MODEL_UPDATED = "model_updated"  # Model value(s) were updated
+    MODEL_RESET = "model_reset"      # Model was reset to defaults
 
 
 class AppEvent(Enum):
@@ -197,32 +197,32 @@ class AppEvent(Enum):
 
 
 @runtime_checkable
-class ConfigObserver(Protocol):
+class ModelObserver(Protocol):
     """
-    Observer that receives configuration change events.
+    Observer that receives model change events.
 
-    This protocol allows loose coupling between the config service
-    and components that need to react to configuration changes.
+    This protocol allows loose coupling between model manager services
+    and components that need to react to model changes.
     """
 
-    def on_config_event(self, event: "ConfigEvent", **kwargs) -> None:
+    def on_model_event(self, event: "ModelEvent", **kwargs) -> None:
         """
-        Handle configuration change events.
+        Handle model change events.
 
         Args:
-            event: The type of configuration event
+            event: The type of model event
             **kwargs: Event-specific data:
-                - For CONFIG_UPDATED: 'keys' (list of changed keys), 'values' (dict of new values)
-                - For CONFIG_LOADED/CONFIG_SAVED: 'path' (Path to config file)
-                - For CONFIG_RESET: 'config' (the new default config)
+                - For MODEL_UPDATED: 'keys' (list of changed keys), 'values' (dict of new values)
+                - For MODEL_LOADED/MODEL_SAVED: 'path' (Path to model file)
+                - For MODEL_RESET: 'model' (the new default model)
 
         Threading:
-            Called from the thread that initiated the config change.
+            Called from the thread that initiated the model change.
             Implementations should be thread-safe and avoid blocking operations.
 
         Error Handling:
             Exceptions raised by observers are caught and logged by the
-            ConfigService. They do not propagate to the caller, ensuring
+            ModelManagerService. They do not propagate to the caller, ensuring
             one failing observer doesn't break others.
         """
         ...

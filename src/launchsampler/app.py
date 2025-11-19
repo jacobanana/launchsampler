@@ -15,7 +15,7 @@ from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
-from launchsampler.services import ConfigService, EditorService, SetManagerService
+from launchsampler.services import ModelManagerService, EditorService, SetManagerService
 from launchsampler.utils import ObserverManager
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class LaunchpadSamplerApp:
         self.midi_controller: Optional[DeviceController] = None
 
         # Services (domain logic)
-        self.config_service: Optional[ConfigService[AppConfig]] = None
+        self.config_service: Optional[ModelManagerService[AppConfig]] = None
         self.set_manager: Optional[SetManagerService] = None
         self.player: Optional[Player] = None
         self.editor: Optional[EditorService] = None
@@ -121,14 +121,14 @@ class LaunchpadSamplerApp:
         """
         logger.info("Initializing LaunchpadSamplerApp services")
 
-        # Initialize ConfigService for centralized config management
+        # Initialize ModelManagerService for centralized config management
         config_path = Path.home() / ".launchsampler" / "config.json"
-        self.config_service = ConfigService[AppConfig](
+        self.config_service = ModelManagerService[AppConfig](
             AppConfig,
             self.config,
             default_path=config_path
         )
-        logger.info("ConfigService initialized")
+        logger.info("ModelManagerService initialized")
 
         self.set_manager = SetManagerService(self.config)
 

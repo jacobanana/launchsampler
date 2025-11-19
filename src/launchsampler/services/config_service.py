@@ -1,4 +1,4 @@
-"""Configuration service for managing application configuration."""
+"""Model manager service for managing Pydantic models (config, sets, etc.)."""
 
 import logging
 from pathlib import Path
@@ -7,36 +7,37 @@ from threading import Lock
 
 from pydantic import BaseModel, ValidationError
 
-from launchsampler.protocols import ConfigEvent, ConfigObserver
+from launchsampler.protocols import ModelEvent, ModelObserver
 from launchsampler.utils import ObserverManager, PydanticPersistence
 
 logger = logging.getLogger(__name__)
 
-# Generic type for any Pydantic config model
-ConfigType = TypeVar('ConfigType', bound=BaseModel)
+# Generic type for any Pydantic model
+ModelType = TypeVar('ModelType', bound=BaseModel)
 
 
-class ConfigService(Generic[ConfigType]):
+class ModelManagerService(Generic[ModelType]):
     """
-    Generic service for managing Pydantic-based configuration.
+    Generic service for managing Pydantic-based models.
 
-    This service provides a centralized way to manage any Pydantic configuration
-    model with get/set operations, persistence, and event notifications.
+    This service provides a centralized way to manage any Pydantic model
+    (AppConfig, Set, or other models) with get/set operations, persistence,
+    and event notifications.
 
     Design Philosophy:
         - Generic: Works with ANY Pydantic BaseModel subclass
         - Type-safe: Full type hinting and validation via Pydantic
-        - Observable: Emits events for all config changes
+        - Observable: Emits events for all model changes
         - Thread-safe: Protected by locks for concurrent access
-        - Single responsibility: Only handles config management
+        - Single responsibility: Only handles model state management
 
     Event-Driven Architecture:
-        All configuration operations emit ConfigEvent notifications to registered
+        All model operations emit ModelEvent notifications to registered
         observers. This ensures automatic synchronization of dependent components
         without manual coordination.
 
     Threading:
-        All public methods are thread-safe. The _lock protects config state
+        All public methods are thread-safe. The _lock protects model state
         during reads/writes. The lock is released before notifying observers
         to prevent deadlocks (same pattern as other services).
 
@@ -44,7 +45,7 @@ class ConfigService(Generic[ConfigType]):
         ```python
         # Create service with AppConfig
         config = AppConfig.load_or_default()
-        service = ConfigService[AppConfig](AppConfig, config)
+        service = ModelManagerService[AppConfig](AppConfig, config)
 
         # Register observers
         service.register_observer(my_observer)
@@ -62,45 +63,45 @@ class ConfigService(Generic[ConfigType]):
 
     def __init__(
         self,
-        config_type: Type[ConfigType],
-        initial_config: ConfigType,
+        model_type: Type[ModelType],
+        initial_model: ModelType,
         default_path: Optional[Path] = None
     ):
         """
-        Initialize the configuration service.
+        Initialize the model manager service.
 
         Args:
-            config_type: The Pydantic model class (e.g., AppConfig)
-            initial_config: The initial configuration instance
+            model_type: The Pydantic model class (e.g., AppConfig, Set)
+            initial_model: The initial model instance
             default_path: Default path for save/load operations (optional)
         """
-        self._config_type = config_type
-        self._config = initial_config
+        self._model_type = model_type
+        self._model = initial_model
         self._default_path = default_path
         self._lock = Lock()
 
         # Event system
-        self._observers = ObserverManager[ConfigObserver](
+        self._observers = ObserverManager[ModelObserver](
             lock=self._lock,
-            observer_type_name="config"
+            observer_type_name="model"
         )
 
-        logger.info(f"ConfigService initialized with {config_type.__name__}")
+        logger.info(f"ModelManagerService initialized with {model_type.__name__}")
 
     # =================================================================
     # Event System
     # =================================================================
 
-    def register_observer(self, observer: ConfigObserver) -> None:
+    def register_observer(self, observer: ModelObserver) -> None:
         """
-        Register an observer to receive configuration events.
+        Register an observer to receive model change events.
 
         Args:
-            observer: Object implementing ConfigObserver protocol
+            observer: Object implementing ModelObserver protocol
         """
         self._observers.register(observer)
 
-    def unregister_observer(self, observer: ConfigObserver) -> None:
+    def unregister_observer(self, observer: ModelObserver) -> None:
         """
         Unregister an observer.
 
@@ -109,36 +110,36 @@ class ConfigService(Generic[ConfigType]):
         """
         self._observers.unregister(observer)
 
-    def _notify_observers(self, event: ConfigEvent, **kwargs: Any) -> None:
+    def _notify_observers(self, event: ModelEvent, **kwargs: Any) -> None:
         """
-        Notify all registered observers of a configuration event.
+        Notify all registered observers of a model change event.
 
         Args:
-            event: The configuration event that occurred
+            event: The model event that occurred
             **kwargs: Event-specific data
 
         Note:
             ObserverManager handles exception catching and logging automatically.
         """
-        self._observers.notify('on_config_event', event, **kwargs)
+        self._observers.notify('on_model_event', event, **kwargs)
 
     # =================================================================
-    # Configuration Access
+    # Model Access
     # =================================================================
 
     def get(self, key: str, default: Any = None) -> Any:
         """
-        Get a configuration value by key.
+        Get a model field value by key.
 
         Args:
-            key: Configuration field name
+            key: Model field name
             default: Default value if key doesn't exist
 
         Returns:
-            The configuration value, or default if key doesn't exist
+            The field value, or default if key doesn't exist
 
         Thread-Safety:
-            This method is thread-safe. Config state is protected by lock.
+            This method is thread-safe. Model state is protected by lock.
 
         Example:
             ```python
@@ -147,33 +148,33 @@ class ConfigService(Generic[ConfigType]):
             ```
         """
         with self._lock:
-            return getattr(self._config, key, default)
+            return getattr(self._model, key, default)
 
     def get_all(self) -> dict[str, Any]:
         """
-        Get all configuration values as a dictionary.
+        Get all model field values as a dictionary.
 
         Returns:
-            Dictionary of all config field names and values
+            Dictionary of all model field names and values
 
         Thread-Safety:
-            This method is thread-safe. Returns a snapshot of config state.
+            This method is thread-safe. Returns a snapshot of model state.
 
         Example:
             ```python
-            all_config = service.get_all()
-            print(f"Sets directory: {all_config['sets_dir']}")
+            all_fields = service.get_all()
+            print(f"Sets directory: {all_fields['sets_dir']}")
             ```
         """
         with self._lock:
-            return self._config.model_dump()
+            return self._model.model_dump()
 
-    def get_config(self) -> ConfigType:
+    def get_model(self) -> ModelType:
         """
-        Get a copy of the entire configuration object.
+        Get a copy of the entire model object.
 
         Returns:
-            Deep copy of the current configuration
+            Deep copy of the current model
 
         Thread-Safety:
             This method is thread-safe. Returns a deep copy to prevent
@@ -181,34 +182,34 @@ class ConfigService(Generic[ConfigType]):
 
         Example:
             ```python
-            config_copy = service.get_config()
-            # Safe to modify config_copy without affecting service state
+            model_copy = service.get_model()
+            # Safe to modify model_copy without affecting service state
             ```
         """
         with self._lock:
-            return self._config.model_copy(deep=True)
+            return self._model.model_copy(deep=True)
 
     # =================================================================
-    # Configuration Mutation
+    # Model Mutation
     # =================================================================
 
     def set(self, key: str, value: Any) -> None:
         """
-        Set a configuration value by key.
+        Set a model field value by key.
 
         Args:
-            key: Configuration field name
+            key: Model field name
             value: New value (must be valid for the field type)
 
         Raises:
-            AttributeError: If key doesn't exist in config model
+            AttributeError: If key doesn't exist in model
             ValidationError: If value fails Pydantic validation
 
         Thread-Safety:
-            This method is thread-safe. Config state is protected by lock.
+            This method is thread-safe. Model state is protected by lock.
 
         Events:
-            Emits CONFIG_UPDATED with keys=[key], values={key: value}
+            Emits MODEL_UPDATED with keys=[key], values={key: value}
 
         Example:
             ```python
@@ -217,16 +218,16 @@ class ConfigService(Generic[ConfigType]):
             ```
         """
         with self._lock:
-            if not hasattr(self._config, key):
+            if not hasattr(self._model, key):
                 raise AttributeError(
-                    f"'{self._config_type.__name__}' has no field '{key}'"
+                    f"'{self._model_type.__name__}' has no field '{key}'"
                 )
 
             # Validate by reconstructing the model (Pydantic 2.x doesn't validate on setattr/model_copy)
             try:
-                current_dict = self._config.model_dump()
+                current_dict = self._model.model_dump()
                 current_dict[key] = value
-                self._config = self._config_type.model_validate(current_dict)
+                self._model = self._model_type.model_validate(current_dict)
                 updated_values = {key: value}
             except ValidationError as e:
                 logger.error(f"Validation error setting {key}={value}: {e}")
@@ -234,29 +235,29 @@ class ConfigService(Generic[ConfigType]):
 
         # Notify observers (outside lock)
         self._notify_observers(
-            ConfigEvent.CONFIG_UPDATED,
+            ModelEvent.MODEL_UPDATED,
             keys=[key],
             values=updated_values
         )
 
-        logger.debug(f"Config updated: {key}={value}")
+        logger.debug(f"Model updated: {key}={value}")
 
     def update(self, values: dict[str, Any]) -> None:
         """
-        Update multiple configuration values at once.
+        Update multiple model field values at once.
 
         Args:
             values: Dictionary of field names and values to update
 
         Raises:
-            AttributeError: If any key doesn't exist in config model
+            AttributeError: If any key doesn't exist in model
             ValidationError: If any value fails Pydantic validation
 
         Thread-Safety:
             This method is thread-safe. All updates are atomic.
 
         Events:
-            Emits single CONFIG_UPDATED event with all changed keys/values
+            Emits single MODEL_UPDATED event with all changed keys/values
 
         Example:
             ```python
@@ -270,56 +271,56 @@ class ConfigService(Generic[ConfigType]):
         with self._lock:
             # Validate all keys exist first
             for key in values:
-                if not hasattr(self._config, key):
+                if not hasattr(self._model, key):
                     raise AttributeError(
-                        f"'{self._config_type.__name__}' has no field '{key}'"
+                        f"'{self._model_type.__name__}' has no field '{key}'"
                     )
 
             # Apply all updates with validation (atomic - all or nothing)
             try:
-                current_dict = self._config.model_dump()
+                current_dict = self._model.model_dump()
                 current_dict.update(values)
-                self._config = self._config_type.model_validate(current_dict)
+                self._model = self._model_type.model_validate(current_dict)
             except ValidationError as e:
                 logger.error(f"Validation error during batch update: {e}")
                 raise
 
         # Notify observers (outside lock)
         self._notify_observers(
-            ConfigEvent.CONFIG_UPDATED,
+            ModelEvent.MODEL_UPDATED,
             keys=list(values.keys()),
             values=values
         )
 
-        logger.debug(f"Config batch updated: {list(values.keys())}")
+        logger.debug(f"Model batch updated: {list(values.keys())}")
 
     def reset(self) -> None:
         """
-        Reset configuration to default values.
+        Reset model to default values.
 
         Thread-Safety:
-            This method is thread-safe. Config replacement is atomic.
+            This method is thread-safe. Model replacement is atomic.
 
         Events:
-            Emits CONFIG_RESET with the new default config
+            Emits MODEL_RESET with the new default model
 
         Example:
             ```python
             service.reset()
-            # All config values are now back to defaults
+            # All model field values are now back to defaults
             ```
         """
         with self._lock:
             # Create new default instance
-            self._config = self._config_type()
+            self._model = self._model_type()
 
         # Notify observers (outside lock)
         self._notify_observers(
-            ConfigEvent.CONFIG_RESET,
-            config=self._config.model_copy(deep=True)
+            ModelEvent.MODEL_RESET,
+            model=self._model.model_copy(deep=True)
         )
 
-        logger.info(f"Config reset to defaults: {self._config_type.__name__}")
+        logger.info(f"Model reset to defaults: {self._model_type.__name__}")
 
     # =================================================================
     # Persistence
@@ -327,21 +328,21 @@ class ConfigService(Generic[ConfigType]):
 
     def load(self, path: Optional[Path] = None) -> None:
         """
-        Load configuration from file.
+        Load model from file.
 
         Args:
-            path: Path to config file (uses default_path if None)
+            path: Path to model file (uses default_path if None)
 
         Raises:
             ValueError: If no path specified and no default_path set
-            ValidationError: If config file has invalid values
-            FileNotFoundError: If config file doesn't exist
+            ValidationError: If model file has invalid values
+            FileNotFoundError: If model file doesn't exist
 
         Thread-Safety:
-            This method is thread-safe. Config replacement is atomic.
+            This method is thread-safe. Model replacement is atomic.
 
         Events:
-            Emits CONFIG_LOADED with the file path
+            Emits MODEL_LOADED with the file path
 
         Example:
             ```python
@@ -355,34 +356,34 @@ class ConfigService(Generic[ConfigType]):
             raise ValueError("No path specified and no default_path set")
 
         # Load and validate from file using shared utility
-        new_config = PydanticPersistence.load_json(file_path, self._config_type)
+        new_model = PydanticPersistence.load_json(file_path, self._model_type)
 
         with self._lock:
-            self._config = new_config
+            self._model = new_model
 
         # Notify observers (outside lock)
         self._notify_observers(
-            ConfigEvent.CONFIG_LOADED,
+            ModelEvent.MODEL_LOADED,
             path=file_path
         )
 
-        logger.info(f"Config loaded from {file_path}")
+        logger.info(f"Model loaded from {file_path}")
 
     def save(self, path: Optional[Path] = None) -> None:
         """
-        Save configuration to file.
+        Save model to file.
 
         Args:
-            path: Path to save config to (uses default_path if None)
+            path: Path to save model to (uses default_path if None)
 
         Raises:
             ValueError: If no path specified and no default_path set
 
         Thread-Safety:
-            This method is thread-safe. Config is read under lock.
+            This method is thread-safe. Model is read under lock.
 
         Events:
-            Emits CONFIG_SAVED with the file path
+            Emits MODEL_SAVED with the file path
 
         Example:
             ```python
@@ -397,34 +398,34 @@ class ConfigService(Generic[ConfigType]):
 
         file_path = Path(file_path)
 
-        # Get config copy while holding lock
+        # Get model copy while holding lock
         with self._lock:
-            config_copy = self._config.model_copy(deep=True)
+            model_copy = self._model.model_copy(deep=True)
 
         # Write to file using shared utility (outside lock - I/O can be slow)
-        PydanticPersistence.save_json(config_copy, file_path)
+        PydanticPersistence.save_json(model_copy, file_path)
 
         # Notify observers (outside lock)
         self._notify_observers(
-            ConfigEvent.CONFIG_SAVED,
+            ModelEvent.MODEL_SAVED,
             path=file_path
         )
 
-        logger.info(f"Config saved to {file_path}")
+        logger.info(f"Model saved to {file_path}")
 
     def reload(self, path: Optional[Path] = None) -> None:
         """
-        Reload configuration from file (convenience method).
+        Reload model from file (convenience method).
 
         This is equivalent to calling load() but provides clearer intent.
 
         Args:
-            path: Path to config file (uses default_path if None)
+            path: Path to model file (uses default_path if None)
 
         Raises:
             ValueError: If no path specified and no default_path set
-            ValidationError: If config file has invalid values
-            FileNotFoundError: If config file doesn't exist
+            ValidationError: If model file has invalid values
+            FileNotFoundError: If model file doesn't exist
 
         Example:
             ```python

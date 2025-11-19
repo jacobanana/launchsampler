@@ -5,7 +5,7 @@ import click
 
 from launchsampler.audio import AudioDevice
 from launchsampler.models import AppConfig
-from launchsampler.services import ConfigService
+from launchsampler.services import ModelManagerService
 from launchsampler.exceptions import ConfigurationError
 
 
@@ -58,8 +58,8 @@ def config(audio_device: Optional[str], buffer_size: Optional[int]):
             click.echo(f"Suggestion: {e.recovery_hint}", err=True)
         return
 
-    # Create ConfigService for managing updates
-    config_service = ConfigService[AppConfig](
+    # Create ModelManagerService for managing updates
+    config_service = ModelManagerService[AppConfig](
         AppConfig,
         config,
         default_path=config_path

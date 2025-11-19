@@ -1,7 +1,7 @@
 """
-Standalone demonstration of ConfigService functionality.
+Standalone demonstration of ModelManagerService functionality.
 
-This script demonstrates the ConfigService without requiring the full test environment.
+This script demonstrates the ModelManagerService without requiring the full test environment.
 Run with: python3 demo_config_service.py (requires only pydantic)
 """
 
@@ -30,7 +30,7 @@ class DemoConfig(BaseModel):
 
 
 print("\n" + "=" * 60)
-print("ConfigService Demonstration")
+print("ModelManagerService Demonstration")
 print("=" * 60)
 
 # Import our modules directly to avoid package init
@@ -45,8 +45,8 @@ try:
     protocols = importlib.util.module_from_spec(spec)
     sys.modules['launchsampler.protocols'] = protocols
     spec.loader.exec_module(protocols)
-    ConfigEvent = protocols.ConfigEvent
-    ConfigObserver = protocols.ConfigObserver
+    ModelEvent = protocols.ModelEvent
+    ModelObserver = protocols.ModelObserver
 
     # Load observer_manager module directly
     spec = importlib.util.spec_from_file_location(
@@ -82,7 +82,7 @@ try:
     )
     config_service = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(config_service)
-    ConfigService = config_service.ConfigService
+    ModelManagerService = config_service.ModelManagerService
 
     print("✓ All modules imported successfully\n")
 except Exception as e:
@@ -99,8 +99,8 @@ class DemoObserver:
     def __init__(self):
         self.events_received = []
 
-    def on_config_event(self, event: ConfigEvent, **kwargs):
-        """Handle config events."""
+    def on_model_event(self, event: ModelEvent, **kwargs):
+        """Handle model events."""
         self.events_received.append((event, kwargs))
         print(f"  📢 Observer received: {event.value}")
         if "keys" in kwargs:
@@ -109,12 +109,12 @@ class DemoObserver:
             print(f"     New values: {kwargs['values']}")
 
 
-print("1. Creating ConfigService with DemoConfig")
+print("1. Creating ModelManagerService with DemoConfig")
 print("-" * 60)
 config = DemoConfig()
-service = ConfigService[DemoConfig](DemoConfig, config)
+service = ModelManagerService[DemoConfig](DemoConfig, config)
 print(f"✓ Service created")
-print(f"  Config type: {service._config_type.__name__}")
+print(f"  Model type: {service._model_type.__name__}")
 print()
 
 print("2. Registering Observer")
@@ -168,7 +168,7 @@ print()
 print("8. Save and Load Configuration")
 print("-" * 60)
 temp_config_path = Path("/tmp/demo_config.json")
-service = ConfigService[DemoConfig](DemoConfig, config, temp_config_path)
+service = ModelManagerService[DemoConfig](DemoConfig, config, temp_config_path)
 service.set('app_name', 'SavedApp')
 service.set('max_connections', 100)
 print(f"  Saving to: {temp_config_path}")
@@ -177,7 +177,7 @@ print(f"  ✓ Saved")
 
 # Load in new service
 new_config = DemoConfig()
-new_service = ConfigService[DemoConfig](DemoConfig, new_config, temp_config_path)
+new_service = ModelManagerService[DemoConfig](DemoConfig, new_config, temp_config_path)
 print(f"  Loading from: {temp_config_path}")
 new_service.load()
 print(f"  ✓ Loaded")
