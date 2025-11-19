@@ -71,6 +71,22 @@ def create_title_from_filename(filename: str) -> str:
     return " ".join(word.capitalize() for word in name.split("_"))
 
 
+def get_package_title(package_name: str) -> str:
+    """Convert package name to human-readable title."""
+    # Special case mappings for better readability
+    title_map = {
+        "model_manager": "Model Manager",
+        "led_ui": "LED UI",
+        "set_manager_service": "Set Manager Service",
+    }
+
+    if package_name in title_map:
+        return title_map[package_name]
+
+    # Default: capitalize first letter
+    return package_name.capitalize()
+
+
 def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]) -> str:
     """
     Generate navigation structure for mkdocs.yml using PyYAML.
@@ -86,7 +102,7 @@ def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]
             continue
 
         # Add package section
-        title = package_name.capitalize()
+        title = get_package_title(package_name)
         package_items = [
             {"Overview": f"api/{package_name}/index.md"}
         ]
@@ -153,6 +169,35 @@ def update_mkdocs_nav(mkdocs_path: Path, new_api_nav: str) -> None:
     mkdocs_path.write_text(new_content, encoding="utf-8")
 
 
+def cleanup_old_docs(docs_root: Path, packages_to_document: Dict[str, str]) -> None:
+    """
+    Clean up old documentation files for packages being regenerated.
+
+    This ensures that if Python files are moved or deleted, their corresponding
+    markdown files are also removed.
+
+    Args:
+        docs_root: Root directory for API documentation
+        packages_to_document: Dictionary of packages to clean
+    """
+    print("\nCleaning up old documentation files...")
+
+    for package_name in packages_to_document.keys():
+        package_dir = docs_root / package_name
+        if package_dir.exists():
+            # Remove all markdown files except index.md (we'll regenerate it)
+            for md_file in package_dir.rglob("*.md"):
+                if md_file.name != "index.md":
+                    md_file.unlink()
+                    print(f"  Removed: {md_file.relative_to(docs_root.parent.parent)}")
+
+            # Remove empty subdirectories
+            for subdir in sorted(package_dir.rglob("*"), reverse=True):
+                if subdir.is_dir() and not any(subdir.iterdir()):
+                    subdir.rmdir()
+                    print(f"  Removed empty dir: {subdir.relative_to(docs_root.parent.parent)}")
+
+
 def main():
     """Generate all API documentation files."""
     # Paths
@@ -167,14 +212,18 @@ def main():
         "audio": "Low-level audio primitives and sample loading",
         "midi": "MIDI input/output management",
         "devices": "MIDI device interface and hardware adapters",
-        "tui": "Terminal user interface",
-        "led_ui": "Hardware LED grid user interface support",
         "services": "Business logic services",
+        "model_manager": "Generic model management framework for Pydantic models",
         "models": "Pydantic data models for configuration and state",
         "utils": "Utility functions and helper classes",
+        "tui": "Terminal user interface",
+        "led_ui": "Hardware LED grid user interface support",
     }
 
     print("Generating API documentation...")
+
+    # Clean up old documentation files first
+    cleanup_old_docs(docs_root, packages_to_document)
 
     for package_name, description in packages_to_document.items():
         package_path = package_root / package_name
@@ -204,8 +253,13 @@ def main():
         index_path = docs_root / package_name / "index.md"
         index_path.parent.mkdir(parents=True, exist_ok=True)
 
-        content = f"# {package_name.capitalize()}\n\n{description}\n\n"
+        # Use the same title function for consistency
+        title = get_package_title(package_name)
+        content = f"# {title}\n\n{description}\n\n"
+        # Disable root heading since we provide a nice title already
         content += f"::: launchsampler.{package_name}\n"
+        content += "    options:\n"
+        content += "      show_root_heading: false\n"
 
         index_path.write_text(content, encoding="utf-8")
         print(f"  Created: {index_path.relative_to(project_root)}")

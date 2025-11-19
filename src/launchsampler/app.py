@@ -15,8 +15,8 @@ from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
-from launchsampler.services import EditorService, SetManagerService
-from launchsampler.utils import ObserverManager
+from launchsampler.services import ModelManagerService, EditorService, SetManagerService
+from launchsampler.model_manager import ObserverManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class LaunchpadSamplerApp:
     Architecture:
         LaunchpadSamplerApp (this class)
         ├── Core State: launchpad, current_set, mode
-        ├── Services: player, set_manager, editor
+        ├── Services: config_service, set_manager, player, editor
         └── UIs (observers): textual_ui, led_ui (future)
     """
 
@@ -78,6 +78,7 @@ class LaunchpadSamplerApp:
         self.midi_controller: Optional[DeviceController] = None
 
         # Services (domain logic)
+        self.config_service: Optional[ModelManagerService[AppConfig]] = None
         self.set_manager: Optional[SetManagerService] = None
         self.player: Optional[Player] = None
         self.editor: Optional[EditorService] = None
@@ -119,6 +120,15 @@ class LaunchpadSamplerApp:
         Fires startup events (SET_MOUNTED, MODE_CHANGED) that UIs will handle.
         """
         logger.info("Initializing LaunchpadSamplerApp services")
+
+        # Initialize ModelManagerService for centralized config management
+        config_path = Path.home() / ".launchsampler" / "config.json"
+        self.config_service = ModelManagerService[AppConfig](
+            AppConfig,
+            self.config,
+            default_path=config_path
+        )
+        logger.info("ModelManagerService initialized")
 
         self.set_manager = SetManagerService(self.config)
 

@@ -19,13 +19,13 @@ Press ++e++ to switch to Edit Mode, where you can build your sample set.
 
 ```
 ┌───────────────────────────────────────────────┐
-│ Edit Mode: Untitled Set                       │
+│ Edit Mode: Untitled Set                   │
 ├───────────────────────────────────────────────┤
-│ [8x8 Grid]  │  Pad Details Panel              │
-│             │  - Sample name                  │
-│             │  - Playback mode                │
-│             │  - Volume                       │
-│             │  - Move controls                │
+│ [8x8 Grid]  │  Pad Details Panel          │
+│             │  - Sample name              │
+│             │  - Playback mode            │
+│             │  - Volume                   │
+│             │  - Move controls            │
 └───────────────────────────────────────────────┘
 ```
 

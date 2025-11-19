@@ -65,6 +65,9 @@ markdown_extensions:
       permalink: true
       toc_depth: 3
 
+  # Third-party extensions
+  - mkdocs-click
+
   # Python Markdown Extensions
   - pymdownx.arithmatex:
       generic: true
@@ -149,6 +152,7 @@ nav:
       - Components: architecture/components.md
       - Event System: architecture/event-system.md
       - Threading Model: architecture/threading-model.md
+  - CLI Reference: cli-reference.md
   - API Reference:
     - Core:
       - Overview: api/core/index.md
@@ -175,10 +179,33 @@ nav:
       - Controller: api/devices/controller.md
       - Device: api/devices/device.md
       - Input: api/devices/input.md
-      - Midi-controller: api/devices/midi-controller.md
       - Protocols: api/devices/protocols.md
       - Registry: api/devices/registry.md
       - Schema: api/devices/schema.md
+    - Services:
+      - Overview: api/services/index.md
+      - Editor Service: api/services/editor_service.md
+      - Set Manager Service: api/services/set_manager_service.md
+    - Model Manager:
+      - Overview: api/model_manager/index.md
+      - 'Cli: Builder': api/model_manager/cli/builder.md
+      - Observer: api/model_manager/observer.md
+      - Persistence: api/model_manager/persistence.md
+      - Protocols: api/model_manager/protocols.md
+      - Service: api/model_manager/service.md
+    - Models:
+      - Overview: api/models/index.md
+      - Color: api/models/color.md
+      - Config: api/models/config.md
+      - Enums: api/models/enums.md
+      - Launchpad: api/models/launchpad.md
+      - Pad: api/models/pad.md
+      - Sample: api/models/sample.md
+      - Set: api/models/set.md
+    - Utils:
+      - Overview: api/utils/index.md
+      - Error Handler: api/utils/error_handler.md
+      - Paths: api/utils/paths.md
     - Tui:
       - Overview: api/tui/index.md
       - App: api/tui/app.md
@@ -197,29 +224,11 @@ nav:
       - 'Widgets: Pad Widget': api/tui/widgets/pad_widget.md
       - 'Widgets: Paste Confirmation Modal': api/tui/widgets/paste_confirmation_modal.md
       - 'Widgets: Status Bar': api/tui/widgets/status_bar.md
-    - Led_ui:
+    - LED UI:
       - Overview: api/led_ui/index.md
       - App: api/led_ui/app.md
       - 'Services: Led Event Handler': api/led_ui/services/led_event_handler.md
       - 'Services: Led Renderer': api/led_ui/services/led_renderer.md
-    - Services:
-      - Overview: api/services/index.md
-      - Editor Service: api/services/editor_service.md
-      - Set Manager Service: api/services/set_manager_service.md
-    - Models:
-      - Overview: api/models/index.md
-      - Color: api/models/color.md
-      - Config: api/models/config.md
-      - Enums: api/models/enums.md
-      - Launchpad: api/models/launchpad.md
-      - Pad: api/models/pad.md
-      - Sample: api/models/sample.md
-      - Set: api/models/set.md
-    - Utils:
-      - Overview: api/utils/index.md
-      - Error Handler: api/utils/error_handler.md
-      - Observer Manager: api/utils/observer_manager.md
-      - Paths: api/utils/paths.md
   - Troubleshooting: troubleshooting.md
   - Contributing:
       - Development Setup: contributing/development-setup.md

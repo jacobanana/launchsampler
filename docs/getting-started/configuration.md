@@ -14,85 +14,81 @@ LaunchSampler uses a JSON configuration file to store settings. The config is au
     %USERPROFILE%\.launchsampler\config.json
     ```
 
-## Default Configuration
-
-```json
-{
-  "sets_dir": "~/.launchsampler/sets",
-  "default_audio_device": null,
-  "default_buffer_size": 512,
-  "midi_poll_interval": 2.0,
-  "panic_button_cc_control": 19,
-  "panic_button_cc_value": 127,
-  "last_set": null,
-  "auto_save": true
-}
-```
-
 ## Configuration Options
 
-### Path Settings
+| Field | Type | Default | Description | Notes |
+|-------|------|---------|-------------|-------|
+| **Path Settings** |
+| `sets_dir` | `string` | `~/.launchsampler/sets` | Default directory for saving/loading sets | Set: `--sets-dir <path>` |
+| **Audio Settings** |
+| `default_audio_device` | `int \| null` | `null` | Audio output device ID (null = system default) | Set: `config set -a <id>`<br>Reset: `config reset default_audio_device --yes`<br>List devices: `audio list`<br>⚠️ Auto-fallback on invalid device |
+| `default_buffer_size` | `int` | `512` | Audio buffer size in frames | Set: `config set -b <size>`<br>Common: `128`, `256`, `512`, `1024`, `2048`<br>Lower = less latency, higher CPU |
+| **MIDI Settings** |
+| `midi_poll_interval` | `float` | `2.0` | MIDI device polling interval (seconds) | Set: `--midi-poll-interval <float>` |
+| `panic_button_cc_control` | `int` | `19` | MIDI CC control for panic button | Set: `--panic-button-cc-control <int>` |
+| `panic_button_cc_value` | `int` | `127` | MIDI CC value to trigger panic | Set: `--panic-button-cc-value <int>` |
+| **Session Settings** |
+| `last_set` | `string \| null` | `null` | Last loaded set name (auto-updated) | Set: `--last-set <name>` |
+| `auto_save` | `bool` | `true` | Auto-save changes to sets | Set: `--auto-save <true\|false>` |
 
-#### `sets_dir`
-- **Type:** `string`
-- **Default:** `"~/.launchsampler/sets"`
-- **Description:** Default directory for saving/loading sets
+## Managing Configuration
 
-### Audio Settings
+### CLI Commands
 
-#### `default_audio_device`
-- **Type:** `integer | null`
-- **Default:** `null` (use system default)
-- **Description:** Default audio output device ID
-- **Setting via CLI:**
-  - Set specific device: `launchsampler config -a <device_id>`
-  - Reset to default: `launchsampler config -a default`
-  - Example: `launchsampler config -a 13`
-- **Note:** Use `launchsampler audio list` to find device IDs
-- **Validation:**
-  - The config command will warn you if the device ID is not found
-  - It will also warn if the device uses a non-low-latency API (e.g., MME, DirectSound)
-- **Fallback Behavior:**
-  - If `null`: Uses the OS default audio device
-  - If invalid (device unplugged, doesn't exist, or uses non-low-latency API): Automatically falls back to the OS default device with a warning
-  - If OS default is also invalid: Searches for any available low-latency audio device
-  - Only low-latency APIs are supported (Windows: ASIO/WASAPI, macOS: Core Audio, Linux: ALSA/JACK)
+The `config` command provides a complete interface for managing configuration:
 
-#### `default_buffer_size`
-- **Type:** `integer`
-- **Default:** `512`
-- **Common values:** `128`, `256`, `512`, `1024`, `2048`
-- **Description:** Audio buffer size in frames
-- **Note:** Lower = less latency but higher CPU usage; higher = more stable but more latency
+#### View Configuration
 
-### MIDI Settings
+```bash
+# Show all configuration values (default)
+launchsampler config
 
-#### `midi_poll_interval`
-- **Type:** `float`
-- **Default:** `2.0`
-- **Description:** How often to check for MIDI device changes (in seconds)
+# Show specific field
+launchsampler config --field default_buffer_size
+```
 
-#### `panic_button_cc_control`
-- **Type:** `integer`
-- **Default:** `19`
-- **Description:** MIDI CC control number for panic button (stops all audio)
+#### Set Configuration Values
 
-#### `panic_button_cc_value`
-- **Type:** `integer`
-- **Default:** `127`
-- **Description:** MIDI CC value that triggers the panic button
+```bash
+# Set one field
+launchsampler config set -b 256
 
-### Session Settings
+# Set multiple fields at once
+launchsampler config set -a 3 -b 256 --auto-save false
+```
 
-#### `last_set`
-- **Type:** `string | null`
-- **Default:** `null`
-- **Description:** Name of the last loaded set (auto-updated)
+#### Validate Configuration
 
-#### `auto_save`
-- **Type:** `boolean`
-- **Default:** `true`
-- **Description:** Automatically save changes to sets
+```bash
+# Validate entire configuration with detailed report
+launchsampler config validate
+
+# Validate specific fields
+launchsampler config validate default_audio_device default_buffer_size
+
+# Output shows [OK] or [FAIL] with type information
+```
+
+Example output:
+```
+[OK] default_audio_device         Optional        = None
+    Default audio output device ID
+[OK] default_buffer_size          int             = 512
+    Default audio buffer size in frames
+```
+
+#### Reset Configuration
+
+```bash
+# Reset all fields to defaults (prompts for confirmation)
+launchsampler config reset
+
+# Reset specific fields
+launchsampler config reset default_buffer_size midi_poll_interval
+
+# Skip confirmation prompt
+launchsampler config reset default_buffer_size --yes
+```
 
 ## Listing Available Devices
 
@@ -208,39 +204,6 @@ Available MIDI Output Devices:
   [1] MIDI Keyboard Out
 ```
 
-## Editing Configuration
-
-### Method 1: Manual Edit
-
-Edit the JSON file directly:
-
-```bash
-# Linux / macOS
-nano ~/.launchsampler/config.json
-
-# Windows
-notepad %USERPROFILE%\.launchsampler\config.json
-```
-
-### Method 2: Python API
-
-```python
-from launchsampler.models import AppConfig
-from pathlib import Path
-
-# Load config
-config = AppConfig.load_or_default()
-
-# Modify settings
-config.default_audio_device = 3
-config.default_buffer_size = 256
-config.midi_poll_interval = 1.0
-config.auto_save = True
-
-# Save config
-config.save()
-```
-
 ## Logging
 
 LaunchSampler provides flexible logging options to help you troubleshoot issues and monitor application behavior.
@@ -261,55 +224,14 @@ By default, logs are stored in your config directory:
 
 ### Logging Options
 
-#### Default Behavior (No Flags)
-
-```bash
-launchsampler
-```
-
-- **Log Level:** WARNING
-- **Log File:** `~/.launchsampler/logs/launchsampler.log`
-- **Behavior:** Only warnings and errors are logged
-
-#### Verbose Mode
-
-```bash
-launchsampler -v              # INFO level
-launchsampler -vv             # DEBUG level
-```
-
-- **`-v`:** Includes informational messages (INFO level)
-- **`-vv`:** Includes detailed debug information (DEBUG level)
-- **Log File:** Same default location
-
-#### Debug Mode
-
-```bash
-launchsampler --debug
-```
-
-- **Log Level:** DEBUG
-- **Log File:** `./launchsampler-debug.log` (current directory)
-- **Use Case:** Troubleshooting - creates log file in current directory for easy access
-
-#### Custom Log File
-
-```bash
-launchsampler --log-file ./my-session.log
-```
-
-- **Log Level:** INFO (default)
-- **Log File:** Custom path you specify
-- **Use Case:** Recording specific sessions
-
-#### Custom Log Level
-
-```bash
-launchsampler --log-file ./session.log --log-level DEBUG
-```
-
-- **Options:** `DEBUG`, `INFO`, `WARNING`, `ERROR`
-- **Use Case:** Fine-tune logging detail for custom log files
+| Command | Log Level | Log File | Use Case |
+|---------|-----------|----------|----------|
+| `launchsampler` | WARNING | `~/.launchsampler/logs/launchsampler.log` | Default - only warnings and errors are logged |
+| `launchsampler -v` | INFO | `~/.launchsampler/logs/launchsampler.log` | Includes informational messages |
+| `launchsampler -vv` | DEBUG | `~/.launchsampler/logs/launchsampler.log` | Includes detailed debug information |
+| `launchsampler --debug` | DEBUG | `./launchsampler-debug.log` (current directory) | Troubleshooting - creates log file in current directory for easy access |
+| `launchsampler --log-file ./my-session.log` | INFO (default) | Custom path specified | Recording specific sessions |
+| `launchsampler --log-file ./session.log --log-level DEBUG` | DEBUG, INFO, WARNING, or ERROR | Custom path specified | Fine-tune logging detail for custom log files |
 
 ### Log Rotation
 
@@ -318,41 +240,6 @@ Logs are automatically rotated to prevent excessive disk usage:
 - **Maximum file size:** 10 MB
 - **Backup files kept:** 5
 - **Files:** `launchsampler.log`, `launchsampler.log.1`, ..., `launchsampler.log.5`
-
-### Common Logging Scenarios
-
-#### Debugging Startup Issues
-
-```bash
-launchsampler --debug
-```
-
-Check `./launchsampler-debug.log` for detailed startup information.
-
-#### Recording a Performance Session
-
-```bash
-launchsampler --set my-drums --log-file ./performance-2024-01-15.log
-```
-
-Logs are saved to a timestamped file in the current directory.
-
-#### Monitoring Long-Running Sessions
-
-```bash
-launchsampler -v
-```
-
-INFO-level logs in default location help track application behavior over time.
-
-#### Silent Operation
-
-```bash
-launchsampler
-# Only warnings and errors are logged
-```
-
-Minimal logging for production use.
 
 ### Reading Log Files
 
@@ -365,6 +252,7 @@ Log entries follow this format:
 ```
 
 Each line contains:
+
 1. **Timestamp:** When the event occurred
 2. **Logger name:** Which component generated the log
 3. **Level:** Severity (DEBUG, INFO, WARNING, ERROR)
@@ -409,212 +297,3 @@ When reporting issues or debugging problems:
 !!! tip "Performance Impact"
     DEBUG logging has minimal performance impact for most use cases. Only in very high-throughput scenarios (many simultaneous samples) should you consider using WARNING level.
 
-### Logging Troubleshooting
-
-#### No Log File Created
-
-**Problem:** Log file doesn't exist after running the application.
-
-**Solutions:**
-
-1. **Check the correct location:**
-   ```bash
-   # Linux/macOS
-   ls -la ~/.launchsampler/logs/
-
-   # Windows
-   dir %USERPROFILE%\.launchsampler\logs\
-   ```
-
-2. **Check permissions:**
-   ```bash
-   # Linux/macOS - ensure write permissions
-   chmod 755 ~/.launchsampler/logs/
-   ```
-
-3. **Run with debug mode to create log in current directory:**
-   ```bash
-   launchsampler --debug
-   ls -la launchsampler-debug.log
-   ```
-
-#### Log File is Empty
-
-**Problem:** Log file exists but contains no entries.
-
-**Possible Causes:**
-
-- Application crashed before logging initialized
-- Insufficient permissions
-- Disk space full
-
-**Solutions:**
-
-1. **Check disk space:**
-   ```bash
-   df -h  # Linux/macOS
-   ```
-
-2. **Try a different location:**
-   ```bash
-   launchsampler --log-file ~/Desktop/test.log
-   ```
-
-3. **Check for application errors on stderr:**
-   ```bash
-   launchsampler 2> errors.txt
-   # Check errors.txt for startup issues
-   ```
-
-#### Can't Find Recent Logs
-
-**Problem:** Looking for logs but finding old entries.
-
-**Solutions:**
-
-1. **Check log rotation - newer logs may be in backup files:**
-   ```bash
-   # View most recent log first
-   ls -lt ~/.launchsampler/logs/
-
-   # Check all log files
-   tail ~/.launchsampler/logs/launchsampler.log*
-   ```
-
-2. **Use debug mode for fresh log in current directory:**
-   ```bash
-   launchsampler --debug
-   ```
-
-#### Too Much Log Output
-
-**Problem:** Log files growing too large or too many debug messages.
-
-**Solutions:**
-
-1. **Reduce log level:**
-   ```bash
-   # Use default (WARNING only)
-   launchsampler
-
-   # Or specify WARNING explicitly
-   launchsampler --log-file ./session.log --log-level WARNING
-   ```
-
-2. **Adjust rotation settings** by modifying the code (advanced):
-   - Change `maxBytes` in `setup_logging()` function
-   - Change `backupCount` to keep fewer files
-
-#### Logs Not Showing Expected Information
-
-**Problem:** Missing log entries for specific operations.
-
-**Solutions:**
-
-1. **Increase verbosity:**
-   ```bash
-   launchsampler -vv  # DEBUG level shows everything
-   ```
-
-2. **Check you're looking at the right log file:**
-   ```bash
-   # Debug mode creates logs in current directory
-   launchsampler --debug
-   cat ./launchsampler-debug.log
-
-   # Default mode uses config directory
-   cat ~/.launchsampler/logs/launchsampler.log
-   ```
-
-3. **Ensure the operation actually executed** - some operations may fail silently
-
-#### Permission Denied Errors
-
-**Problem:** Can't write to log file location.
-
-=== "Linux / macOS"
-    ```bash
-    # Fix permissions on config directory
-    mkdir -p ~/.launchsampler/logs
-    chmod 755 ~/.launchsampler/logs
-    ```
-
-=== "Windows"
-    ```powershell
-    # Run as administrator or use a different location
-    launchsampler --log-file %USERPROFILE%\Desktop\launchsampler.log
-    ```
-
-#### Log File Location on Windows
-
-**Problem:** Can't find `%APPDATA%` on Windows.
-
-**Solutions:**
-
-1. **Open file explorer and type in address bar:**
-   ```
-   %USERPROFILE%\.launchsampler\logs
-   ```
-
-2. **Or use full path:**
-   ```
-   C:\Users\YourUsername\.launchsampler\logs
-   ```
-
-3. **Or use PowerShell:**
-   ```powershell
-   cd $env:USERPROFILE\.launchsampler\logs
-   dir
-   ```
-
-## Troubleshooting
-
-### Audio Dropouts / Glitches
-
-**Increase buffer size:**
-```json
-{
-  "default_buffer_size": 1024
-}
-```
-
-### High Latency
-
-**Decrease buffer size** (if your system can handle it):
-```json
-{
-  "default_buffer_size": 256
-}
-```
-
-### Wrong Audio Device
-
-**List devices and set explicitly:**
-```bash
-launchsampler audio list
-```
-
-Then set the device ID in config:
-```json
-{
-  "default_audio_device": 3
-}
-```
-midi list
-### MIDI Not Working
-
-**Check MIDI devices:**
-```bash
-launchsampler --list-midi
-```
-
-If your Launchpad is not listed:
-1. Check USB connection
-2. Install manufacturer drivers
-3. Try a different USB port
-
-## Next Steps
-
-- [Quick Start](quick-start.md) - Start using LaunchSampler
-- [User Guide](../user-guide/overview.md) - Learn all features
-- [MIDI Integration](../user-guide/midi-integration.md) - MIDI setup details

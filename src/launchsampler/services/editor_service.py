@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 
 from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
-from launchsampler.utils import ObserverManager
+from launchsampler.model_manager import ObserverManager
 from launchsampler.ui_colors import MODE_COLORS
 
 logger = logging.getLogger(__name__)

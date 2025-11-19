@@ -92,10 +92,10 @@ class TestRunCommand:
         samples_dir.mkdir()
 
         # We can't actually run the app, but we can verify the path validates
-        # by mocking the actual run
-        with patch('launchsampler.cli.main.LaunchpadSamplerApp'):
-            with patch('launchsampler.cli.main.LaunchpadSampler'):
-                with patch('launchsampler.cli.main.AppConfig') as mock_config:
+        # by mocking the actual run (patch at source since imports are lazy)
+        with patch('launchsampler.app.LaunchpadSamplerApp'):
+            with patch('launchsampler.tui.LaunchpadSampler'):
+                with patch('launchsampler.models.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
                     # This will try to run, so we catch it before it actually starts
                     result = runner.invoke(cli, ['--samples-dir', str(samples_dir)], catch_exceptions=False)
@@ -134,15 +134,16 @@ class TestMIDICommands:
     @patch('launchsampler.cli.commands.midi.MidiManager')
     def test_midi_list_runs(self, mock_midi_manager, runner):
         """Test that 'midi list' command runs without crashing."""
-        # Mock the MIDI manager
-        mock_instance = Mock()
-        mock_instance.input_manager.list_ports.return_value = ['MIDI Input 1', 'MIDI Input 2']
-        mock_instance.output_manager.list_ports.return_value = ['MIDI Output 1']
-        mock_midi_manager.return_value = mock_instance
+        # Mock the list_ports static method to return a dict
+        mock_midi_manager.list_ports.return_value = {
+            'input': ['MIDI Input 1', 'MIDI Input 2'],
+            'output': ['MIDI Output 1']
+        }
 
         result = runner.invoke(cli, ['midi', 'list'])
         # Should list MIDI devices or complete successfully
-        assert result.exit_code == 0 or 'MIDI' in result.output
+        assert result.exit_code == 0
+        assert 'MIDI' in result.output
 
 
 @pytest.mark.integration
@@ -186,10 +187,10 @@ class TestCLIErrorHandling:
         samples_dir.mkdir()
 
         # The CLI accepts both --set and --samples-dir
-        # Check that it parses correctly
-        with patch('launchsampler.cli.main.LaunchpadSamplerApp'):
-            with patch('launchsampler.cli.main.LaunchpadSampler'):
-                with patch('launchsampler.cli.main.AppConfig') as mock_config:
+        # Check that it parses correctly (patch at source since imports are lazy)
+        with patch('launchsampler.app.LaunchpadSamplerApp'):
+            with patch('launchsampler.tui.LaunchpadSampler'):
+                with patch('launchsampler.models.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
                     result = runner.invoke(
                         cli,
@@ -207,6 +208,7 @@ class TestCLIIntegration:
     def test_audio_list_integration(self, mock_audio_device, runner):
         """Test audio list integrates with AudioDevice correctly."""
         mock_audio_device.list_output_devices.return_value = ([], "ASIO/WASAPI")
+        mock_audio_device.get_default_device.return_value = 0
 
         result = runner.invoke(cli, ['audio', 'list'])
         # Should call AudioDevice.list_output_devices

@@ -1,4 +1,16 @@
-"""Protocol definitions for observer patterns and interfaces."""
+"""Protocol definitions for domain-specific observer patterns and interfaces.
+
+This module contains protocols specific to the launchsampler domain:
+- MIDI events and observers
+- Playback events and observers
+- Edit events and observers
+- Selection events and observers
+- Application events and observers
+- UI adapter protocol
+
+For generic model management protocols (ModelEvent, ModelObserver, PersistenceService),
+see launchsampler.model_manager.protocols.
+"""
 
 from enum import Enum
 from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
@@ -265,3 +277,4 @@ class UIAdapter(Protocol):
         - Release resources
         """
         ...
+
