@@ -254,13 +254,25 @@ def cli(
         # Re-raise Click's Abort exception without modification
         raise
     except Exception as e:
+        from launchsampler.utils.error_handler import format_error_for_display
+
         logger.exception("Error running application")
+
+        # Format error message (handles both custom and standard exceptions)
+        user_message, recovery_hint = format_error_for_display(e)
+
         # Show clean error message without traceback
         click.echo("\n" + "="*70, err=True)
-        click.echo(f"ERROR: {e}", err=True)
+        click.echo(f"ERROR: {user_message}", err=True)
         click.echo("="*70, err=True)
+
+        # Show recovery hint if available
+        if recovery_hint:
+            click.echo(f"\n{recovery_hint}", err=True)
+
         click.echo(f"\nFor details, check the log file: {log_path}", err=True)
         click.echo("For logging options, run: launchsampler --help", err=True)
+
         # Exit with error code without showing traceback
         import sys
         sys.exit(1)

@@ -129,7 +129,7 @@ class LaunchpadSampler(App):
 
         self._selection_observers: list = []  # For SelectionObserver pattern
         self._initialized = False  # Track initialization state
-        self._startup_error: Optional[str] = None  # Store startup errors to display after exit
+        self._startup_error: Optional[Exception] = None  # Store startup errors to display after exit
         logger.info("LaunchpadSampler TUI created")
 
     # =================================================================
@@ -207,8 +207,9 @@ class LaunchpadSampler(App):
         super().run()
 
         # After Textual exits, check if there was a startup error
+        # Re-raise the original exception to preserve type and attributes
         if self._startup_error:
-            raise RuntimeError(self._startup_error)
+            raise self._startup_error
 
     def shutdown(self) -> None:
         """
@@ -377,13 +378,14 @@ class LaunchpadSampler(App):
         logger.info("Initializing orchestrator from TUI on_mount")
         try:
             self.orchestrator.initialize()
-        except RuntimeError as e:
+        except Exception as e:
             # Handle initialization errors (e.g., audio device in use)
-            error_msg = str(e)
-            logger.error(f"Failed to initialize orchestrator: {error_msg}")
+            # Store the full exception object (not just string) to preserve
+            # custom exception attributes like recovery hints
+            logger.error(f"Failed to initialize orchestrator: {e}")
 
-            # Store error message to display after Textual exits
-            self._startup_error = error_msg
+            # Store exception to display after Textual exits
+            self._startup_error = e
 
             # Exit the app with error code
             self.exit(1)

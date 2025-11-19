@@ -210,6 +210,7 @@ class TestAudioDevice:
         """Test that device-in-use errors provide helpful message."""
         from unittest.mock import patch, MagicMock
         import sounddevice as sd
+        from launchsampler.exceptions import AudioDeviceInUseError
 
         # Mock sounddevice to raise an error with PaErrorCode -9996
         mock_stream = MagicMock()
@@ -219,6 +220,13 @@ class TestAudioDevice:
             device = AudioDevice(device=None)
             device.set_callback(lambda outdata, frames: None)
 
-            # Should raise RuntimeError with helpful message
-            with pytest.raises(RuntimeError, match="Audio device is already in use"):
+            # Should raise our custom exception with helpful message and recovery hint
+            with pytest.raises(AudioDeviceInUseError) as exc_info:
                 device.start()
+
+            # Verify the exception has the expected attributes
+            error = exc_info.value
+            assert "already in use" in error.user_message
+            assert error.recoverable
+            assert error.recovery_hint is not None
+            assert "launchsampler audio list" in error.recovery_hint

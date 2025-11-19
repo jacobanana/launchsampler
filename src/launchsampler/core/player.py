@@ -97,7 +97,8 @@ class Player(StateObserver, EditObserver, MidiObserver):
             True if started successfully
 
         Raises:
-            RuntimeError: If audio engine fails to start
+            AudioDeviceError: If audio device fails to start
+            LaunchSamplerError: If other initialization errors occur
         """
         if self._is_running:
             logger.warning("Player already running")
