@@ -76,7 +76,7 @@ class TestAudioDevice:
             assert any(api in hostapi_name for api in low_latency_apis)
 
     def test_device_validation_invalid_api(self):
-        """Test that non-low-latency devices are rejected."""
+        """Test that non-low-latency devices fall back to default device."""
         import sounddevice as sd
 
         # Get platform-specific low-latency APIs
@@ -94,15 +94,28 @@ class TestAudioDevice:
                     invalid_device = i
                     break
 
-        # If we found an invalid device, test that it's rejected
+        # If we found an invalid device, test that it falls back to default
         if invalid_device is not None:
-            with pytest.raises(ValueError, match="devices are supported for low-latency playback"):
-                AudioDevice(device=invalid_device)
+            device = AudioDevice(device=invalid_device)
+
+            # Should fall back to default device (None)
+            assert device.device is None
 
     def test_device_validation_invalid_id(self):
-        """Test that invalid device IDs are rejected."""
-        with pytest.raises(ValueError, match="Invalid device ID"):
-            AudioDevice(device=999999)
+        """Test that invalid device IDs fall back to default device."""
+        # Invalid device ID should fall back to default device with warning
+        device = AudioDevice(device=999999)
+
+        # Should fall back to default device (None)
+        assert device.device is None
+
+    def test_device_validation_invalid_id_fallback_with_unavailable_device(self):
+        """Test that unavailable device IDs (e.g., unplugged hardware) fall back to default."""
+        # Use a device ID that's technically valid format but likely doesn't exist
+        device = AudioDevice(device=99)
+
+        # Should fall back to default device (None)
+        assert device.device is None
 
     def test_get_default_device(self):
         """Test getting default device."""

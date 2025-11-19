@@ -71,6 +71,54 @@ class TestAppInitialization:
         assert app.set_manager is None
 
     @patch('launchsampler.app.DeviceController')
+    def test_app_initializes_with_invalid_audio_device_config(self, mock_controller, temp_dir):
+        """Test that app doesn't crash when configured audio device is invalid.
+
+        This tests the scenario where:
+        1. config.json doesn't exist (uses default config with default_audio_device=None)
+        2. config.json exists but default_audio_device is invalid (e.g., device was unplugged)
+
+        The app should fall back to the system default audio device and continue.
+        """
+        # Test case 1: Invalid device ID (device unplugged or doesn't exist)
+        invalid_config = AppConfig(
+            default_audio_device=99999,  # Invalid device ID
+            default_buffer_size=256,
+            midi_poll_interval=5.0
+        )
+
+        app = LaunchpadSamplerApp(invalid_config)
+
+        # This should NOT raise RuntimeError: "Failed to start player"
+        # The AudioDevice should fall back to default device
+        app.initialize()
+
+        # Verify app initialized successfully
+        assert app.player is not None
+        assert app.player.is_running
+        assert app.editor is not None
+        assert app.set_manager is not None
+
+        # Cleanup
+        app.shutdown()
+
+        # Test case 2: config with None (default device) - should always work
+        default_config = AppConfig(
+            default_audio_device=None,
+            default_buffer_size=256,
+            midi_poll_interval=5.0
+        )
+
+        app2 = LaunchpadSamplerApp(default_config)
+        app2.initialize()
+
+        assert app2.player is not None
+        assert app2.player.is_running
+
+        # Cleanup
+        app2.shutdown()
+
+    @patch('launchsampler.app.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_registers_ui(self, mock_audio_device, mock_controller, config):
         """Test that UIs can be registered before initialization."""

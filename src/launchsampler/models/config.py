@@ -18,7 +18,11 @@ class AppConfig(BaseModel):
     # Audio defaults (used if not overridden at runtime)
     default_audio_device: Optional[int] = Field(
         default=None,
-        description="Default audio output device ID (None = system default)"
+        description=(
+            "Default audio output device ID (None = system default). "
+            "If the device is invalid or unavailable, automatically falls back to "
+            "the OS default device or the first available low-latency device."
+        )
     )
     default_buffer_size: int = Field(
         default=512,

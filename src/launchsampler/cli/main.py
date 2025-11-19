@@ -192,49 +192,75 @@ def cli(
 
     logger.info("Starting Launchpad Sampler Application")
 
-    # Load configuration
-    config_obj = AppConfig.load_or_default()
-
-    # Save config
-    config_obj.save()
-
-    # Create orchestrator (NOT initialized yet)
-    orchestrator = LaunchpadSamplerApp(
-        config=config_obj,
-        set_name=set,
-        samples_dir=samples_dir,
-        start_mode=mode.lower(),
-        headless=False
-    )
-
-    # Create TUI (NOT initialized yet)
-    tui = LaunchpadSampler(
-        orchestrator=orchestrator,
-        start_mode=mode.lower()
-    )
-
-    # Register TUI with orchestrator
-    orchestrator.register_ui(tui)
-
-    # Create and register LED UI if enabled
-    if led_ui:
-        logger.info("LED UI enabled - creating LaunchpadLEDUI")
-        led = LaunchpadLEDUI(orchestrator=orchestrator, poll_interval=5.0)
-        orchestrator.register_ui(led)
+    # Determine log file path for error message
+    if debug and not log_file:
+        log_path = Path.cwd() / "launchsampler-debug.log"
+    elif log_file:
+        log_path = log_file
     else:
-        logger.info("LED UI disabled")
+        config_dir = Path.home() / ".launchsampler" / "logs"
+        log_path = config_dir / "launchsampler.log"
 
-    # Run orchestrator (will initialize and start UIs)
-    # The TUI will initialize the orchestrator once it's running
+    # Setup and run application with error handling
     try:
+        # Load configuration
+        config_obj = AppConfig.load_or_default()
+
+        # Save config
+        config_obj.save()
+
+        # Create orchestrator (NOT initialized yet)
+        orchestrator = LaunchpadSamplerApp(
+            config=config_obj,
+            set_name=set,
+            samples_dir=samples_dir,
+            start_mode=mode.lower(),
+            headless=False
+        )
+
+        # Create TUI (NOT initialized yet)
+        tui = LaunchpadSampler(
+            orchestrator=orchestrator,
+            start_mode=mode.lower()
+        )
+
+        # Register TUI with orchestrator
+        orchestrator.register_ui(tui)
+
+        # Create and register LED UI if enabled
+        if led_ui:
+            logger.info("LED UI enabled - creating LaunchpadLEDUI")
+            led = LaunchpadLEDUI(orchestrator=orchestrator, poll_interval=5.0)
+            orchestrator.register_ui(led)
+        else:
+            logger.info("LED UI disabled")
+
+        # Run orchestrator (will initialize and start UIs)
+        # The TUI will initialize the orchestrator once it's running
         orchestrator.run()
+
+    except KeyboardInterrupt:
+        # Clean exit on Ctrl+C
+        logger.info("Application interrupted by user")
+        click.echo("\nShutting down...", err=True)
+    except click.Abort:
+        # Re-raise Click's Abort exception without modification
+        raise
     except Exception as e:
         logger.exception("Error running application")
-        click.echo(f"Error: {e}", err=True)
-        raise click.Abort()
+        # Show clean error message without traceback
+        click.echo("\n" + "="*70, err=True)
+        click.echo(f"ERROR: {type(e).__name__}: {e}", err=True)
+        click.echo("="*70, err=True)
+        click.echo(f"\nFor details, check the log file: {log_path}", err=True)
+        click.echo("For logging options, run: launchsampler --help", err=True)
+        # Exit with error code without showing traceback
+        import sys
+        sys.exit(1)
     finally:
-        # Ensure proper cleanup
-        orchestrator.shutdown()
+        # Ensure proper cleanup if orchestrator was created
+        if 'orchestrator' in locals():
+            orchestrator.shutdown()
 
 
 # Register utility commands

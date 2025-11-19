@@ -34,18 +34,27 @@ class AudioDevice:
             device: Output device ID (None for default)
             low_latency: Enable low-latency optimizations
 
-        Raises:
-            ValueError: If device doesn't use low-latency API
+        Note:
+            If the specified device is invalid or unavailable, falls back to
+            the system default device with a warning.
         """
         self.buffer_size = buffer_size
         self.num_channels = num_channels
         self.low_latency = low_latency
 
-        # Validate device if specified
+        # Validate device if specified, fall back to default if invalid
         if device is not None:
-            self._validate_device(device)
-
-        self.device = device
+            try:
+                self._validate_device(device)
+                self.device = device
+            except (ValueError, Exception) as e:
+                logger.warning(
+                    f"Configured audio device (ID: {device}) is invalid or unavailable: {e}. "
+                    f"Falling back to system default device."
+                )
+                self.device = None
+        else:
+            self.device = None
 
         # Stream state
         self._stream: Optional[sd.OutputStream] = None
@@ -143,7 +152,13 @@ class AudioDevice:
             raise RuntimeError("No audio callback set. Call set_callback() first.")
 
         device_id = self.device or sd.default.device[1]
-        self._validate_low_latency_device(device_id)
+
+        # Try to find a valid low-latency device
+        device_id = self._find_valid_device(device_id)
+
+        # Update self.device to the validated device ID
+        self.device = device_id
+
         self._log_device_info(device_id)
 
         # Select stream configuration
@@ -164,6 +179,50 @@ class AudioDevice:
             self._stream = None
 
         self._is_running = False
+
+    def _find_valid_device(self, preferred_device_id: int) -> int:
+        """
+        Find a valid low-latency device, falling back if necessary.
+
+        Args:
+            preferred_device_id: The preferred device ID to use
+
+        Returns:
+            A valid low-latency device ID
+
+        Raises:
+            RuntimeError: If no valid low-latency devices are available
+        """
+        # Try the preferred device first
+        is_valid, hostapi_name, device_name = self._is_valid_device(preferred_device_id)
+        if is_valid:
+            logger.info(f"Using device: {device_name} ({hostapi_name})")
+            return preferred_device_id
+
+        # Log warning about invalid preferred device
+        _, api_names = self._get_platform_apis()
+        logger.warning(
+            f"Device '{device_name}' (ID: {preferred_device_id}) uses Host API '{hostapi_name}'. "
+            f"Only {api_names} devices are supported for low-latency playback. "
+            f"Searching for a valid low-latency device..."
+        )
+
+        # Try to find any valid low-latency device
+        devices, _ = AudioDevice.list_output_devices()
+        if devices:
+            fallback_device_id = devices[0][0]
+            fallback_device_name = devices[0][1]
+            fallback_hostapi = devices[0][2]
+            logger.info(
+                f"Falling back to device: {fallback_device_name} (ID: {fallback_device_id}, {fallback_hostapi})"
+            )
+            return fallback_device_id
+
+        # No valid devices available
+        raise RuntimeError(
+            f"No valid low-latency audio devices found. "
+            f"Please install {api_names} drivers for your audio interface."
+        )
 
     def _validate_low_latency_device(self, device_id: int) -> None:
         """Ensure the selected device supports a low-latency API."""
@@ -268,8 +327,13 @@ class AudioDevice:
     
     @property
     def sample_rate(self) -> int:
-        """Get current sample rate."""
-        return sd.query_devices(self.device)['default_samplerate'] if self.device is not None else sd.default.samplerate
+        """Get current sample rate from the device."""
+        if self.device is not None:
+            return int(sd.query_devices(self.device)['default_samplerate'])
+        else:
+            # Get default output device sample rate
+            default_device_id = sd.default.device[1]  # Output device
+            return int(sd.query_devices(default_device_id)['default_samplerate'])
 
     @property
     def device_name(self) -> str:

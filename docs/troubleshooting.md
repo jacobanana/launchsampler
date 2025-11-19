@@ -118,6 +118,50 @@ For more information about logging options, see the [Logging section in Configur
 
 3. **Restart LaunchSampler** after changing config
 
+### Audio Device Unavailable / Changed
+
+**Symptoms:** Configured audio device is no longer available (e.g., external interface unplugged, device ID changed).
+
+**Automatic Fallback Behavior:**
+
+LaunchSampler automatically handles invalid or unavailable audio devices with the following fallback sequence:
+
+1. **Tries configured device** (`default_audio_device` in config.json)
+2. **Falls back to OS default** if configured device is invalid
+3. **Searches for any low-latency device** if OS default doesn't support low-latency APIs
+4. **Shows error** only if NO valid low-latency devices are found
+
+**What to do:**
+
+1. **Check the logs** for warnings about device fallback:
+   ```bash
+   tail -f ~/.launchsampler/logs/launchsampler.log
+   ```
+
+2. **List current devices:**
+   ```bash
+   launchsampler audio list
+   ```
+
+3. **Update config with correct device ID:**
+   ```json
+   {
+     "default_audio_device": 3
+   }
+   ```
+
+4. **Or remove the setting** to always use OS default:
+   ```json
+   {
+     "default_audio_device": null
+   }
+   ```
+
+**Note:** Only low-latency audio APIs are supported:
+- **Windows:** ASIO, WASAPI
+- **macOS:** Core Audio
+- **Linux:** ALSA, JACK
+
 ---
 
 ## MIDI Issues
