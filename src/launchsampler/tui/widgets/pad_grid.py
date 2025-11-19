@@ -142,6 +142,17 @@ class PadGrid(Container):
         if pad_index in self.pad_widgets:
             self.pad_widgets[pad_index].set_midi_on(midi_on)
 
+    def set_pad_unavailable(self, pad_index: int, is_unavailable: bool) -> None:
+        """
+        Set the unavailable state of a pad (sample file not found).
+
+        Args:
+            pad_index: Index of pad (0-63)
+            is_unavailable: Whether the pad's sample file is unavailable
+        """
+        if pad_index in self.pad_widgets:
+            self.pad_widgets[pad_index].set_unavailable(is_unavailable)
+
     def on_pad_widget_selected(self, message: PadWidget.Selected) -> None:
         """
         Handle pad selection from child widgets.

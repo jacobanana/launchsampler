@@ -92,6 +92,15 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             for i, pad in enumerate(self.app.launchpad.pads):
                 grid.update_pad(i, pad)
 
+                # Check if sample file is available and update unavailable state
+                if pad.is_assigned:
+                    audio_data = self.app.player.get_audio_data(i)
+                    is_unavailable = audio_data is None
+                    grid.set_pad_unavailable(i, is_unavailable)
+                else:
+                    # Clear unavailable state for empty pads
+                    grid.set_pad_unavailable(i, False)
+
             # Update details panel if a pad is currently selected
             if self.app.selected_pad_index is not None:
                 self._update_selected_pad_ui(
@@ -346,6 +355,15 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             # Update grid
             grid = self.app.query_one(PadGrid)
             grid.update_pad(pad_index, pad)
+
+            # Check if sample file is available and update unavailable state
+            if pad.is_assigned:
+                audio_data = self.app.player.get_audio_data(pad_index)
+                is_unavailable = audio_data is None
+                grid.set_pad_unavailable(pad_index, is_unavailable)
+            else:
+                # Clear unavailable state for empty pads
+                grid.set_pad_unavailable(pad_index, False)
 
             # Update details panel if this pad is currently selected
             if pad_index == self.app.selected_pad_index:

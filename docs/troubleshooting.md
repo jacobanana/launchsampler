@@ -75,7 +75,7 @@ Then log out and log back in for changes to take effect.
 
 **Solutions:**
 
-1. **Verify sample files exist** and are valid audio files
+1. **Verify sample files exist** and are valid audio files. When a file can't be loaded, it will be shown as unavailable.
 
 2. **Revert to default audio device:**
    ```bash

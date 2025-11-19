@@ -68,6 +68,40 @@ def _generate_pad_css() -> str:
         f"    background: {playing_hex} 60%;",
         f"    border: solid {playing_hex};",
         "}",
+        "",
+    ])
+
+    # Unavailable sample state (file not found)
+    # Base state - show error border and background
+    css_lines.extend([
+        "PadWidget.unavailable {",
+        "    background: $error 10%;",
+        "    border: solid $error;",
+        "}",
+        "",
+    ])
+
+    # Unavailable + selected state - selection border takes priority over error border
+    css_lines.extend([
+        "PadWidget.unavailable.selected {",
+        "    border: double $warning 80%;",
+        "}",
+        "",
+    ])
+
+    # Unavailable + active state - active border takes priority over error border
+    css_lines.extend([
+        f"PadWidget.unavailable.active {{",
+        f"    border: solid {playing_hex};",
+        "}",
+        "",
+    ])
+
+    # Unavailable + midi_on state - midi border takes priority over error border
+    css_lines.extend([
+        "PadWidget.unavailable.midi_on {",
+        "    border: double $primary 60%;",
+        "}",
     ])
 
     return "\n".join(css_lines)
@@ -105,6 +139,7 @@ class PadWidget(Static):
         self._pad = pad
         self._is_playing = False
         self._midi_on = False
+        self._is_unavailable = False
         self.update_display()
 
     def update(self, pad: Pad) -> None:
@@ -123,8 +158,13 @@ class PadWidget(Static):
         self.remove_class("one_shot", "loop", "hold", "loop_toggle", "empty")
 
         if self._pad.is_assigned:
-            # Show pad index and truncated sample name
+            # Show pad index and sample name with warning if unavailable
             name = self._pad.sample.name if self._pad.sample else "???"
+
+            # Prepend warning indicator to name if sample file is unavailable
+            if self._is_unavailable:
+                name = f"!! {name} !!"
+
             super().update(f"[b]{self.pad_index}[/b]\n{name}")
 
             # Add mode class for styling (from centralized colors)
@@ -163,6 +203,21 @@ class PadWidget(Static):
             else:
                 self.remove_class("midi_on")
             self.refresh()
+
+    def set_unavailable(self, is_unavailable: bool) -> None:
+        """
+        Set the unavailable state of this pad (sample file not found).
+
+        Args:
+            is_unavailable: Whether the pad's sample file is unavailable
+        """
+        if is_unavailable != self._is_unavailable:
+            self._is_unavailable = is_unavailable
+            if is_unavailable:
+                self.add_class("unavailable")
+            else:
+                self.remove_class("unavailable")
+            self.update_display()
 
     def on_click(self) -> None:
         """Handle click event - post message for parent to handle."""
