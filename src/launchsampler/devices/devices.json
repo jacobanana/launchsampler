@@ -5,7 +5,7 @@
       "family": "launchpad_mk3",
       "manufacturer": "Novation",
       "implements": "LaunchpadMK3",
-      "detection_patterns": ["Launchpad"],
+      "detection_patterns": [],
       "capabilities": {
         "num_pads": 64,
         "grid_size": 8,
