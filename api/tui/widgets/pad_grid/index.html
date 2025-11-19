@@ -356,6 +356,25 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="../../../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
     
     
       <li class="md-tabs__item">
@@ -3379,6 +3398,8 @@
       
         
       
+        
+      
     
     
     
@@ -3436,6 +3457,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../utils/error_handler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -3515,6 +3564,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
       
@@ -3541,10 +3617,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   
@@ -3562,8 +3638,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -4535,6 +4611,94 @@ So we flip vertically: iterate from row 7 down to row 0</p>
 <div class="doc doc-object doc-function">
 
 
+<h4 id="launchsampler.tui.widgets.pad_grid.PadGrid.set_pad_unavailable" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">set_pad_unavailable</span><span class="p">(</span><span class="n">pad_index</span><span class="p">,</span> <span class="n">is_unavailable</span><span class="p">)</span></code>
+
+<a href="#launchsampler.tui.widgets.pad_grid.PadGrid.set_pad_unavailable" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Set the unavailable state of a pad (sample file not found).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>pad_index</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Index of pad (0-63)</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>is_unavailable</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the pad's sample file is unavailable</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/launchsampler/tui/widgets/pad_grid.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#__codelineno-0-153">153</a></span>
+<span class="normal"><a href="#__codelineno-0-154">154</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-145"><a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="k">def</span><span class="w"> </span><span class="nf">set_pad_unavailable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pad_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">is_unavailable</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-146"><a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-147"><a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="sd">    Set the unavailable state of a pad (sample file not found).</span>
+</span><span id="__span-0-148"><a id="__codelineno-0-148" name="__codelineno-0-148"></a>
+</span><span id="__span-0-149"><a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    Args:</span>
+</span><span id="__span-0-150"><a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">        pad_index: Index of pad (0-63)</span>
+</span><span id="__span-0-151"><a id="__codelineno-0-151" name="__codelineno-0-151"></a><span class="sd">        is_unavailable: Whether the pad&#39;s sample file is unavailable</span>
+</span><span id="__span-0-152"><a id="__codelineno-0-152" name="__codelineno-0-152"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-153"><a id="__codelineno-0-153" name="__codelineno-0-153"></a>    <span class="k">if</span> <span class="n">pad_index</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pad_widgets</span><span class="p">:</span>
+</span><span id="__span-0-154"><a id="__codelineno-0-154" name="__codelineno-0-154"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">pad_widgets</span><span class="p">[</span><span class="n">pad_index</span><span class="p">]</span><span class="o">.</span><span class="n">set_unavailable</span><span class="p">(</span><span class="n">is_unavailable</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h4 id="launchsampler.tui.widgets.pad_grid.PadGrid.on_pad_widget_selected" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <code class="highlight language-python"><span class="n">on_pad_widget_selected</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></code>
 
@@ -4549,27 +4713,27 @@ So we flip vertically: iterate from row 7 down to row 0</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/launchsampler/tui/widgets/pad_grid.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-145">145</a></span>
-<span class="normal"><a href="#__codelineno-0-146">146</a></span>
-<span class="normal"><a href="#__codelineno-0-147">147</a></span>
-<span class="normal"><a href="#__codelineno-0-148">148</a></span>
-<span class="normal"><a href="#__codelineno-0-149">149</a></span>
-<span class="normal"><a href="#__codelineno-0-150">150</a></span>
-<span class="normal"><a href="#__codelineno-0-151">151</a></span>
-<span class="normal"><a href="#__codelineno-0-152">152</a></span>
-<span class="normal"><a href="#__codelineno-0-153">153</a></span>
-<span class="normal"><a href="#__codelineno-0-154">154</a></span>
-<span class="normal"><a href="#__codelineno-0-155">155</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-145"><a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="k">def</span><span class="w"> </span><span class="nf">on_pad_widget_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">PadWidget</span><span class="o">.</span><span class="n">Selected</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-0-146"><a id="__codelineno-0-146" name="__codelineno-0-146"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="__span-0-147"><a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="sd">    Handle pad selection from child widgets.</span>
-</span><span id="__span-0-148"><a id="__codelineno-0-148" name="__codelineno-0-148"></a>
-</span><span id="__span-0-149"><a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    Forwards the selection event up to parent container.</span>
-</span><span id="__span-0-150"><a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="__span-0-151"><a id="__codelineno-0-151" name="__codelineno-0-151"></a>    <span class="c1"># Don&#39;t consume the message, let it bubble up</span>
-</span><span id="__span-0-152"><a id="__codelineno-0-152" name="__codelineno-0-152"></a>    <span class="n">message</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
-</span><span id="__span-0-153"><a id="__codelineno-0-153" name="__codelineno-0-153"></a>
-</span><span id="__span-0-154"><a id="__codelineno-0-154" name="__codelineno-0-154"></a>    <span class="c1"># Post our own message for parent</span>
-</span><span id="__span-0-155"><a id="__codelineno-0-155" name="__codelineno-0-155"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">post_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PadSelected</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">pad_index</span><span class="p">))</span>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-156">156</a></span>
+<span class="normal"><a href="#__codelineno-0-157">157</a></span>
+<span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-156"><a id="__codelineno-0-156" name="__codelineno-0-156"></a><span class="k">def</span><span class="w"> </span><span class="nf">on_pad_widget_selected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">PadWidget</span><span class="o">.</span><span class="n">Selected</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-157"><a id="__codelineno-0-157" name="__codelineno-0-157"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-158"><a id="__codelineno-0-158" name="__codelineno-0-158"></a><span class="sd">    Handle pad selection from child widgets.</span>
+</span><span id="__span-0-159"><a id="__codelineno-0-159" name="__codelineno-0-159"></a>
+</span><span id="__span-0-160"><a id="__codelineno-0-160" name="__codelineno-0-160"></a><span class="sd">    Forwards the selection event up to parent container.</span>
+</span><span id="__span-0-161"><a id="__codelineno-0-161" name="__codelineno-0-161"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-162"><a id="__codelineno-0-162" name="__codelineno-0-162"></a>    <span class="c1"># Don&#39;t consume the message, let it bubble up</span>
+</span><span id="__span-0-163"><a id="__codelineno-0-163" name="__codelineno-0-163"></a>    <span class="n">message</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</span><span id="__span-0-164"><a id="__codelineno-0-164" name="__codelineno-0-164"></a>
+</span><span id="__span-0-165"><a id="__codelineno-0-165" name="__codelineno-0-165"></a>    <span class="c1"># Post our own message for parent</span>
+</span><span id="__span-0-166"><a id="__codelineno-0-166" name="__codelineno-0-166"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">post_message</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PadSelected</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">pad_index</span><span class="p">))</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>

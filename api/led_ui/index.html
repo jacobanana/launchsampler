@@ -356,6 +356,25 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="../../troubleshooting/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Troubleshooting
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
     
     
       <li class="md-tabs__item">
@@ -3304,6 +3323,8 @@
       
         
       
+        
+      
     
     
     
@@ -3361,6 +3382,34 @@
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/error_handler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
               
@@ -3440,6 +3489,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
       
@@ -3466,10 +3542,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   
@@ -3487,8 +3563,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3782,6 +3858,40 @@
     <div class="doc doc-contents first">
 
         <p>LED UI for Launchpad hardware.</p>
+<p>┌─────────────────────────────────────────────────────┐
+│  Application Layer (TUI/Core)                       │
+│  - Pad state changes, UI updates                    │
+│  - Works with logical pad indices (0-63)            │
+│  - Works with (x, y) coordinates (0-7, 0-7)         │
+└────────────────┬────────────────────────────────────┘
+                │
+┌────────────────▼────────────────────────────────────┐
+│  Generic Device Abstraction                         │
+│  - Device: input + output layers                    │
+│  - DeviceInput: parse messages → events             │
+│  - DeviceOutput: state → hardware messages          │
+└────────────────┬────────────────────────────────────┘
+                │
+┌────────────────▼────────────────────────────────────┐
+│  Launchpad Device (Concrete Implementation)         │
+│  ├─ LaunchpadModel (detection &amp; metadata)           │
+│  ├─ LaunchpadInput (parse MIDI → pad events)        │
+│  │  └─ NoteMapper (note → index/coordinates)        │
+│  └─ LaunchpadOutput (LED display control)           │
+│     └─ IndexMapper (index/coordinates → note)       │
+└────────────────┬────────────────────────────────────┘
+                │
+┌────────────────▼────────────────────────────────────┐
+│  Launchpad Protocol Layer                           │
+│  ├─ SysEx message builder                           │
+│  ├─ Color palette                                   │
+│  └─ Lighting modes                                  │
+└────────────────┬────────────────────────────────────┘
+                │
+┌────────────────▼────────────────────────────────────┐
+│  MIDI Transport (Existing)                          │
+│  - MidiManager (send/receive)                       │
+└─────────────────────────────────────────────────────┘</p>
 
 
 

@@ -12,9 +12,13 @@
         <meta name="author" content="LaunchSampler Contributors">
       
       
-        <link rel="canonical" href="https://launchsampler.dev/DOCUMENTATION/">
+        <link rel="canonical" href="https://launchsampler.dev/troubleshooting/">
       
       
+        <link rel="prev" href="../api/utils/paths/">
+      
+      
+        <link rel="next" href="../changelog/">
       
       
         
@@ -25,7 +29,7 @@
     
     
       
-        <title>Documentation Guide - LaunchSampler</title>
+        <title>Troubleshooting - LaunchSampler</title>
       
     
     
@@ -80,7 +84,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#documentation-guide" class="md-skip">
+        <a href="#troubleshooting" class="md-skip">
           Skip to content
         </a>
       
@@ -120,7 +124,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Documentation Guide
+              Troubleshooting
             
           </span>
         </div>
@@ -347,9 +351,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../troubleshooting/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -3449,10 +3455,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3468,6 +3501,420 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#logging-and-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging and Diagnostics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging and Diagnostics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enabling-debug-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling Debug Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#permission-errors-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Permission Errors (Linux)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audio Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#audio-dropouts-glitches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio Dropouts / Glitches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High Latency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-audio-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No Audio Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wrong-audio-device" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wrong Audio Device
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audio-device-unavailable-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio Device Unavailable / Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audio-device-already-in-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio Device Already in Use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#midi-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MIDI Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MIDI Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#midi-device-not-detected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MIDI Device Not Detected
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#midi-notes-not-triggering-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MIDI Notes Not Triggering Samples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launchpad-leds-not-updating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launchpad LEDs Not Updating
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#application-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Application Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#application-wont-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application Won't Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tui-display-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TUI Display Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#application-freezes-or-becomes-unresponsive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application Freezes or Becomes Unresponsive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#samples-not-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Samples Not Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-file-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config File Not Found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#invalid-config-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invalid Config Values
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#high-cpu-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High CPU Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slow-sample-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slow Sample Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-specific-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform-Specific Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platform-Specific Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3737,201 +4184,706 @@
   
 
 
-<h1 id="documentation-guide">Documentation Guide<a class="headerlink" href="#documentation-guide" title="Permanent link">&para;</a></h1>
-<p>This document explains how the LaunchSampler documentation is structured and how to work with it.</p>
-<h2 id="structure">Structure<a class="headerlink" href="#structure" title="Permanent link">&para;</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>docs/
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── api/              # Auto-generated API documentation
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── getting-started/  # Installation and quick start guides
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── user-guide/       # User documentation
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── architecture/     # Architecture documentation
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── contributing/     # Contributing guidelines
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>└── index.md         # Documentation homepage
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>mkdocs.yml           # MkDocs configuration
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>scripts/
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└── generate_api_docs.py  # API docs generator
+<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
+<p>This guide helps you resolve common issues with LaunchSampler.</p>
+<h2 id="logging-and-diagnostics">Logging and Diagnostics<a class="headerlink" href="#logging-and-diagnostics" title="Permanent link">&para;</a></h2>
+<h3 id="enabling-debug-logging">Enabling Debug Logging<a class="headerlink" href="#enabling-debug-logging" title="Permanent link">&para;</a></h3>
+<p>When troubleshooting issues, enable debug logging to capture detailed information:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>launchsampler<span class="w"> </span>--debug
 </span></code></pre></div>
-<h2 id="building-documentation-locally">Building Documentation Locally<a class="headerlink" href="#building-documentation-locally" title="Permanent link">&para;</a></h2>
-<h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
-<p>Install development dependencies:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
+<p>This creates <code>launchsampler-debug.log</code> in your current directory with detailed diagnostic information.</p>
+<p>For more information about logging options, see the <a href="../getting-started/configuration/#logging">Logging section in Configuration</a>.</p>
+<hr />
+<h3 id="permission-errors-linux">Permission Errors (Linux)<a class="headerlink" href="#permission-errors-linux" title="Permanent link">&para;</a></h3>
+<p>On Linux, you may need to add your user to the <code>audio</code> group:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>audio<span class="w"> </span><span class="nv">$USER</span>
 </span></code></pre></div>
-<h3 id="generate-api-documentation">Generate API Documentation<a class="headerlink" href="#generate-api-documentation" title="Permanent link">&para;</a></h3>
-<p>The API documentation is automatically generated from Python docstrings:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>scripts/generate_api_docs.py
-</span></code></pre></div>
-<p>This will:
-- Scan all Python modules in <code>src/launchsampler/</code>
-- Generate markdown files with <code>:::</code> directives in <code>docs/api/</code>
-- Create package overview pages
-- <strong>Automatically update the API Reference section in <code>mkdocs.yml</code></strong> using PyYAML for proper formatting
-- Save navigation structure to <code>docs/api_nav.yml</code> (for reference)</p>
-<p><strong>When to regenerate:</strong>
-- After adding new modules or packages
-- After restructuring the codebase
-- When you want the latest docstrings in docs</p>
-<p><strong>No manual copying needed!</strong> The script automatically updates <code>mkdocs.yml</code> for you.</p>
-<h3 id="serve-documentation">Serve Documentation<a class="headerlink" href="#serve-documentation" title="Permanent link">&para;</a></h3>
-<p>Start a local development server with live reload:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>serve
-</span></code></pre></div>
-<p>Visit http://127.0.0.1:8000 to view the documentation.</p>
-<p>Changes to markdown files are reflected immediately. If you modify Python docstrings, re-run the API docs generator.</p>
-<h3 id="build-static-site">Build Static Site<a class="headerlink" href="#build-static-site" title="Permanent link">&para;</a></h3>
-<p>Build the complete documentation site:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>build
-</span></code></pre></div>
-<p>Output is generated in <code>site/</code> directory (ignored by git).</p>
-<h2 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h2>
-<p>Documentation is automatically built and deployed to GitHub Pages via GitHub Actions:</p>
-<ul>
-<li><strong>On push to <code>main</code></strong>: Docs are built and deployed</li>
-<li><strong>On pull requests</strong>: Docs are built (but not deployed) to check for errors</li>
-</ul>
-<p>The workflow (<code>.github/workflows/docs.yml</code>) does:
-1. Install dependencies with <code>uv</code>
-2. Generate API documentation
-3. Build docs with <code>mkdocs build --strict</code>
-4. Deploy to GitHub Pages (on main branch only)</p>
-<h3 id="manual-deployment">Manual Deployment<a class="headerlink" href="#manual-deployment" title="Permanent link">&para;</a></h3>
-<p>To manually deploy to GitHub Pages:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>gh-deploy
-</span></code></pre></div>
-<p>This builds and pushes to the <code>gh-pages</code> branch.</p>
-<h2 id="writing-documentation">Writing Documentation<a class="headerlink" href="#writing-documentation" title="Permanent link">&para;</a></h2>
-<h3 id="markdown-files">Markdown Files<a class="headerlink" href="#markdown-files" title="Permanent link">&para;</a></h3>
-<p>Standard markdown files in <code>docs/</code> are written manually:
-- User guides
-- Tutorials
-- Architecture docs
-- Contributing guidelines</p>
-<h3 id="api-documentation">API Documentation<a class="headerlink" href="#api-documentation" title="Permanent link">&para;</a></h3>
-<p>API docs are <strong>auto-generated</strong> from Python docstrings. To document code:</p>
+<p>Then log out and log back in for changes to take effect.</p>
+<h2 id="audio-issues">Audio Issues<a class="headerlink" href="#audio-issues" title="Permanent link">&para;</a></h2>
+<h3 id="audio-dropouts-glitches">Audio Dropouts / Glitches<a class="headerlink" href="#audio-dropouts-glitches" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Crackling, popping, or stuttering audio during playback.</p>
+<p><strong>Solutions:</strong></p>
 <ol>
-<li><strong>Write Google-style docstrings</strong> in your Python modules:</li>
+<li><strong>Increase buffer size:</strong></li>
 </ol>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">my_function</span><span class="p">(</span><span class="n">param</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="sd">    Short description.</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="sd">    Longer description with details.</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="sd">    Args:</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="sd">        param: Description of parameter</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="sd">    Returns:</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="sd">        Description of return value</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="sd">    Raises:</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="sd">        ValueError: When something goes wrong</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="sd">    &quot;&quot;&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>launchsampler<span class="w"> </span>config<span class="w"> </span>--buffer-size<span class="w"> </span><span class="m">1024</span>
 </span></code></pre></div>
 <ol>
-<li><strong>Add architecture diagrams</strong> in module docstrings:</li>
+<li>
+<p><strong>Close other audio applications</strong> that might be competing for the audio device</p>
+</li>
+<li>
+<p><strong>Use a dedicated audio interface</strong> if using built-in audio</p>
+</li>
+<li>
+<p><strong>Check CPU usage</strong> - ensure other processes aren't consuming too much CPU</p>
+</li>
 </ol>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="sd">Module description.</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="sd">Architecture Diagram</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="sd">--------------------</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="sd">::</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="sd">    Component A</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="sd">        ↓</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="sd">    Component B</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="sd">        ↓</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="sd">    Component C</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="sd">&quot;&quot;&quot;</span>
-</span></code></pre></div>
+<h3 id="high-latency">High Latency<a class="headerlink" href="#high-latency" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Noticeable delay between pressing a pad and hearing the sample.</p>
+<p><strong>Solutions:</strong></p>
 <ol>
-<li><strong>Regenerate API docs</strong> to see changes:</li>
-</ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>scripts/generate_api_docs.py
-</span></code></pre></div>
-<h3 id="adding-new-documentation-pages">Adding New Documentation Pages<a class="headerlink" href="#adding-new-documentation-pages" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Create markdown file in appropriate <code>docs/</code> subdirectory</li>
-<li>Add entry to <code>nav:</code> section in <code>mkdocs.yml</code></li>
-<li>Preview with <code>uv run mkdocs serve</code></li>
-</ol>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<h3 id="mkdocsyml">mkdocs.yml<a class="headerlink" href="#mkdocsyml" title="Permanent link">&para;</a></h3>
-<p>Main configuration file. Key sections:</p>
-<ul>
-<li><code>site_name</code>, <code>site_description</code>: Site metadata</li>
-<li><code>theme</code>: Material theme configuration</li>
-<li><code>plugins</code>: Enabled plugins (search, mkdocstrings, etc.)</li>
-<li><code>markdown_extensions</code>: Markdown features</li>
-<li><code>nav</code>: Documentation navigation structure</li>
-</ul>
-<h3 id="mkdocstrings-configuration">mkdocstrings Configuration<a class="headerlink" href="#mkdocstrings-configuration" title="Permanent link">&para;</a></h3>
-<p>API documentation is configured in <code>mkdocs.yml</code>:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">plugins</span><span class="p">:</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">mkdocstrings</span><span class="p">:</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">      </span><span class="nt">handlers</span><span class="p">:</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">        </span><span class="nt">python</span><span class="p">:</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">          </span><span class="nt">options</span><span class="p">:</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">            </span><span class="nt">docstring_style</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">google</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">            </span><span class="nt">show_source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">            </span><span class="c1"># ... other options</span>
-</span></code></pre></div>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<h3 id="api-docs-not-updating">API docs not updating<a class="headerlink" href="#api-docs-not-updating" title="Permanent link">&para;</a></h3>
-<p>Re-run the generator:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>scripts/generate_api_docs.py
+<li>
+<p><strong>Decrease buffer size</strong> (if your system can handle it):
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>launchsampler<span class="w"> </span>config<span class="w"> </span>--buffer-size<span class="w"> </span><span class="m">32</span>
 </span></code></pre></div></p>
-<h3 id="build-warnings">Build warnings<a class="headerlink" href="#build-warnings" title="Permanent link">&para;</a></h3>
-<p>Run strict build to catch all issues:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
-</span></code></pre></div></p>
-<h3 id="type-annotation-warnings">Type annotation warnings<a class="headerlink" href="#type-annotation-warnings" title="Permanent link">&para;</a></h3>
-<p>Ensure all public APIs have proper type hints. See:
-- <code>src/launchsampler/audio/device.py</code>
-- <code>src/launchsampler/devices/registry.py</code>
-- <code>src/launchsampler/utils/observer_manager.py</code></p>
-<p>For examples of proper type annotations.</p>
-<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+</li>
+<li>
+<p><strong>Use a better audio API:</strong></p>
+</li>
+<li><strong>Windows:</strong> ASIO &gt; WASAPI &gt; DirectSound &gt; MME</li>
+<li><strong>macOS:</strong> CoreAudio (default)</li>
+<li>
+<p><strong>Linux:</strong> ALSA &gt; PulseAudio</p>
+</li>
+<li>
+<p><strong>Update audio drivers</strong> to the latest version</p>
+</li>
+<li>
+<p><strong>Use a dedicated audio interface</strong> with ASIO support (Windows)</p>
+</li>
+</ol>
+<h3 id="no-audio-output">No Audio Output<a class="headerlink" href="#no-audio-output" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> No sound when triggering samples.</p>
+<p><strong>Solutions:</strong></p>
 <ol>
-<li><strong>Commit <code>docs/</code>, not <code>site/</code></strong></li>
-<li>Source files belong in git</li>
 <li>
-<p>Build output is regenerated by CI</p>
+<p><strong>Verify sample files exist</strong> and are valid audio files. When a file can't be loaded, it will be shown as unavailable.</p>
 </li>
 <li>
-<p><strong>Regenerate API docs after code changes</strong></p>
-</li>
-<li>Keep documentation in sync with code</li>
-<li>
-<p>Run generator before committing</p>
+<p><strong>Revert to default audio device:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>launchsampler<span class="w"> </span>config<span class="w"> </span>--audio-device<span class="w"> </span>default
+</span></code></pre></div></p>
 </li>
 <li>
-<p><strong>Write descriptive docstrings</strong></p>
-</li>
-<li>They become your API documentation</li>
-<li>
-<p>Include examples when helpful</p>
+<p><strong>Check system volume</strong> and ensure LaunchSampler isn't muted</p>
 </li>
 <li>
-<p><strong>Use diagrams in docstrings</strong></p>
+<p><strong>Try a different audio device:</strong>
+   By default, the <code>audio list</code> command will only show low latency devices, you can see the full list with:
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>launchsampler<span class="w"> </span>audio<span class="w"> </span>list<span class="w"> </span>--all
+</span></code></pre></div>
+   Choose a different device ID</p>
 </li>
-<li>ASCII diagrams render well in docs</li>
 <li>
-<p>Great for explaining architecture</p>
-</li>
-<li>
-<p><strong>Test docs build before committing</strong>
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+<p><strong>Check logs for errors:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>launchsampler<span class="w"> </span>--debug
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cat<span class="w"> </span>launchsampler-debug.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>ERROR
 </span></code></pre></div></p>
 </li>
 </ol>
-<h2 id="resources">Resources<a class="headerlink" href="#resources" title="Permanent link">&para;</a></h2>
+<h3 id="wrong-audio-device">Wrong Audio Device<a class="headerlink" href="#wrong-audio-device" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Audio plays through wrong output (e.g., speakers instead of headphones).</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>List available devices:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>launchsampler<span class="w"> </span>audio<span class="w"> </span>list
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Set device explicitly in config:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>launchsampler<span class="w"> </span>config<span class="w"> </span>--audio-device<span class="w"> </span><span class="m">3</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Restart LaunchSampler</strong> after changing config</p>
+</li>
+</ol>
+<h3 id="audio-device-unavailable-changed">Audio Device Unavailable / Changed<a class="headerlink" href="#audio-device-unavailable-changed" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Configured audio device is no longer available (e.g., external interface unplugged, device ID changed).</p>
+<p><strong>Automatic Fallback Behavior:</strong></p>
+<p>LaunchSampler automatically handles invalid or unavailable audio devices with the following fallback sequence:</p>
+<ol>
+<li><strong>Tries configured device</strong> (<code>default_audio_device</code> in config.json)</li>
+<li><strong>Falls back to OS default</strong> if configured device is invalid</li>
+<li><strong>Searches for any low-latency device</strong> if OS default doesn't support low-latency APIs</li>
+<li><strong>Shows error</strong> only if NO valid low-latency devices are found</li>
+</ol>
+<h3 id="audio-device-already-in-use">Audio Device Already in Use<a class="headerlink" href="#audio-device-already-in-use" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Application fails to start with error:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Error opening OutputStream: Invalid device [PaErrorCode -9996]
+</span></code></pre></div></p>
+<p><strong>Cause:</strong> The audio device is currently in use by another application or instance of LaunchSampler.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Check for running instances:</strong></li>
+<li>Close any other running instances of LaunchSampler</li>
+<li>
+<p>Check task manager/activity monitor for multiple processes</p>
+</li>
+<li>
+<p><strong>Close other audio applications:</strong></p>
+</li>
+<li>Close DAWs, music players, or other audio software</li>
+<li>
+<p>Check system tray for hidden audio applications</p>
+</li>
+<li>
+<p><strong>Restart audio services (if needed):</strong></p>
+</li>
+</ol>
+<p>=== "Windows"
+       <div class="language-powershell highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c"># Restart Windows Audio service</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">net</span> <span class="n">stop</span> <span class="n">audiosrv</span> <span class="p">&amp;&amp;</span> <span class="n">net</span> <span class="nb">start </span><span class="n">audiosrv</span>
+</span></code></pre></div></p>
+<p>=== "macOS"
+       <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Restart CoreAudio</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>sudo<span class="w"> </span>killall<span class="w"> </span>coreaudiod
+</span></code></pre></div></p>
+<p>=== "Linux"
+       <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Kill processes using audio device</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>sudo<span class="w"> </span>fuser<span class="w"> </span>-k<span class="w"> </span>/dev/snd/*
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Or restart PulseAudio</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>pulseaudio<span class="w"> </span>-k<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>pulseaudio<span class="w"> </span>--start
+</span></code></pre></div></p>
+<ol>
+<li>
+<p><strong>Try a different audio device:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>launchsampler<span class="w"> </span>audio<span class="w"> </span>list
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>launchsampler<span class="w"> </span>config<span class="w"> </span>--audio-device<span class="w"> </span>&lt;different-device-id&gt;
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Reboot your computer</strong> to release all audio device locks</p>
+</li>
+</ol>
+<hr />
+<h2 id="midi-issues">MIDI Issues<a class="headerlink" href="#midi-issues" title="Permanent link">&para;</a></h2>
+<h3 id="midi-device-not-detected">MIDI Device Not Detected<a class="headerlink" href="#midi-device-not-detected" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Launchpad not recognized or not showing in device list.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Check USB connection:</strong></li>
+<li>Ensure cable is properly connected</li>
+<li>Try a different USB port</li>
+<li>
+<p>Try a different USB cable</p>
+</li>
+<li>
+<p><strong>List MIDI devices:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>launchsampler<span class="w"> </span>midi<span class="w"> </span>list
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Install manufacturer drivers:</strong></p>
+</li>
+<li>Download latest drivers from Novation website</li>
+<li>
+<p>Restart computer after installation</p>
+</li>
+<li>
+<p><strong>Check device permissions (Linux):</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>audio<span class="w"> </span><span class="nv">$USER</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="c1"># Log out and log back in</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify device works in other software</strong> (e.g., DAW, Launchpad Arcade)</p>
+</li>
+</ol>
+<h3 id="midi-notes-not-triggering-samples">MIDI Notes Not Triggering Samples<a class="headerlink" href="#midi-notes-not-triggering-samples" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Pressing Launchpad pads doesn't trigger samples in Play Mode.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Ensure you're in Play Mode:</strong></li>
+<li>Press <span class="keys"><kbd class="key-p">P</kbd></span> to switch to Play Mode</li>
+<li>
+<p>Look for "Play Mode" in the status bar</p>
+</li>
+<li>
+<p><strong>Check that pads have samples assigned:</strong></p>
+</li>
+<li>Switch to Edit Mode (<span class="keys"><kbd class="key-e">E</kbd></span>)</li>
+<li>
+<p>Verify pads show sample information</p>
+</li>
+<li>
+<p><strong>Monitor MIDI input:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>launchsampler<span class="w"> </span>midi<span class="w"> </span>monitor
+</span></code></pre></div>
+   Press pads - you should see MIDI messages</p>
+</li>
+<li>
+<p><strong>Check MIDI routing:</strong></p>
+</li>
+<li>Ensure no other application is capturing MIDI</li>
+<li>
+<p>Close DAWs or other MIDI software</p>
+</li>
+<li>
+<p><strong>Enable debug logging:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>launchsampler<span class="w"> </span>--debug
+</span></code></pre></div>
+   Check for MIDI-related errors</p>
+</li>
+</ol>
+<h3 id="launchpad-leds-not-updating">Launchpad LEDs Not Updating<a class="headerlink" href="#launchpad-leds-not-updating" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Launchpad LEDs don't light up or don't reflect pad states.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Check Launchpad mode:</strong></li>
+<li>Some Launchpads have different modes</li>
+<li>Ensure it's in "Programmer" or "Live" mode</li>
+<li>
+<p>Refer to your Launchpad's manual</p>
+</li>
+<li>
+<p><strong>Verify MIDI output connection:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>launchsampler<span class="w"> </span>midi<span class="w"> </span>list
+</span></code></pre></div>
+   Check that MIDI output port is detected</p>
+</li>
+<li>
+<p><strong>Reset Launchpad:</strong></p>
+</li>
+<li>Disconnect and reconnect USB</li>
+<li>
+<p>Power cycle if battery-powered</p>
+</li>
+<li>
+<p><strong>Check logs for LED errors:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>launchsampler<span class="w"> </span>--debug
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;led&quot;</span><span class="w"> </span>launchsampler-debug.log
+</span></code></pre></div></p>
+</li>
+</ol>
+<hr />
+<h2 id="application-issues">Application Issues<a class="headerlink" href="#application-issues" title="Permanent link">&para;</a></h2>
+<h3 id="application-wont-start">Application Won't Start<a class="headerlink" href="#application-wont-start" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> LaunchSampler crashes or exits immediately on startup.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Check Python version:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>python<span class="w"> </span>--version<span class="w">  </span><span class="c1"># Should be 3.12 or higher</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Enable debug logging:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>launchsampler<span class="w"> </span>--debug<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tee<span class="w"> </span>startup-error.log
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Verify installation:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>launchsampler<span class="w"> </span>--version
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Reinstall dependencies:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># If using pipx</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>pipx<span class="w"> </span>reinstall<span class="w"> </span>launchsampler
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="c1"># If using uv</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="nb">cd</span><span class="w"> </span>launchsampler
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>uv<span class="w"> </span>sync<span class="w"> </span>--reinstall
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check for conflicting packages:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>pip<span class="w"> </span>list<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>midi
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>pip<span class="w"> </span>list<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>audio
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Try with minimal config:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Backup existing config</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>mv<span class="w"> </span>~/.launchsampler/config.json<span class="w"> </span>~/.launchsampler/config.json.bak
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="c1"># Start with defaults</span>
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>launchsampler
+</span></code></pre></div></p>
+</li>
+</ol>
+<h3 id="tui-display-issues">TUI Display Issues<a class="headerlink" href="#tui-display-issues" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Garbled text, incorrect colors, or layout problems in the terminal.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Use a modern terminal:</strong></li>
+<li><strong>Windows:</strong> Windows Terminal (recommended)</li>
+<li><strong>macOS:</strong> iTerm2 or Terminal.app</li>
+<li>
+<p><strong>Linux:</strong> gnome-terminal, kitty, alacritty</p>
+</li>
+<li>
+<p><strong>Check terminal size:</strong></p>
+</li>
+<li>Ensure terminal is at least 80x24 characters</li>
+<li>
+<p>Resize terminal window</p>
+</li>
+<li>
+<p><strong>Set correct locale:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">LANG</span><span class="o">=</span>en_US.UTF-8
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">LC_ALL</span><span class="o">=</span>en_US.UTF-8
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Try a different terminal emulator</strong></p>
+</li>
+<li>
+<p><strong>Check terminal color support:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nb">echo</span><span class="w"> </span><span class="nv">$COLORTERM</span><span class="w">  </span><span class="c1"># Should show &quot;truecolor&quot; or similar</span>
+</span></code></pre></div></p>
+</li>
+</ol>
+<h3 id="application-freezes-or-becomes-unresponsive">Application Freezes or Becomes Unresponsive<a class="headerlink" href="#application-freezes-or-becomes-unresponsive" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> LaunchSampler stops responding to input.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Force quit:</strong></li>
+<li>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> in terminal</li>
+<li>
+<p>Or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-q">Q</kbd></span> in the TUI</p>
+</li>
+<li>
+<p><strong>Check CPU usage:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># In another terminal</span>
+</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>top<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>-f<span class="w"> </span>launchsampler<span class="k">)</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check for blocking operations:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>launchsampler<span class="w"> </span>--debug
+</span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="c1"># Look for operations that take too long</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Reduce sample count:</strong></p>
+</li>
+<li>Use fewer simultaneous samples</li>
+<li>
+<p>Reduce sample file sizes</p>
+</li>
+<li>
+<p><strong>Increase buffer size</strong> to reduce CPU load:
+   <div class="language-json highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="p">{</span>
+</span><span id="__span-30-2"><a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">  </span><span class="nt">&quot;default_buffer_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span>
+</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="p">}</span>
+</span></code></pre></div></p>
+</li>
+</ol>
+<h3 id="samples-not-loading">Samples Not Loading<a class="headerlink" href="#samples-not-loading" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Error when loading samples from directory or set file.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Check file permissions:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>ls<span class="w"> </span>-l<span class="w"> </span>/path/to/samples/
+</span></code></pre></div>
+   Ensure files are readable</p>
+</li>
+<li>
+<p><strong>Verify file formats:</strong></p>
+</li>
+<li>Supported: WAV, MP3, FLAC, OGG, AIFF</li>
+<li>
+<p>Check file extensions match actual format</p>
+</li>
+<li>
+<p><strong>Check file paths:</strong></p>
+</li>
+<li>Use absolute paths</li>
+<li>Ensure no special characters in paths</li>
+<li>
+<p>Avoid spaces in filenames (or use quotes)</p>
+</li>
+<li>
+<p><strong>Verify sample directory exists:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>launchsampler<span class="w"> </span>--samples-dir<span class="w"> </span>/path/to/samples<span class="w"> </span>--debug
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check disk space:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>df<span class="w"> </span>-h
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Look for loading errors in logs:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;load&quot;</span><span class="w"> </span>launchsampler-debug.log
+</span><span id="__span-34-2"><a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;sample&quot;</span><span class="w"> </span>launchsampler-debug.log
+</span></code></pre></div></p>
+</li>
+</ol>
+<hr />
+<h2 id="configuration-issues">Configuration Issues<a class="headerlink" href="#configuration-issues" title="Permanent link">&para;</a></h2>
+<h3 id="config-file-not-found">Config File Not Found<a class="headerlink" href="#config-file-not-found" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> LaunchSampler can't find or load config file.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Check config location:</strong></li>
+</ol>
+<p>=== "Linux / macOS"
+       <div class="language-bash highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>ls<span class="w"> </span>-la<span class="w"> </span>~/.launchsampler/config.json
+</span></code></pre></div></p>
+<p>=== "Windows"
+       <div class="language-powershell highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="nb">dir </span><span class="k">%</span><span class="n">USERPROFILE</span><span class="p">%\.</span><span class="n">launchsampler</span><span class="p">\</span><span class="n">config</span><span class="p">.</span><span class="n">json</span>
+</span></code></pre></div></p>
+<ol>
+<li>
+<p><strong>Create config directory:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.launchsampler
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Let LaunchSampler create default config:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>launchsampler
+</span><span id="__span-38-2"><a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="c1"># Will auto-create config.json</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Manually create config:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;default_buffer_size&quot;: 512}&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>~/.launchsampler/config.json
+</span></code></pre></div></p>
+</li>
+</ol>
+<h3 id="invalid-config-values">Invalid Config Values<a class="headerlink" href="#invalid-config-values" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Config validation errors on startup.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Validate JSON syntax:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>python<span class="w"> </span>-m<span class="w"> </span>json.tool<span class="w"> </span>~/.launchsampler/config.json
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Reset to defaults:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>rm<span class="w"> </span>~/.launchsampler/config.json
+</span><span id="__span-41-2"><a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>launchsampler<span class="w">  </span><span class="c1"># Will create new default config</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check value ranges:</strong></p>
+</li>
+<li><code>default_buffer_size</code>: 128, 256, 512, 1024, or 2048</li>
+<li><code>default_audio_device</code>: Valid device ID from <code>launchsampler audio list</code></li>
+<li>
+<p><code>midi_poll_interval</code>: Any positive float (typically 0.5 to 5.0 seconds)</p>
+</li>
+<li>
+<p><strong>Review config documentation:</strong>
+   See <a href="../getting-started/configuration/">Configuration Guide</a> for all valid options</p>
+</li>
+</ol>
+<hr />
+<h2 id="logging-issues">Logging Issues<a class="headerlink" href="#logging-issues" title="Permanent link">&para;</a></h2>
+<p>For logging-specific troubleshooting (log files not created, empty logs, etc.), see the <a href="../getting-started/configuration/#logging-troubleshooting">Logging Troubleshooting</a> section in the Configuration guide.</p>
+<hr />
+<h2 id="performance-issues">Performance Issues<a class="headerlink" href="#performance-issues" title="Permanent link">&para;</a></h2>
+<h3 id="high-cpu-usage">High CPU Usage<a class="headerlink" href="#high-cpu-usage" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> LaunchSampler consumes excessive CPU resources.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Increase buffer size:</strong>
+   <div class="language-json highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="p">{</span>
+</span><span id="__span-42-2"><a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="w">  </span><span class="nt">&quot;default_buffer_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span>
+</span><span id="__span-42-3"><a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="p">}</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Reduce simultaneous voices:</strong></p>
+</li>
+<li>Use one-shot mode instead of loop</li>
+<li>
+<p>Limit number of playing samples</p>
+</li>
+<li>
+<p><strong>Close other applications</strong></p>
+</li>
+<li>
+<p><strong>Check for debug logging:</strong></p>
+</li>
+<li>Disable verbose logging in production</li>
+<li>Use default logging level (WARNING)</li>
+</ol>
+<h3 id="slow-sample-loading">Slow Sample Loading<a class="headerlink" href="#slow-sample-loading" title="Permanent link">&para;</a></h3>
+<p><strong>Symptoms:</strong> Long delay when loading sets or samples.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Use smaller sample files:</strong></li>
+<li>Convert to lower bit depth (16-bit instead of 24-bit)</li>
+<li>
+<p>Use compressed formats (MP3, OGG) for non-critical samples</p>
+</li>
+<li>
+<p><strong>Reduce sample count:</strong></p>
+</li>
+<li>Split large sets into multiple smaller sets</li>
+<li>
+<p>Load only needed samples</p>
+</li>
+<li>
+<p><strong>Use SSD instead of HDD</strong> for sample storage</p>
+</li>
+<li>
+<p><strong>Check disk I/O:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="c1"># Linux</span>
+</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>iostat<span class="w"> </span>-x<span class="w"> </span><span class="m">1</span>
+</span><span id="__span-43-3"><a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>
+</span><span id="__span-43-4"><a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="c1"># macOS</span>
+</span><span id="__span-43-5"><a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a>iostat<span class="w"> </span>-w<span class="w"> </span><span class="m">1</span>
+</span></code></pre></div></p>
+</li>
+</ol>
+<hr />
+<h2 id="platform-specific-issues">Platform-Specific Issues<a class="headerlink" href="#platform-specific-issues" title="Permanent link">&para;</a></h2>
+<h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
+<h4 id="asio4all-not-working">ASIO4ALL Not Working<a class="headerlink" href="#asio4all-not-working" title="Permanent link">&para;</a></h4>
+<p><strong>Problem:</strong> ASIO4ALL driver not recognized.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Install ASIO4ALL:</strong></li>
+<li>Download from http://www.asio4all.org/</li>
+<li>
+<p>Run installer as administrator</p>
+</li>
+<li>
+<p><strong>Configure ASIO4ALL:</strong></p>
+</li>
+<li>Open ASIO4ALL control panel</li>
+<li>Enable your audio device</li>
+<li>
+<p>Set buffer size</p>
+</li>
+<li>
+<p><strong>Set in LaunchSampler config:</strong>
+   <div class="language-json highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="p">{</span>
+</span><span id="__span-44-2"><a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>
+</span><span id="__span-44-3"><a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="w">  </span><span class="nt">&quot;default_audio_device&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
+</span><span id="__span-44-4"><a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="p">}</span>
+</span></code></pre></div></p>
+</li>
+</ol>
+<h4 id="permission-errors">Permission Errors<a class="headerlink" href="#permission-errors" title="Permanent link">&para;</a></h4>
+<p><strong>Problem:</strong> Access denied errors when accessing files or devices.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Run as administrator</strong> (only if necessary)</p>
+</li>
+<li>
+<p><strong>Check file permissions</strong> in Windows Explorer</p>
+</li>
+<li>
+<p><strong>Use user-writable locations:</strong>
+   <div class="language-powershell highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="n">launchsampler</span> <span class="p">-</span><span class="n">-log</span><span class="o">-file</span> <span class="k">%</span><span class="n">USERPROFILE</span><span class="p">%\</span><span class="n">Desktop</span><span class="p">\</span><span class="n">launchsampler</span><span class="p">.</span><span class="n">log</span>
+</span></code></pre></div></p>
+</li>
+</ol>
+<h3 id="macos">macOS<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h3>
+<h4 id="coreaudio-issues">CoreAudio Issues<a class="headerlink" href="#coreaudio-issues" title="Permanent link">&para;</a></h4>
+<p><strong>Problem:</strong> Audio device not accessible or permission errors.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li><strong>Grant microphone permission:</strong></li>
+<li>System Preferences → Security &amp; Privacy → Microphone</li>
+<li>
+<p>Enable for Terminal or your terminal app</p>
+</li>
+<li>
+<p><strong>Reset Core Audio:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>sudo<span class="w"> </span>killall<span class="w"> </span>coreaudiod
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check audio MIDI setup:</strong></p>
+</li>
+<li>Open Audio MIDI Setup.app</li>
+<li>Verify device is recognized</li>
+</ol>
+<h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
+<h4 id="alsa-errors">ALSA Errors<a class="headerlink" href="#alsa-errors" title="Permanent link">&para;</a></h4>
+<p><strong>Problem:</strong> "Device or resource busy" errors.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Add user to audio group:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>audio<span class="w"> </span><span class="nv">$USER</span>
+</span><span id="__span-47-2"><a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="c1"># Log out and log back in</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Kill processes using audio device:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>sudo<span class="w"> </span>fuser<span class="w"> </span>-k<span class="w"> </span>/dev/snd/*
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Use PulseAudio plugin:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-49-1"><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>pulseaudio-utils
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check ALSA configuration:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-50-1"><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>cat<span class="w"> </span>/proc/asound/cards
+</span><span id="__span-50-2"><a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>aplay<span class="w"> </span>-l
+</span></code></pre></div></p>
+</li>
+</ol>
+<h4 id="pulseaudio-issues">PulseAudio Issues<a class="headerlink" href="#pulseaudio-issues" title="Permanent link">&para;</a></h4>
+<p><strong>Problem:</strong> No audio with PulseAudio.</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Restart PulseAudio:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-51-1"><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>pulseaudio<span class="w"> </span>-k
+</span><span id="__span-51-2"><a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>pulseaudio<span class="w"> </span>--start
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check PulseAudio devices:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-52-1"><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>pacmd<span class="w"> </span>list-sinks
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Set default sink:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-53-1"><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>pactl<span class="w"> </span>set-default-sink<span class="w"> </span>&lt;sink-name&gt;
+</span></code></pre></div></p>
+</li>
+</ol>
+<hr />
+<h2 id="getting-help">Getting Help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
+<p>If you can't resolve your issue:</p>
+<ol>
+<li>
+<p><strong>Enable debug logging:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-54-1"><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>launchsampler<span class="w"> </span>--debug
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Gather system information:</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-55-1"><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>launchsampler<span class="w"> </span>--version
+</span><span id="__span-55-2"><a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a>python<span class="w"> </span>--version
+</span><span id="__span-55-3"><a id="__codelineno-55-3" name="__codelineno-55-3" href="#__codelineno-55-3"></a>uname<span class="w"> </span>-a<span class="w">  </span><span class="c1"># Linux/macOS</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Check existing issues:</strong></p>
+</li>
+<li>
+<p><a href="https://github.com/jacobanana/launchsampler/issues">GitHub Issues</a></p>
+</li>
+<li>
+<p><strong>Create a new issue:</strong></p>
+</li>
+<li>Include debug log (relevant portions)</li>
+<li>System information</li>
+<li>Steps to reproduce</li>
+<li>
+<p>Expected vs actual behavior</p>
+</li>
+<li>
+<p><strong>Join the community:</strong></p>
+</li>
+<li><a href="https://github.com/jacobanana/launchsampler/discussions">GitHub Discussions</a></li>
+</ol>
+<hr />
+<h2 id="related-documentation">Related Documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://www.mkdocs.org/">MkDocs Documentation</a></li>
-<li><a href="https://squidfunk.github.io/mkdocs-material/">Material for MkDocs</a></li>
-<li><a href="https://mkdocstrings.github.io/">mkdocstrings</a></li>
-<li><a href="https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings">Google Style Python Docstrings</a></li>
+<li><a href="../getting-started/configuration/">Configuration Guide</a> - Detailed config options and logging</li>
+<li><a href="../getting-started/installation/">Installation</a> - Install and verify setup</li>
+<li><a href="../user-guide/overview/">User Guide</a> - Learn how to use LaunchSampler</li>
 </ul>
 
 

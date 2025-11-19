@@ -66,5 +66,6 @@
       - Set: api/models/set.md
     - Utils:
       - Overview: api/utils/index.md
+      - Error Handler: api/utils/error_handler.md
       - Observer Manager: api/utils/observer_manager.md
       - Paths: api/utils/paths.md
