@@ -91,8 +91,33 @@ LaunchSampler uses a JSON configuration file to store settings. The config is au
 
 ### List Audio Devices
 
+List low-latency audio devices only (default):
+
 ```bash
 launchsampler audio list
+```
+
+Output example:
+```
+Available low-latency audio output devices (ASIO/WASAPI):
+
+[2] Speakers (Realtek)  [Default]
+    Host API: Windows WASAPI
+    Channels: 2 out
+    Sample Rate: 48000.0 Hz
+    Latency: 3.0 ms
+
+[3] Headphones (USB Audio)
+    Host API: Windows WASAPI
+    Channels: 2 out
+    Sample Rate: 48000.0 Hz
+    Latency: 3.0 ms
+```
+
+List all audio devices (including non-low-latency):
+
+```bash
+launchsampler audio list --all
 ```
 
 Output example:
@@ -100,16 +125,64 @@ Output example:
 Available Audio APIs:
   - MME (default)
   - DirectSound
-  - WASAPI
+  - Windows WASAPI
 
 MME Devices:
   [0] Speakers (Realtek High Definition Audio)  [Default]
   [1] Headphones (USB Audio Device)
 
-WASAPI Devices:
-  [2] Speakers (Realtek) [Default]
+DirectSound Devices:
+  [4] Speakers (Realtek)
+  [5] Headphones (USB Audio)
+
+Windows WASAPI Devices:
+  [2] Speakers (Realtek)  [Default]
   [3] Headphones (USB Audio)
-```midi list
+```
+
+List all audio devices with detailed information:
+
+```bash
+launchsampler audio list --all --detailed
+```
+
+Output example:
+```
+Available Audio APIs:
+  - MME (default)
+  - DirectSound
+  - Windows WASAPI
+
+MME Devices:
+  [0] Speakers (Realtek High Definition Audio)  [Default]
+      Channels: 2 out
+      Sample Rate: 48000.0 Hz
+      Latency: 10.0 ms
+  [1] Headphones (USB Audio Device)
+      Channels: 2 out
+      Sample Rate: 48000.0 Hz
+      Latency: 10.0 ms
+
+DirectSound Devices:
+  [4] Speakers (Realtek)
+      Channels: 2 out
+      Sample Rate: 48000.0 Hz
+      Latency: 8.0 ms
+  [5] Headphones (USB Audio)
+      Channels: 2 out
+      Sample Rate: 48000.0 Hz
+      Latency: 8.0 ms
+
+Windows WASAPI Devices:
+  [2] Speakers (Realtek)  [Default]
+      Channels: 2 out
+      Sample Rate: 48000.0 Hz
+      Latency: 3.0 ms
+  [3] Headphones (USB Audio)
+      Channels: 2 out
+      Sample Rate: 48000.0 Hz
+      Latency: 3.0 ms
+```
 
 ### List MIDI Devices
 
@@ -126,62 +199,6 @@ Available MIDI Input Devices:
 Available MIDI Output Devices:
   [0] Launchpad Mini MK3 MIDI Out
   [1] MIDI Keyboard Out
-```
-
-## Example Configurations
-
-### Low Latency Setup
-
-For low-latency performance with a quality audio interface:
-
-```json
-{
-  "sets_dir": "~/Music/LaunchSampler/Sets",
-  "default_audio_device": 2,
-  "default_buffer_size": 128,
-  "midi_poll_interval": 2.0,
-  "panic_button_cc_control": 19,
-  "panic_button_cc_value": 127,
-  "last_set": null,
-  "auto_save": true
-}
-```
-
-!!! warning "Low Latency"
-    Buffer size of 128 provides ~3ms latency but requires fast CPU and quality audio interface
-
-### High Compatibility (Default)
-
-For maximum compatibility using system defaults:
-
-```json
-{
-  "sets_dir": "~/.launchsampler/sets",
-  "default_audio_device": null,
-  "default_buffer_size": 512,
-  "midi_poll_interval": 2.0,
-  "panic_button_cc_control": 19,
-  "panic_button_cc_value": 127,
-  "last_set": null,
-  "auto_save": true
-}
-```
-
-### Balanced Setup
-
-For balanced performance and stability:
-
-```json
-{
-  "sets_dir": "~/Documents/LaunchSampler",
-  "default_audio_device": 3,
-  "default_buffer_size": 256,
-  "midi_poll_interval": 1.0,
-  "panic_button_cc_control": 19,
-  "panic_button_cc_value": 127,
-  "last_set": "my-drums",
-  "auto_save": true
-}
 ```
 
 ## Editing Configuration

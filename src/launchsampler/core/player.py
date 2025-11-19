@@ -128,8 +128,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
             # Create audio device
             self._audio_device = AudioDevice(
                 device=self.config.default_audio_device,
-                buffer_size=self.config.default_buffer_size,
-                low_latency=True
+                buffer_size=self.config.default_buffer_size
             )
 
             # Create engine with injected state machine

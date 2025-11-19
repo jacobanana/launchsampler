@@ -93,8 +93,7 @@ class TestPlayerLifecycle:
         # Verify audio device created with config
         mock_audio_cls.assert_called_once_with(
             device=mock_config.default_audio_device,
-            buffer_size=mock_config.default_buffer_size,
-            low_latency=True
+            buffer_size=mock_config.default_buffer_size
         )
 
         # Verify engine created

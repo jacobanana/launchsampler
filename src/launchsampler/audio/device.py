@@ -22,8 +22,7 @@ class AudioDevice:
         self,
         buffer_size: int = 128,
         num_channels: int = 2,
-        device: Optional[int] = None,
-        low_latency: bool = True
+        device: Optional[int] = None
     ):
         """
         Initialize audio device.
@@ -32,7 +31,6 @@ class AudioDevice:
             buffer_size: Audio buffer size in frames (lower = less latency)
             num_channels: Number of output channels (1=mono, 2=stereo)
             device: Output device ID (None for default)
-            low_latency: Enable low-latency optimizations
 
         Note:
             If the specified device is invalid or unavailable, falls back to
@@ -40,7 +38,6 @@ class AudioDevice:
         """
         self.buffer_size = buffer_size
         self.num_channels = num_channels
-        self.low_latency = low_latency
 
         # Validate device if specified, fall back to default if invalid
         if device is not None:
@@ -266,7 +263,7 @@ class AudioDevice:
             return base_config
 
         # WASAPI exclusive mode if available (Windows only)
-        if is_wasapi and self.low_latency and hasattr(sd, 'WasapiSettings'):
+        if is_wasapi and hasattr(sd, 'WasapiSettings'):
             try:
                 base_config['extra_settings'] = sd.WasapiSettings(exclusive=True)
                 base_config['prime_output_buffers_using_stream_callback'] = False
@@ -353,13 +350,16 @@ class AudioDevice:
             return "Unknown Device"
 
     @staticmethod
-    def list_output_devices() -> Tuple[List[Tuple[int, str, str, Any]], str]:
+    def list_output_devices(all_devices: bool = False) -> Tuple[List[Tuple[int, str, str, Any]], str]:
         """
-        List all available low-latency audio output devices.
+        List available audio output devices.
 
-        On Windows: ASIO and WASAPI devices
-        On macOS: Core Audio devices
-        On Linux: ALSA and JACK devices
+        Args:
+            all_devices: If True, list all devices. If False, only low-latency devices.
+
+        On Windows (low-latency only): ASIO and WASAPI devices
+        On macOS (low-latency only): Core Audio devices
+        On Linux (low-latency only): ALSA and JACK devices
 
         Returns:
             Tuple of (devices, api_names) where:
@@ -377,10 +377,37 @@ class AudioDevice:
                 hostapi = hostapis[device['hostapi']]
                 hostapi_name = hostapi['name']
 
-                if any(api in hostapi_name for api in low_latency_apis):
+                if all_devices or any(api in hostapi_name for api in low_latency_apis):
                     available_devices.append((i, device['name'], hostapi_name, device))
 
         return available_devices, api_names
+
+    @staticmethod
+    def get_devices_by_host_api(all_devices: bool = False) -> dict[str, List[Tuple[int, str, Any]]]:
+        """
+        Get audio output devices grouped by host API.
+
+        Args:
+            all_devices: If True, include all devices. If False, only low-latency devices.
+
+        Returns:
+            Dictionary mapping host API name to list of (device_id, device_name, device_info) tuples
+
+        Example:
+            {
+                "Windows WASAPI": [(2, "Speakers", {...}), (3, "Headphones", {...})],
+                "MME": [(0, "Speakers", {...}), (1, "Headphones", {...})]
+            }
+        """
+        devices, _ = AudioDevice.list_output_devices(all_devices=all_devices)
+
+        devices_by_api = {}
+        for device_id, name, host_api, info in devices:
+            if host_api not in devices_by_api:
+                devices_by_api[host_api] = []
+            devices_by_api[host_api].append((device_id, name, info))
+
+        return devices_by_api
 
     @staticmethod
     def get_default_device() -> int:
@@ -391,6 +418,16 @@ class AudioDevice:
             Device ID
         """
         return sd.default.device[1]  # Output device
+
+    @staticmethod
+    def get_all_host_apis() -> List[dict]:
+        """
+        Get all available host APIs.
+
+        Returns:
+            List of host API info dictionaries
+        """
+        return sd.query_hostapis()
 
     def __enter__(self):
         """Context manager entry."""
