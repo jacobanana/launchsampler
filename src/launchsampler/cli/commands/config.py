@@ -22,6 +22,7 @@ Commands:
 
 from pathlib import Path
 
+from launchsampler.audio import AudioDevice
 from launchsampler.model_manager.cli import ModelCLIBuilder, ValidatorRegistry
 from launchsampler.models import AppConfig
 
@@ -35,9 +36,6 @@ def validate_audio_device(device_id: int) -> tuple[bool, str | None]:
     Returns:
         Tuple of (is_valid, message)
     """
-    # Lazy import to avoid loading PortAudio during doc generation
-    from launchsampler.audio import AudioDevice
-
     try:
         is_valid, hostapi_name, device_name = AudioDevice._is_valid_device(device_id)
 

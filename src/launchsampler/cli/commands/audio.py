@@ -2,6 +2,8 @@
 
 import click
 
+from launchsampler.audio import AudioDevice
+
 
 @click.group(name="audio")
 def audio_group():
@@ -24,9 +26,6 @@ def _display_device_details(info: dict, indent: str = "    ") -> None:
 @click.option("--detailed", is_flag=True, help="Show detailed device information")
 def list_audio(all: bool, detailed: bool):
     """List available audio output devices."""
-    # Lazy import to avoid loading PortAudio during doc generation
-    from launchsampler.audio import AudioDevice
-
     devices, api_names = AudioDevice.list_output_devices(all_devices=all)
     default_device_id = AudioDevice.get_default_device()
 

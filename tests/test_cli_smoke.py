@@ -131,7 +131,7 @@ class TestMIDICommands:
         result = runner.invoke(cli, ['midi', 'list', '--help'])
         assert result.exit_code == 0
 
-    @patch('launchsampler.midi.MidiManager')
+    @patch('launchsampler.cli.commands.midi.MidiManager')
     def test_midi_list_runs(self, mock_midi_manager, runner):
         """Test that 'midi list' command runs without crashing."""
         # Mock the list_ports static method to return a dict
@@ -204,7 +204,7 @@ class TestCLIErrorHandling:
 class TestCLIIntegration:
     """Test CLI integration with other components."""
 
-    @patch('launchsampler.audio.AudioDevice')
+    @patch('launchsampler.cli.commands.audio.AudioDevice')
     def test_audio_list_integration(self, mock_audio_device, runner):
         """Test audio list integrates with AudioDevice correctly."""
         mock_audio_device.list_output_devices.return_value = ([], "ASIO/WASAPI")
