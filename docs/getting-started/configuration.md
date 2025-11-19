@@ -92,7 +92,7 @@ LaunchSampler uses a JSON configuration file to store settings. The config is au
 ### List Audio Devices
 
 ```bash
-launchsampler --list-audio
+launchsampler audio list
 ```
 
 Output example:
@@ -109,7 +109,7 @@ MME Devices:
 WASAPI Devices:
   [2] Speakers (Realtek) [Default]
   [3] Headphones (USB Audio)
-```
+```midi list
 
 ### List MIDI Devices
 
@@ -576,7 +576,7 @@ Then set the device ID in config:
   "default_audio_device": 3
 }
 ```
-
+midi list
 ### MIDI Not Working
 
 **Check MIDI devices:**
