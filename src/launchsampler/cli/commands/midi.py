@@ -7,8 +7,6 @@ from datetime import datetime
 import click
 import mido
 
-from launchsampler.midi import MidiManager, MidiInputManager
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +19,9 @@ def midi_group():
 @midi_group.command(name="list")
 def list_midi():
     """List available MIDI ports."""
+    # Lazy import to avoid loading heavy dependencies during doc generation
+    from launchsampler.midi import MidiManager
+
     ports = MidiManager.list_ports()
 
     click.echo("MIDI Input Ports:\n")
@@ -69,6 +70,9 @@ def monitor_midi(filter_clock: bool):
         click.echo("\nShowing all messages")
 
     click.echo("\nPress Ctrl+C to stop\n")
+
+    # Lazy import to avoid loading heavy dependencies during doc generation
+    from launchsampler.midi import MidiInputManager
 
     # Create input managers for each port
     managers = []

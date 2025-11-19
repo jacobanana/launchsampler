@@ -6,9 +6,6 @@ import logging
 import click
 import mido
 
-from launchsampler.devices import DeviceController
-from launchsampler.models import Color
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +20,10 @@ def test(verbose):
 
     Press Ctrl+C to stop and exit.
     """
+    # Lazy imports to avoid loading heavy dependencies during doc generation
+    from launchsampler.devices import DeviceController
+    from launchsampler.models import Color
+
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
