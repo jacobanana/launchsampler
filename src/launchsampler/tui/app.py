@@ -706,18 +706,8 @@ class LaunchpadSampler(App):
                     # Construct full path
                     save_path = directory / f"{filename}.json"
 
-                    # Update set name if changed
-                    if self.current_set.name != filename:
-                        self.current_set = Set(
-                            name=filename,
-                            launchpad=self.launchpad,
-                            samples_root=self.current_set.samples_root,
-                            created_at=self.current_set.created_at,
-                            modified_at=self.current_set.modified_at
-                        )
-
-                    # Save set using SetManagerService
-                    self.set_manager.save_set(self.current_set, save_path)
+                    # Save set using orchestrator (handles name changes internally)
+                    self.orchestrator.save_set(save_path, name=filename)
 
                     self.notify(f"Saved set to: {save_path}")
 
@@ -726,7 +716,7 @@ class LaunchpadSampler(App):
                         self.sub_title = f"{self._sampler_mode.title()}: {filename}"
 
                 except Exception as e:
-                    logger.error(f"Error saving set: {e}")
+                    logger.error(f"Error saving set: {e}", exc_info=True)
                     self.notify(f"Error saving: {e}", severity="error")
 
         # Start in the sets directory
