@@ -7,9 +7,14 @@ duplication across ConfigService, SetManagerService, and other persistence servi
 Design Philosophy:
     - Stateless utility functions (no internal state)
     - Composition over inheritance
-    - Explicit error handling with custom exceptions
+    - Centralized error handling with custom exceptions
     - Thread-safe (no shared mutable state)
     - Works with any Pydantic BaseModel subclass
+
+Error Handling:
+    Uses the centralized error handler (utils/error_handler.py) to convert
+    low-level Pydantic/IO errors into user-friendly LaunchSamplerError exceptions
+    with recovery hints and consistent messaging.
 """
 
 import logging
@@ -17,6 +22,9 @@ from pathlib import Path
 from typing import Callable, Optional, Type, TypeVar
 
 from pydantic import BaseModel, ValidationError
+
+from launchsampler.utils.error_handler import wrap_pydantic_error
+from launchsampler.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +79,9 @@ class PydanticPersistence:
 
         Raises:
             FileNotFoundError: If the file doesn't exist
-            ValidationError: If the JSON content fails Pydantic validation
-            ValueError: If the JSON is malformed or empty
+            ConfigFileInvalidError: If the JSON syntax is invalid
+            ConfigValidationError: If the JSON content fails Pydantic validation
+            ConfigurationError: For other configuration-related errors
 
         Example:
             ```python
@@ -81,6 +90,10 @@ class PydanticPersistence:
                 AppConfig
             )
             ```
+
+        Note:
+            Uses centralized error handler to convert Pydantic ValidationError
+            to user-friendly exceptions with recovery hints.
         """
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
@@ -90,7 +103,8 @@ class PydanticPersistence:
             json_content = path.read_text()
 
             if not json_content or not json_content.strip():
-                raise ValueError(f"File is empty: {path}")
+                from launchsampler.exceptions import ConfigFileInvalidError
+                raise ConfigFileInvalidError(str(path), "File is empty")
 
             # Validate and parse with Pydantic
             model = model_type.model_validate_json(json_content)
@@ -99,11 +113,22 @@ class PydanticPersistence:
             return model
 
         except ValidationError as e:
+            # Convert to user-friendly exception using centralized error handler
             logger.error(f"Validation error loading {model_type.__name__} from {path}: {e}")
+            raise wrap_pydantic_error(e, str(path)) from e
+
+        except ConfigurationError:
+            # Re-raise our custom configuration errors
             raise
+
         except Exception as e:
-            logger.error(f"Error loading {model_type.__name__} from {path}: {e}")
-            raise ValueError(f"Failed to load {model_type.__name__}: {e}") from e
+            # Unexpected errors - wrap in ConfigurationError
+            logger.error(f"Unexpected error loading {model_type.__name__} from {path}: {e}")
+            from launchsampler.exceptions import ConfigFileInvalidError
+            raise ConfigFileInvalidError(
+                str(path),
+                f"Unexpected error: {e}"
+            ) from e
 
     @staticmethod
     def save_json(
@@ -127,8 +152,8 @@ class PydanticPersistence:
             create_parents: Create parent directories if they don't exist (default: True)
 
         Raises:
-            OSError: If the file cannot be written
-            ValueError: If serialization fails
+            OSError: If the file cannot be written (permission denied, disk full, etc.)
+            ConfigurationError: If serialization or save fails
 
         Example:
             ```python
@@ -157,9 +182,19 @@ class PydanticPersistence:
 
             logger.debug(f"Saved {type(data).__name__} to {path}")
 
+        except OSError as e:
+            # File system errors (permission, disk full, etc.) - re-raise as-is
+            logger.error(f"OS error saving {type(data).__name__} to {path}: {e}")
+            raise
+
         except Exception as e:
-            logger.error(f"Error saving {type(data).__name__} to {path}: {e}")
-            raise ValueError(f"Failed to save {type(data).__name__}: {e}") from e
+            # Unexpected errors - wrap in ConfigurationError
+            logger.error(f"Unexpected error saving {type(data).__name__} to {path}: {e}")
+            raise ConfigurationError(
+                user_message=f"Failed to save configuration to {path}",
+                technical_message=f"Failed to save {type(data).__name__}: {e}",
+                recovery_hint="Check file permissions and disk space"
+            ) from e
 
     @staticmethod
     def load_json_or_default(
@@ -183,7 +218,9 @@ class PydanticPersistence:
             Loaded model instance, or default instance if file doesn't exist
 
         Raises:
-            ValidationError: If the file exists but has invalid content
+            ConfigFileInvalidError: If the file exists but has invalid JSON syntax
+            ConfigValidationError: If the file exists but has invalid values
+            ConfigurationError: For other configuration-related errors
 
         Example:
             ```python
@@ -196,7 +233,7 @@ class PydanticPersistence:
 
         Notes:
             - FileNotFoundError is caught and triggers default creation
-            - Other errors (ValidationError, etc.) are propagated
+            - Other errors (ConfigurationError subclasses) are propagated
             - Does not automatically save the default to disk
         """
         try:
@@ -239,8 +276,9 @@ class PydanticPersistence:
             return True, None
         except FileNotFoundError:
             return False, f"File not found: {path}"
-        except ValidationError as e:
-            return False, f"Validation error: {e}"
+        except ConfigurationError as e:
+            # Use user-friendly message from custom exception
+            return False, e.user_message
         except Exception as e:
             return False, f"Error: {e}"
 
@@ -279,12 +317,12 @@ class PydanticPersistence:
             ```
 
         Notes:
-            - Validation errors trigger default creation (file is corrupted)
+            - Configuration errors trigger default creation (file missing/corrupted)
             - The default is saved to disk if auto_save=True
         """
         try:
             return PydanticPersistence.load_json(path, model_type)
-        except (FileNotFoundError, ValidationError) as e:
+        except (FileNotFoundError, ConfigurationError) as e:
             logger.warning(f"Creating default {model_type.__name__}: {e}")
 
             # Create default instance
