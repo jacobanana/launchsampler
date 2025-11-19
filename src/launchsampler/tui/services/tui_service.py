@@ -374,6 +374,11 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             grid = self.app.query_one(PadGrid)
             grid.update_pad(pad_index, pad)
 
+            # Preserve playing state after update
+            # (EditEvents may arrive before PlaybackEvents due to threading)
+            is_playing = self.app.player.is_pad_playing(pad_index)
+            grid.set_pad_playing(pad_index, is_playing)
+
             # Check if sample file is available and update unavailable state
             if pad.is_assigned:
                 audio_data = self.app.player.get_audio_data(pad_index)

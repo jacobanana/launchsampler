@@ -14,7 +14,7 @@ from launchsampler.models import Launchpad, Set, PlaybackMode
 from launchsampler.services import EditorService, SetManagerService
 from launchsampler.protocols import AppEvent, SelectionEvent, UIAdapter
 
-from .decorators import edit_only
+from .decorators import edit_only, handle_action_errors
 from .services import TUIService, NavigationService
 from .widgets import (
     PadGrid,
@@ -796,6 +796,7 @@ class LaunchpadSampler(App):
             self.notify(str(e), severity="error")
 
     @edit_only
+    @handle_action_errors("cut pad")
     def action_cut_pad(self) -> None:
         """Cut selected pad to clipboard."""
         selected_pad = self.selected_pad_index
@@ -803,18 +804,14 @@ class LaunchpadSampler(App):
             self.notify("Select a pad first", severity="warning")
             return
 
-        try:
-            # Stop playback if pad is playing
-            if self.player.is_pad_playing(selected_pad):
-                self.player.stop_pad(selected_pad)
-                self._set_pad_playing_ui(selected_pad, False)
+        # Stop playback if pad is playing (PAD_STOPPED event will update UI)
+        if self.player.is_pad_playing(selected_pad):
+            self.player.stop_pad(selected_pad)
 
-            # Cut pad (events handle audio/UI sync automatically)
-            pad = self.editor.cut_pad(selected_pad)
+        # Cut pad (events handle audio/UI sync automatically)
+        pad = self.editor.cut_pad(selected_pad)
 
-            self.notify(f"Cut: {pad.sample.name}", severity="information")
-        except ValueError as e:
-            self.notify(str(e), severity="error")
+        self.notify(f"Cut: {pad.sample.name}", severity="information")
 
     @edit_only
     def action_paste_pad(self) -> None:
@@ -1129,11 +1126,7 @@ class LaunchpadSampler(App):
                 # Perform the move operation
                 self._perform_pad_move(selected_pad, target_index, swap)
 
-                # Update UI to clear playing indicators
-                if source_was_playing:
-                    self._set_pad_playing_ui(selected_pad, False)
-                if target_was_playing:
-                    self._set_pad_playing_ui(target_index, False)
+                # Note: UI will update automatically via PAD_STOPPED events
 
             self.push_screen(
                 MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
@@ -1149,9 +1142,7 @@ class LaunchpadSampler(App):
             # Perform the move operation
             self._perform_pad_move(selected_pad, target_index, swap=False)
 
-            # Update UI to clear playing indicator if it was playing
-            if was_playing:
-                self._set_pad_playing_ui(selected_pad, False)
+            # Note: UI will update automatically via PAD_STOPPED event
 
     def _perform_pad_move(self, source_index: int, target_index: int, swap: bool) -> None:
         """
@@ -1190,6 +1181,12 @@ class LaunchpadSampler(App):
             return
 
         try:
+            # Check if mode is actually changing to avoid unnecessary reloads
+            current_pad = self.editor.get_pad(selected_pad)
+            if current_pad.mode == mode:
+                # Mode hasn't changed, no need to update
+                return
+
             # Set mode (events handle audio/UI sync automatically)
             pad = self.editor.set_pad_mode(selected_pad, mode)
 

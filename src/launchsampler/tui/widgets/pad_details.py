@@ -402,6 +402,8 @@ class PadDetailsPanel(Vertical, can_focus=True):
             if radio_id:
                 radio_set = self.query_one("#mode-radio", RadioSet)
                 # Find and press the correct radio button
+                # Note: This will trigger RadioSet.Changed, but app.py checks
+                # if mode actually changed before applying it
                 try:
                     radio_button = radio_set.query_one(f"#{radio_id}", RadioButton)
                     radio_button.value = True
