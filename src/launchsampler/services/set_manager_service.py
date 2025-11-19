@@ -8,7 +8,8 @@ from typing import Optional
 
 from launchsampler.models import Set
 from launchsampler.models.config import AppConfig
-from launchsampler.utils import find_common_path, PydanticPersistence
+from launchsampler.utils import find_common_path
+from launchsampler.model_manager import PydanticPersistence
 
 logger = logging.getLogger(__name__)
 

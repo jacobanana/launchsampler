@@ -9,8 +9,7 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 
 from launchsampler.models import AppConfig
-from launchsampler.protocols import ModelEvent, ModelObserver
-from launchsampler.services.config_service import ModelManagerService
+from launchsampler.model_manager import ModelEvent, ModelObserver, ModelManagerService
 
 
 # Test configuration model

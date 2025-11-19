@@ -5,7 +5,7 @@ from threading import Lock
 from typing import Optional
 
 from launchsampler.protocols import PlaybackEvent, StateObserver
-from launchsampler.utils import ObserverManager
+from launchsampler.model_manager import ObserverManager
 
 logger = logging.getLogger(__name__)
 

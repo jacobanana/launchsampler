@@ -16,7 +16,7 @@ from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
 from launchsampler.services import ModelManagerService, EditorService, SetManagerService
-from launchsampler.utils import ObserverManager
+from launchsampler.model_manager import ObserverManager
 
 logger = logging.getLogger(__name__)
 

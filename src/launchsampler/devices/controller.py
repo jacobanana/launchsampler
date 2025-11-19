@@ -83,7 +83,7 @@ from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent, Cont
 from launchsampler.devices.registry import DeviceRegistry
 from launchsampler.devices.device import GenericDevice
 from launchsampler.devices.config import DeviceConfig
-from launchsampler.utils import ObserverManager
+from launchsampler.model_manager import ObserverManager
 
 logger = logging.getLogger(__name__)
 

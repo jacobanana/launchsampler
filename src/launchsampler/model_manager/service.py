@@ -7,8 +7,9 @@ from threading import Lock
 
 from pydantic import BaseModel, ValidationError
 
-from launchsampler.protocols import ModelEvent, ModelObserver
-from launchsampler.utils import ObserverManager, PydanticPersistence
+from launchsampler.model_manager.protocols import ModelEvent, ModelObserver
+from launchsampler.model_manager.observer import ObserverManager
+from launchsampler.model_manager.persistence import PydanticPersistence
 
 logger = logging.getLogger(__name__)
 

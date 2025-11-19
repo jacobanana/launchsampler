@@ -43,7 +43,7 @@ import click
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-from launchsampler.services import ModelManagerService
+from launchsampler.model_manager.service import ModelManagerService
 from launchsampler.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)

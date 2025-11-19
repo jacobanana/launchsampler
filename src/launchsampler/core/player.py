@@ -20,7 +20,7 @@ from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Set, PlaybackMode
 from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
-from launchsampler.utils import ObserverManager
+from launchsampler.model_manager import ObserverManager
 
 logger = logging.getLogger(__name__)
 

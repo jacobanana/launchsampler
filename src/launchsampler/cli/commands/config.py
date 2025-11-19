@@ -23,7 +23,7 @@ Commands:
 from pathlib import Path
 
 from launchsampler.audio import AudioDevice
-from launchsampler.cli.model_cli_builder import ModelCLIBuilder, ValidatorRegistry
+from launchsampler.model_manager.cli import ModelCLIBuilder, ValidatorRegistry
 from launchsampler.models import AppConfig
 
 
