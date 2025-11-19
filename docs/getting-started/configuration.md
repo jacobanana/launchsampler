@@ -44,7 +44,14 @@ LaunchSampler uses a JSON configuration file to store settings. The config is au
 - **Type:** `integer | null`
 - **Default:** `null` (use system default)
 - **Description:** Default audio output device ID
+- **Setting via CLI:**
+  - Set specific device: `launchsampler config -a <device_id>`
+  - Reset to default: `launchsampler config -a default`
+  - Example: `launchsampler config -a 13`
 - **Note:** Use `launchsampler audio list` to find device IDs
+- **Validation:**
+  - The config command will warn you if the device ID is not found
+  - It will also warn if the device uses a non-low-latency API (e.g., MME, DirectSound)
 - **Fallback Behavior:**
   - If `null`: Uses the OS default audio device
   - If invalid (device unplugged, doesn't exist, or uses non-low-latency API): Automatically falls back to the OS default device with a warning
