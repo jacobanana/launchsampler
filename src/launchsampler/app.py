@@ -155,11 +155,19 @@ class LaunchpadSamplerApp:
 
         # Load initial set (SetManagerService handles I/O)
         # Fires SET_MOUNTED event - UIs are already observing
-        loaded_set = self.set_manager.load_set(
+        loaded_set, was_auto_created = self.set_manager.load_set(
             self._initial_set_name,
             self._initial_samples_dir
         )
         self.mount_set(loaded_set)
+
+        # If set was auto-created, notify observers
+        if was_auto_created:
+            self._app_observers.notify(
+                'on_app_event',
+                AppEvent.SET_AUTO_CREATED,
+                set_name=loaded_set.name
+            )
 
 
 

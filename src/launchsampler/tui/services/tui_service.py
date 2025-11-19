@@ -67,6 +67,8 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
                 self._handle_set_mounted()
             elif event == AppEvent.SET_SAVED:
                 self._handle_set_saved(**kwargs)
+            elif event == AppEvent.SET_AUTO_CREATED:
+                self._handle_set_auto_created(**kwargs)
             elif event == AppEvent.MODE_CHANGED:
                 logger.info(f"TUIService handling MODE_CHANGED event: {kwargs}")
                 self._handle_mode_changed(**kwargs)
@@ -126,6 +128,22 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         # TUI doesn't need to do anything special when a set is saved
         # Status notifications are handled elsewhere
         pass
+
+    def _handle_set_auto_created(self, **kwargs) -> None:
+        """
+        Handle SET_AUTO_CREATED event - notify user that set file didn't exist.
+
+        Shows a warning notification that the set file wasn't found
+        and an empty set was auto-created with that name.
+
+        Args:
+            **kwargs: Event data (set_name)
+        """
+        set_name = kwargs.get('set_name', 'Unknown')
+        self.app.notify(
+            f"Set '{set_name}' not found. Created new empty set.",
+            severity="warning"
+        )
 
     def _handle_mode_changed(self, **kwargs) -> None:
         """

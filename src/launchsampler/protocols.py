@@ -178,6 +178,7 @@ class AppEvent(Enum):
 
     SET_MOUNTED = "set_mounted"      # Set was mounted into the application
     SET_SAVED = "set_saved"          # Set was saved to disk
+    SET_AUTO_CREATED = "set_auto_created"  # Set was auto-created because file didn't exist
     MODE_CHANGED = "mode_changed"    # Application mode changed (sampler/arranger)
 
 

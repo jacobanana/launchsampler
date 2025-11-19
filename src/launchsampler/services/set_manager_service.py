@@ -340,7 +340,7 @@ class SetManagerService:
         self,
         set_name: Optional[str] = None,
         samples_dir: Optional[Path] = None
-    ) -> Set:
+    ) -> tuple[Set, bool]:
         """
         Load a set with smart fallback logic.
 
@@ -358,7 +358,8 @@ class SetManagerService:
             samples_dir: Directory to load samples from (highest priority)
 
         Returns:
-            Loaded or created Set object
+            Tuple of (loaded Set object, was_auto_created flag)
+            was_auto_created is True when set file didn't exist and empty set was created
         """
         name = set_name or "Untitled"
 
@@ -367,7 +368,7 @@ class SetManagerService:
             try:
                 loaded_set = self.create_from_directory(samples_dir, name)
                 logger.info(f"Loaded initial set from samples directory: {samples_dir}")
-                return loaded_set
+                return loaded_set, False
             except ValueError as e:
                 logger.error(f"Failed to load from samples directory: {e}")
                 # Fall through to next priority
@@ -377,10 +378,13 @@ class SetManagerService:
             loaded_set = self.open_set_by_name(name)
             if loaded_set:
                 logger.info(f"Loaded initial set from saved file: {name}")
-                return loaded_set
+                return loaded_set, False
             else:
                 logger.warning(f"Set '{name}' not found, creating empty set")
+                # Fallback: auto-create empty set
+                logger.info(f"Creating empty set '{name}'")
+                return self.create_empty(name), True
 
-        # Fallback: empty set
+        # Fallback: empty set (intentional "Untitled" case, not auto-created)
         logger.info(f"Creating empty set '{name}'")
-        return self.create_empty(name)
+        return self.create_empty(name), False
