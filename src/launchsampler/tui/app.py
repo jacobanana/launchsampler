@@ -512,6 +512,17 @@ class LaunchpadSampler(App):
             except Exception as e:
                 logger.error(f"Error selecting pad: {e}")
                 self.notify(f"Error selecting pad: {e}", severity="error")
+        elif self._sampler_mode == "play":
+            # In play mode, clicking a pad triggers it (same as spacebar)
+            pad = self.editor.get_pad(message.pad_index)
+            if not pad.is_assigned:
+                return
+
+            # Toggle playback: stop if playing, start if not
+            if self.player.is_pad_playing(message.pad_index):
+                self.player.stop_pad(message.pad_index)
+            else:
+                self.player.trigger_pad(message.pad_index)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses from details panel."""
