@@ -2,14 +2,17 @@
 
 ## Software Design Philosophy
 
-- DRY
-- SOLID
+!! IMPORTANT !!
+- DRY - Don't Repeat Yourself: reuse existing code, write utility functions
+- SOLID - 
 - YAGNI
 - Single responsibility principle
 - Separation of concerns
 - Composition over inheritance
 - High test coverage - focus on behaviour, not implementation
 - Do not keep deprecated code during refactor
+- Do not do imports within functions unless it's to handle circular dependencies
+- If there is a circular dependency, stop, think and propose an alternative architecture
 
 ## Python management
 
@@ -23,7 +26,6 @@ To run tests: `uv run pytest`
 ## Python best practices
 
 - follow PEP8
-- imports at top of the file
 - full type hinting
 
 **Remember the ZEN of python:**
