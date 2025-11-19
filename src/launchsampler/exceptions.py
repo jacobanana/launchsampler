@@ -14,14 +14,9 @@ LaunchSamplerError (base)
 ├── AudioDeviceError
 │   ├── AudioDeviceInUseError
 │   └── AudioDeviceNotFoundError
-├── AudioLoadError
-├── SampleError
-├── PadError
-│   └── EmptyPadError
-├── ConfigurationError
-├── MidiError
-│   └── MidiDeviceNotFoundError
-└── ValidationError
+└── ConfigurationError
+    ├── ConfigFileInvalidError
+    └── ConfigValidationError
 ```
 
 ## Usage
@@ -46,27 +41,21 @@ raise AudioDeviceInUseError(device_id=3, original_error="PaErrorCode -9996")
 # Logs show: Technical details including original error
 ```
 
-### Example: Empty Pad Operation
+### Example: Config Validation Error
 
 ```python
-from launchsampler.exceptions import EmptyPadError
+from launchsampler.exceptions import ConfigValidationError
 
-# Raise when trying to operate on empty pad
-raise EmptyPadError(pad_index=5, operation="delete")
+# Raise when config value is invalid
+raise ConfigValidationError(
+    field="panic_button_cc_value",
+    value="hunder",
+    error_msg="Input should be a valid integer",
+    file_path="/path/to/config.json"
+)
 
-# User sees: "Cannot delete on empty pad 5"
-# Recovery hint: "Assign a sample to the pad first."
-```
-
-### Example: Validation Error
-
-```python
-from launchsampler.exceptions import ValidationError
-
-# Raise when input validation fails
-raise ValidationError("volume", 150, "must be 0-100")
-
-# User sees: "Invalid volume: must be 0-100"
+# User sees: "Invalid configuration value for 'panic_button_cc_value': Input should be a valid integer"
+# Recovery hint: "Update the 'panic_button_cc_value' value in your configuration\nConfig file: /path/to/config.json"
 ```
 
 ## Best Practices
@@ -205,72 +194,6 @@ class AudioDeviceNotFoundError(AudioDeviceError):
         )
 
 
-class AudioLoadError(LaunchSamplerError):
-    """Failed to load audio file."""
-
-    def __init__(self, file_path: str, reason: str):
-        """
-        Initialize audio load error.
-
-        Args:
-            file_path: Path to the file that failed to load
-            reason: Why the file couldn't be loaded
-        """
-        user_msg = f"Failed to load audio file: {reason}"
-        tech_msg = f"Failed to load {file_path}: {reason}"
-
-        super().__init__(
-            user_message=user_msg,
-            technical_message=tech_msg,
-            recoverable=False
-        )
-        self.file_path = file_path
-
-
-# Sample/Pad operation errors
-
-class SampleError(LaunchSamplerError):
-    """Sample-related operation failed."""
-    pass
-
-
-class PadError(LaunchSamplerError):
-    """Pad-related operation failed."""
-
-    def __init__(self, user_message: str, pad_index: Optional[int] = None, **kwargs):
-        """
-        Initialize pad error.
-
-        Args:
-            user_message: User-friendly error message
-            pad_index: The pad index that had the error
-        """
-        super().__init__(user_message, **kwargs)
-        self.pad_index = pad_index
-
-
-class EmptyPadError(PadError):
-    """Operation attempted on an empty pad that requires a sample."""
-
-    def __init__(self, pad_index: int, operation: str):
-        """
-        Initialize empty pad error.
-
-        Args:
-            pad_index: The empty pad index
-            operation: The operation that was attempted
-        """
-        user_msg = f"Cannot {operation} on empty pad {pad_index}"
-        recovery = "Assign a sample to the pad first."
-
-        super().__init__(
-            user_message=user_msg,
-            pad_index=pad_index,
-            recoverable=True,
-            recovery_hint=recovery
-        )
-
-
 # Configuration errors
 
 class ConfigurationError(LaunchSamplerError):
@@ -278,58 +201,78 @@ class ConfigurationError(LaunchSamplerError):
     pass
 
 
-# MIDI errors
+class ConfigFileInvalidError(ConfigurationError):
+    """Configuration file has invalid JSON or YAML syntax."""
 
-class MidiError(LaunchSamplerError):
-    """MIDI device or operation error."""
-    pass
-
-
-class MidiDeviceNotFoundError(MidiError):
-    """MIDI device not found."""
-
-    def __init__(self, device_name: Optional[str] = None):
+    def __init__(self, file_path: str, parse_error: str):
         """
-        Initialize MIDI device not found error.
+        Initialize config file invalid error.
 
         Args:
-            device_name: Name of the device that wasn't found
+            file_path: Path to the invalid config file
+            parse_error: The parsing error message
         """
-        if device_name:
-            user_msg = f"MIDI device '{device_name}' not found."
-        else:
-            user_msg = "No MIDI device found."
+        # Extract helpful info from parse error
+        user_msg = f"Configuration file has invalid syntax"
+        recovery = "Check for common JSON errors:\n"
+        recovery += "  - Trailing commas (remove commas after last item)\n"
+        recovery += "  - Missing quotes around strings\n"
+        recovery += "  - Unclosed braces or brackets\n"
+        recovery += f"  - Edit: {file_path}"
 
-        recovery = "Run 'launchsampler midi list' to see available MIDI devices."
+        # Check for specific common errors
+        if "trailing comma" in parse_error.lower():
+            user_msg = "Configuration file has a trailing comma"
+            recovery = (
+                f"Remove the trailing comma from {file_path}\n"
+                "JSON doesn't allow commas after the last item in an object or array"
+            )
+        elif "expecting" in parse_error.lower():
+            user_msg = "Configuration file has a syntax error"
 
         super().__init__(
             user_message=user_msg,
+            technical_message=f"JSON parse error in {file_path}: {parse_error}",
             recoverable=True,
             recovery_hint=recovery
         )
+        self.file_path = file_path
+        self.parse_error = parse_error
 
 
-# Validation errors
+class ConfigValidationError(ConfigurationError):
+    """Configuration values fail validation."""
 
-class ValidationError(LaunchSamplerError):
-    """Input validation failed."""
-
-    def __init__(self, field: str, value, reason: str):
+    def __init__(self, field: str, value: any, error_msg: str, file_path: str = None):
         """
-        Initialize validation error.
+        Initialize config validation error.
 
         Args:
-            field: The field that failed validation
+            field: The configuration field that failed validation
             value: The invalid value
-            reason: Why the value is invalid
+            error_msg: Why the value is invalid
+            file_path: Path to the config file (optional)
         """
-        user_msg = f"Invalid {field}: {reason}"
-        tech_msg = f"Validation failed for {field}={value}: {reason}"
+        user_msg = f"Invalid configuration value for '{field}': {error_msg}"
+
+        recovery = f"Update the '{field}' value in your configuration"
+        if file_path:
+            recovery += f"\nConfig file: {file_path}"
+
+        # Add specific recovery hints for common fields
+        if "audio_device" in field.lower():
+            recovery += "\nRun 'launchsampler audio list' to see valid device IDs"
+        elif "buffer" in field.lower():
+            recovery += "\nValid buffer sizes: 128, 256, 512, 1024, 2048"
+        elif "midi" in field.lower():
+            recovery += "\nRun 'launchsampler midi list' to see valid MIDI devices"
 
         super().__init__(
             user_message=user_msg,
-            technical_message=tech_msg,
-            recoverable=True
+            technical_message=f"Config validation failed for {field}={value}: {error_msg}",
+            recoverable=True,
+            recovery_hint=recovery
         )
         self.field = field
         self.value = value
+        self.file_path = file_path

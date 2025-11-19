@@ -14,11 +14,10 @@ This module provides a systematic, layered approach to error handling:
 
 | Scenario | Use This | Example |
 |----------|----------|---------|
-| User-facing error (invalid input) | `ValidationError` | `raise ValidationError("pad_index", 99, "must be 0-63")` |
-| Audio device fails | `AudioDeviceError` subclass | `raise AudioDeviceInUseError(device_id=3)` |
-| Sample file problem | `AudioLoadError` | `raise AudioLoadError(path, "file not found")` |
-| MIDI device missing | `MidiDeviceNotFoundError` | `raise MidiDeviceNotFoundError("Launchpad Mini")` |
-| Operation on empty pad | `EmptyPadError` | `raise EmptyPadError(pad_index=5, operation="play")` |
+| Audio device in use | `AudioDeviceInUseError` | `raise AudioDeviceInUseError(device_id=3)` |
+| Audio device not found | `AudioDeviceNotFoundError` | `raise AudioDeviceNotFoundError(device_id=5)` |
+| Config file syntax error | `ConfigFileInvalidError` | `raise ConfigFileInvalidError(path, "trailing comma")` |
+| Config value invalid | `ConfigValidationError` | `raise ConfigValidationError("buffer_size", 99, "must be power of 2")` |
 
 ### Handling Patterns
 
@@ -49,33 +48,22 @@ Benefits:
 - Consistent user messages
 - Recovery hints included automatically
 
-### Example 2: Editor Operations with User Notifications
+### Example 2: Config Validation with Custom Exceptions
 
 ```python
-from launchsampler.utils.error_handler import handle_errors
-from launchsampler.exceptions import EmptyPadError
+from launchsampler.utils.error_handler import wrap_pydantic_error
 
-@handle_errors(
-    operation_name="delete pad",
-    user_notification=lambda msg: self.notify(msg, severity="error"),
-    re_raise=False
-)
-def action_delete_pad(self) -> None:
-    '''Delete sample from selected pad.'''
-    if self.selected_pad_index is None:
-        return
-
-    pad = self.editor.get_pad(self.selected_pad_index)
-    if not pad.is_assigned:
-        raise EmptyPadError(self.selected_pad_index, "delete")
-
-    self.editor.clear_pad(self.selected_pad_index)
+try:
+    config = AppConfig.model_validate_json(path.read_text())
+except ValidationError as e:
+    # Converts Pydantic error to user-friendly ConfigValidationError
+    raise wrap_pydantic_error(e, str(path)) from e
 ```
 
 Benefits:
-- Automatic logging with operation context
-- User gets recovery hint automatically
-- Less boilerplate
+- Automatic field name extraction
+- User-friendly error messages
+- Field-specific recovery hints (audio devices, MIDI, etc.)
 
 ### Example 3: Batch Operations (Loading Multiple Samples)
 
@@ -132,8 +120,8 @@ raise ValidationError("volume", 150, "must be 0-100. Try: set_volume(75)")
 
 ✅ Preserve original errors:
 ```python
-except OSError as e:
-    raise AudioLoadError(path, str(e)) from e
+except Exception as e:
+    raise AudioDeviceInUseError(device_id=3, original_error=str(e)) from e
 ```
 
 ✅ Log technical details, show user-friendly messages:
@@ -351,6 +339,97 @@ class ErrorContext:
 
         # Return True to suppress exception, False to re-raise
         return not self.re_raise
+
+
+def wrap_pydantic_error(error: Exception, file_path: str) -> LaunchSamplerError:
+    """
+    Convert Pydantic validation errors to LaunchSampler exceptions.
+
+    This maps validation errors from Pydantic (used for config validation)
+    to our custom exception types with user-friendly messages.
+
+    Args:
+        error: The Pydantic ValidationError
+        file_path: Path to the config file that failed validation
+
+    Returns:
+        A ConfigurationError with appropriate type and message
+    """
+    from pydantic import ValidationError
+    from launchsampler.exceptions import (
+        ConfigFileInvalidError,
+        ConfigValidationError
+    )
+
+    error_msg = str(error)
+
+    # Check if it's a JSON parse error (invalid syntax)
+    if "Invalid JSON" in error_msg or "json_invalid" in error_msg:
+        # Extract the actual parse error from Pydantic's message
+        # Format: "Invalid JSON: <actual error> [type=json_invalid, ..."
+        if "Invalid JSON:" in error_msg:
+            parse_error = error_msg.split("Invalid JSON:")[1].split("[type=")[0].strip()
+        else:
+            parse_error = error_msg
+
+        return ConfigFileInvalidError(file_path, parse_error)
+
+    # It's a validation error (valid JSON but invalid values)
+    # For Pydantic v2, use the error() method to get structured error info
+    if isinstance(error, ValidationError):
+        errors = error.errors()
+        if errors:
+            # If multiple errors, combine them into a comprehensive message
+            if len(errors) == 1:
+                # Single error - use simple message
+                first_error = errors[0]
+                field = ".".join(str(loc) for loc in first_error.get('loc', ('unknown',)))
+                reason = first_error.get('msg', 'validation failed')
+                value = first_error.get('input', None)
+
+                return ConfigValidationError(
+                    field=field,
+                    value=value,
+                    error_msg=reason,
+                    file_path=file_path
+                )
+            else:
+                # Multiple errors - show all of them
+                error_lines = []
+                for err in errors:
+                    field = ".".join(str(loc) for loc in err.get('loc', ('unknown',)))
+                    msg = err.get('msg', 'validation failed')
+                    error_lines.append(f"  - {field}: {msg}")
+
+                combined_msg = f"{len(errors)} validation errors:\n" + "\n".join(error_lines)
+
+                return ConfigValidationError(
+                    field="multiple fields",
+                    value=None,
+                    error_msg=combined_msg,
+                    file_path=file_path
+                )
+
+    # Fallback: parse string representation
+    lines = error_msg.split("\n")
+    field = "unknown"
+    reason = error_msg
+
+    for line in lines:
+        if "Field required" in line or "validation error" in line:
+            # Extract field name from error format
+            parts = line.split()
+            if parts:
+                field = parts[0] if parts else "unknown"
+            reason = line
+            break
+
+    return ConfigValidationError(
+        field=field,
+        value=None,
+        error_msg=reason,
+        file_path=file_path
+    )
 
 
 def wrap_audio_device_error(error: Exception, device_id: Optional[int] = None) -> LaunchSamplerError:

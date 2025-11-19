@@ -63,12 +63,25 @@ class AppConfig(BaseModel):
 
     @classmethod
     def load_or_default(cls, path: Optional[Path] = None) -> "AppConfig":
-        """Load config from file or return default."""
+        """
+        Load config from file or return default.
+
+        Raises:
+            ConfigFileInvalidError: If config file has invalid JSON syntax
+            ConfigValidationError: If config values fail validation
+        """
+        from pydantic import ValidationError
+        from launchsampler.utils.error_handler import wrap_pydantic_error
+
         if path is None:
             path = Path.home() / ".launchsampler" / "config.json"
 
         if path.exists():
-            return cls.model_validate_json(path.read_text())
+            try:
+                return cls.model_validate_json(path.read_text())
+            except ValidationError as e:
+                # Convert Pydantic error to our custom exception
+                raise wrap_pydantic_error(e, str(path)) from e
 
         config = cls()
         config.ensure_directories()

@@ -46,7 +46,7 @@ class SampleLoader:
         try:
             # Get file info for metadata
             info = sf.info(str(path))
-            
+
             # Load audio file
             data, sample_rate = sf.read(str(path), dtype='float32')
 
