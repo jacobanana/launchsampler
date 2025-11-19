@@ -212,12 +212,12 @@ def main():
         "audio": "Low-level audio primitives and sample loading",
         "midi": "MIDI input/output management",
         "devices": "MIDI device interface and hardware adapters",
-        "tui": "Terminal user interface",
-        "led_ui": "Hardware LED grid user interface support",
         "services": "Business logic services",
         "model_manager": "Generic model management framework for Pydantic models",
         "models": "Pydantic data models for configuration and state",
         "utils": "Utility functions and helper classes",
+        "tui": "Terminal user interface",
+        "led_ui": "Hardware LED grid user interface support",
     }
 
     print("Generating API documentation...")

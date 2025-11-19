@@ -27,29 +27,6 @@
       - Protocols: api/devices/protocols.md
       - Registry: api/devices/registry.md
       - Schema: api/devices/schema.md
-    - Tui:
-      - Overview: api/tui/index.md
-      - App: api/tui/app.md
-      - Decorators: api/tui/decorators.md
-      - 'Screens: Base Browser': api/tui/screens/base_browser.md
-      - 'Screens: Directory Browser': api/tui/screens/directory_browser.md
-      - 'Screens: File Browser': api/tui/screens/file_browser.md
-      - 'Screens: Save Set Browser': api/tui/screens/save_set_browser.md
-      - 'Screens: Set File Browser': api/tui/screens/set_file_browser.md
-      - 'Services: Navigation Service': api/tui/services/navigation_service.md
-      - 'Services: Tui Service': api/tui/services/tui_service.md
-      - 'Widgets: Clear Confirmation Modal': api/tui/widgets/clear_confirmation_modal.md
-      - 'Widgets: Move Confirmation Modal': api/tui/widgets/move_confirmation_modal.md
-      - 'Widgets: Pad Details': api/tui/widgets/pad_details.md
-      - 'Widgets: Pad Grid': api/tui/widgets/pad_grid.md
-      - 'Widgets: Pad Widget': api/tui/widgets/pad_widget.md
-      - 'Widgets: Paste Confirmation Modal': api/tui/widgets/paste_confirmation_modal.md
-      - 'Widgets: Status Bar': api/tui/widgets/status_bar.md
-    - LED UI:
-      - Overview: api/led_ui/index.md
-      - App: api/led_ui/app.md
-      - 'Services: Led Event Handler': api/led_ui/services/led_event_handler.md
-      - 'Services: Led Renderer': api/led_ui/services/led_renderer.md
     - Services:
       - Overview: api/services/index.md
       - Editor Service: api/services/editor_service.md
@@ -74,3 +51,26 @@
       - Overview: api/utils/index.md
       - Error Handler: api/utils/error_handler.md
       - Paths: api/utils/paths.md
+    - Tui:
+      - Overview: api/tui/index.md
+      - App: api/tui/app.md
+      - Decorators: api/tui/decorators.md
+      - 'Screens: Base Browser': api/tui/screens/base_browser.md
+      - 'Screens: Directory Browser': api/tui/screens/directory_browser.md
+      - 'Screens: File Browser': api/tui/screens/file_browser.md
+      - 'Screens: Save Set Browser': api/tui/screens/save_set_browser.md
+      - 'Screens: Set File Browser': api/tui/screens/set_file_browser.md
+      - 'Services: Navigation Service': api/tui/services/navigation_service.md
+      - 'Services: Tui Service': api/tui/services/tui_service.md
+      - 'Widgets: Clear Confirmation Modal': api/tui/widgets/clear_confirmation_modal.md
+      - 'Widgets: Move Confirmation Modal': api/tui/widgets/move_confirmation_modal.md
+      - 'Widgets: Pad Details': api/tui/widgets/pad_details.md
+      - 'Widgets: Pad Grid': api/tui/widgets/pad_grid.md
+      - 'Widgets: Pad Widget': api/tui/widgets/pad_widget.md
+      - 'Widgets: Paste Confirmation Modal': api/tui/widgets/paste_confirmation_modal.md
+      - 'Widgets: Status Bar': api/tui/widgets/status_bar.md
+    - LED UI:
+      - Overview: api/led_ui/index.md
+      - App: api/led_ui/app.md
+      - 'Services: Led Event Handler': api/led_ui/services/led_event_handler.md
+      - 'Services: Led Renderer': api/led_ui/services/led_renderer.md
