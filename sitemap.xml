@@ -217,6 +217,14 @@
          <lastmod>2025-11-20</lastmod>
     </url>
     <url>
+         <loc>https://launchsampler.dev/api/orchestration/</loc>
+         <lastmod>2025-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://launchsampler.dev/api/orchestration/orchestrator/</loc>
+         <lastmod>2025-11-20</lastmod>
+    </url>
+    <url>
          <loc>https://launchsampler.dev/api/protocols/</loc>
          <lastmod>2025-11-20</lastmod>
     </url>
