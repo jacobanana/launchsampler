@@ -7,7 +7,7 @@ from launchsampler.ui_shared import UIAdapter
 from .services import LEDEventHandler, LEDRenderer
 
 if TYPE_CHECKING:
-    from launchsampler.app import LaunchpadSamplerApp
+    from launchsampler.orchestration import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +33,12 @@ class LaunchpadLEDUI(UIAdapter):
     4. shutdown(): Stop controller and clean up
     """
 
-    def __init__(self, orchestrator: "LaunchpadSamplerApp", poll_interval: float = 5.0):
+    def __init__(self, orchestrator: "Orchestrator", poll_interval: float = 5.0):
         """
         Initialize the LED UI.
 
         Args:
-            orchestrator: The LaunchpadSamplerApp orchestrator
+            orchestrator: The Orchestrator orchestrator
             poll_interval: How often to check for Launchpad device (seconds)
         """
         self.orchestrator = orchestrator
@@ -81,14 +81,14 @@ class LaunchpadLEDUI(UIAdapter):
         # Nothing to do - we use the orchestrator's controller
         pass
 
-    def register_with_services(self, orchestrator: "LaunchpadSamplerApp") -> None:
+    def register_with_services(self, orchestrator: "Orchestrator") -> None:
         """
         Register LED event handler with all orchestrator services after they're initialized.
 
         Called by orchestrator after services are created.
 
         Args:
-            orchestrator: The LaunchpadSamplerApp instance
+            orchestrator: The Orchestrator instance
         """
         # Use orchestrator's MIDI controller (shared resource)
         if orchestrator.midi_controller:

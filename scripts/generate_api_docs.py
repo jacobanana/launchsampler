@@ -209,6 +209,7 @@ def main():
 
     # Configuration: which packages to document
     packages_to_document = {
+        "orchestration": "Application orchestration and lifecycle management",
         "core": "Audio playback engine and state management",
         "audio": "Low-level audio primitives and sample loading",
         "midi": "MIDI input/output management",

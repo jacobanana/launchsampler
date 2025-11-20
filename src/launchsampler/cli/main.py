@@ -184,7 +184,7 @@ def cli(
 
     # Lazy imports to avoid loading heavy dependencies during doc generation
     from launchsampler.models import AppConfig
-    from launchsampler.app import LaunchpadSamplerApp
+    from launchsampler.orchestration import Orchestrator
     from launchsampler.tui import LaunchpadSampler
     from launchsampler.led_ui import LaunchpadLEDUI
 
@@ -211,7 +211,7 @@ def cli(
         config_obj.save()
 
         # Create orchestrator (NOT initialized yet)
-        orchestrator = LaunchpadSamplerApp(
+        orchestrator = Orchestrator(
             config=config_obj,
             set_name=set,
             samples_dir=samples_dir,

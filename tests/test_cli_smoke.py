@@ -93,7 +93,7 @@ class TestRunCommand:
 
         # We can't actually run the app, but we can verify the path validates
         # by mocking the actual run (patch at source since imports are lazy)
-        with patch('launchsampler.app.LaunchpadSamplerApp'):
+        with patch('launchsampler.orchestration.Orchestrator'):
             with patch('launchsampler.tui.LaunchpadSampler'):
                 with patch('launchsampler.models.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())
@@ -188,7 +188,7 @@ class TestCLIErrorHandling:
 
         # The CLI accepts both --set and --samples-dir
         # Check that it parses correctly (patch at source since imports are lazy)
-        with patch('launchsampler.app.LaunchpadSamplerApp'):
+        with patch('launchsampler.orchestration.Orchestrator'):
             with patch('launchsampler.tui.LaunchpadSampler'):
                 with patch('launchsampler.models.AppConfig') as mock_config:
                     mock_config.load_or_default.return_value = Mock(save=Mock())

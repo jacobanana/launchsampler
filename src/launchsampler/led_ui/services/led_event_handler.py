@@ -47,7 +47,7 @@ class LEDEventHandler(AppObserver, EditObserver, MidiObserver, StateObserver):
 
         Args:
             renderer: The LED renderer for hardware updates
-            orchestrator: The LaunchpadSamplerApp orchestrator
+            orchestrator: The Orchestrator orchestrator
             state_machine: Shared state machine for querying playback state
         """
         self.renderer = renderer

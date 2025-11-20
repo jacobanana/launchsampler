@@ -1,4 +1,4 @@
-"""Integration tests for LaunchpadSamplerApp orchestrator.
+"""Integration tests for Orchestrator.
 
 Tests the application lifecycle and service coordination without mocking
 internal components. Focuses on integration between services.
@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
 
-from launchsampler.app import LaunchpadSamplerApp
+from launchsampler.orchestration import Orchestrator
 from launchsampler.models import AppConfig, Set, Sample, PlaybackMode
 from launchsampler.ui_shared import UIAdapter
 from launchsampler.protocols import AppObserver, AppEvent
@@ -55,13 +55,13 @@ def config(temp_dir):
 
 @pytest.mark.integration
 class TestAppInitialization:
-    """Test LaunchpadSamplerApp initialization and lifecycle."""
+    """Test Orchestrator initialization and lifecycle."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_creates_with_default_state(self, mock_audio_device, mock_controller, config):
         """Test that app initializes with empty launchpad and untitled set."""
-        app = LaunchpadSamplerApp(config)
+        app = Orchestrator(config)
 
         assert app.launchpad is not None
         assert len(app.launchpad.pads) == 64
@@ -71,7 +71,7 @@ class TestAppInitialization:
         assert app.editor is None
         assert app.set_manager is None
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     def test_app_initializes_with_invalid_audio_device_config(self, mock_controller, temp_dir):
         """Test that app doesn't crash when configured audio device is invalid.
 
@@ -88,7 +88,7 @@ class TestAppInitialization:
             midi_poll_interval=5.0
         )
 
-        app = LaunchpadSamplerApp(invalid_config)
+        app = Orchestrator(invalid_config)
 
         # This should NOT raise RuntimeError: "Failed to start player"
         # The AudioDevice should fall back to default device
@@ -110,7 +110,7 @@ class TestAppInitialization:
             midi_poll_interval=5.0
         )
 
-        app2 = LaunchpadSamplerApp(default_config)
+        app2 = Orchestrator(default_config)
         app2.initialize()
 
         assert app2.player is not None
@@ -119,18 +119,18 @@ class TestAppInitialization:
         # Cleanup
         app2.shutdown()
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_registers_ui(self, mock_audio_device, mock_controller, config):
         """Test that UIs can be registered before initialization."""
-        app = LaunchpadSamplerApp(config)
+        app = Orchestrator(config)
         mock_ui = MockUI()
 
         app.register_ui(mock_ui)
 
         assert mock_ui in app._uis
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_initialize_creates_services(self, mock_audio_device, mock_controller, config):
         """Test that initialize() creates all services."""
@@ -138,7 +138,7 @@ class TestAppInitialization:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config)
+        app = Orchestrator(config)
         app.initialize()
 
         # Verify services were created
@@ -147,7 +147,7 @@ class TestAppInitialization:
         assert app.editor is not None
         assert app.state_machine is not None
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_initialize_registers_observers(self, mock_audio_device, mock_controller, config):
         """Test that initialize() wires up observer connections."""
@@ -155,13 +155,13 @@ class TestAppInitialization:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config)
+        app = Orchestrator(config)
         app.initialize()
 
         # Verify player is registered as observer on editor
         assert app.player in app.editor._observers._observers
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_fires_startup_events(self, mock_audio_device, mock_controller, config):
         """Test that initialize() fires SET_MOUNTED and MODE_CHANGED events."""
@@ -169,7 +169,7 @@ class TestAppInitialization:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config, start_mode="edit")
+        app = Orchestrator(config, start_mode="edit")
 
         # Register observer UI
         observer_ui = MockUIObserver()
@@ -187,7 +187,7 @@ class TestAppInitialization:
 class TestAppSetLoading:
     """Test set loading and state synchronization."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_loads_set_from_directory(
         self, mock_audio_device, mock_controller, config, sample_audio_file, temp_dir
@@ -205,7 +205,7 @@ class TestAppSetLoading:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config, samples_dir=samples_dir)
+        app = Orchestrator(config, samples_dir=samples_dir)
         app.initialize()
 
         # Verify set was loaded with samples
@@ -214,7 +214,7 @@ class TestAppSetLoading:
         assert app.launchpad.pads[0].sample is not None
         assert "kick" in app.launchpad.pads[0].sample.name.lower()
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_mount_set_updates_player(
         self, mock_audio_device, mock_controller, config, sample_audio_file
@@ -224,7 +224,7 @@ class TestAppSetLoading:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config)
+        app = Orchestrator(config)
         app.initialize()
 
         # Create a set with samples
@@ -245,7 +245,7 @@ class TestAppSetLoading:
 class TestAppModeManagement:
     """Test mode switching and state management."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_switches_mode(self, mock_audio_device, mock_controller, config):
         """Test switching between edit and play modes."""
@@ -253,7 +253,7 @@ class TestAppModeManagement:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config, start_mode="edit")
+        app = Orchestrator(config, start_mode="edit")
         observer_ui = MockUIObserver()
         app.register_ui(observer_ui)
 
@@ -270,7 +270,7 @@ class TestAppModeManagement:
         mode_events = [e for e in observer_ui.events_received if e.value == "mode_changed"]
         assert len(mode_events) >= 2  # One from init, one from set_mode
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_mode_affects_midi_routing(self, mock_audio_device, mock_controller, config):
         """Test that mode changes affect MIDI routing behavior."""
@@ -282,7 +282,7 @@ class TestAppModeManagement:
         mock_midi_instance = Mock()
         mock_controller.return_value = mock_midi_instance
 
-        app = LaunchpadSamplerApp(config, start_mode="edit")
+        app = Orchestrator(config, start_mode="edit")
         app.initialize()
 
         # In edit mode, MIDI should route differently than play mode
@@ -298,7 +298,7 @@ class TestAppModeManagement:
 class TestAppShutdown:
     """Test application shutdown and cleanup."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     def test_app_shutdown_cleans_up_resources(self, mock_audio_device, mock_controller, config):
         """Test that shutdown properly cleans up all resources."""
@@ -306,7 +306,7 @@ class TestAppShutdown:
         mock_device_instance = Mock()
         mock_audio_device.return_value = mock_device_instance
 
-        app = LaunchpadSamplerApp(config)
+        app = Orchestrator(config)
         app.initialize()
 
         # Shutdown

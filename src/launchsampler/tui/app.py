@@ -28,7 +28,7 @@ from .widgets import (
 from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
 
 if TYPE_CHECKING:
-    from launchsampler.app import LaunchpadSamplerApp
+    from launchsampler.orchestration import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class LaunchpadSampler(App):
     Textual TUI for Launchpad Sampler.
 
     This is a PURE UI layer that delegates all business logic to the orchestrator.
-    The orchestrator (LaunchpadSamplerApp) owns all state and services.
+    The orchestrator owns all state and services.
 
     Implements UIAdapter protocol via structural subtyping (no explicit inheritance
     to avoid metaclass conflicts between App and Protocol).
@@ -101,7 +101,7 @@ class LaunchpadSampler(App):
 
     def __init__(
         self,
-        orchestrator: "LaunchpadSamplerApp",
+        orchestrator: "Orchestrator",
         start_mode: str = "play"
     ):
         """
@@ -112,7 +112,7 @@ class LaunchpadSampler(App):
         after registering this UI to ensure event synchronization.
 
         Args:
-            orchestrator: The LaunchpadSamplerApp orchestrator instance (not yet initialized)
+            orchestrator: The Orchestrator instance (not yet initialized)
             start_mode: Mode to start in ("edit" or "play")
         """
         super().__init__()
@@ -163,7 +163,7 @@ class LaunchpadSampler(App):
         self._initialized = True
         logger.info("TUI initialization complete - ready to receive events")
 
-    def register_with_services(self, orchestrator: "LaunchpadSamplerApp") -> None:
+    def register_with_services(self, orchestrator: "Orchestrator") -> None:
         """
         Register TUI service with orchestrator services.
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
 
-from launchsampler.app import LaunchpadSamplerApp
+from launchsampler.orchestration import Orchestrator
 from launchsampler.tui import LaunchpadSampler
 from launchsampler.models import AppConfig
 
@@ -29,7 +29,7 @@ def config(temp_dir):
 class TestTUILaunch:
     """Test that TUI can launch without crashing."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_tui_launches_successfully(self, mock_audio_device, mock_controller, config):
         """Test that TUI application can start and initialize."""
@@ -39,7 +39,7 @@ class TestTUILaunch:
         mock_audio_device.return_value = mock_device_instance
 
         # Create orchestrator (don't initialize yet)
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
 
         # Create TUI
         app = LaunchpadSampler(orchestrator, start_mode="edit")
@@ -53,7 +53,7 @@ class TestTUILaunch:
             assert app.orchestrator is not None
             assert app.tui_service is not None
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_tui_mounts_widgets(self, mock_audio_device, mock_controller, config):
         """Test that TUI mounts all required widgets."""
@@ -62,7 +62,7 @@ class TestTUILaunch:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -75,7 +75,7 @@ class TestTUILaunch:
             assert app.query_one("PadDetailsPanel") is not None
             assert app.query_one("StatusBar") is not None
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_tui_displays_header_footer(self, mock_audio_device, mock_controller, config):
         """Test that TUI displays header and footer."""
@@ -84,7 +84,7 @@ class TestTUILaunch:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -104,7 +104,7 @@ class TestTUILaunch:
 class TestTUINavigation:
     """Test basic TUI navigation and interaction."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_arrow_key_navigation(self, mock_audio_device, mock_controller, config):
         """Test that arrow keys navigate the pad grid."""
@@ -113,7 +113,7 @@ class TestTUINavigation:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -132,7 +132,7 @@ class TestTUINavigation:
             new_selection = app._selected_pad_index
             assert new_selection != initial_selection
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_pad_grid_renders(self, mock_audio_device, mock_controller, config):
         """Test that pad grid renders with 64 pads."""
@@ -141,7 +141,7 @@ class TestTUINavigation:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -160,7 +160,7 @@ class TestTUINavigation:
 class TestTUIModeSwitching:
     """Test switching between edit and play modes."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_switch_to_edit_mode(self, mock_audio_device, mock_controller, config):
         """Test pressing 'e' switches to edit mode."""
@@ -169,7 +169,7 @@ class TestTUIModeSwitching:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="play")
+        orchestrator = Orchestrator(config, start_mode="play")
         app = LaunchpadSampler(orchestrator, start_mode="play")
         app.initialize()
 
@@ -186,7 +186,7 @@ class TestTUIModeSwitching:
             # Should now be in edit mode
             assert app.orchestrator.mode == "edit"
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_switch_to_play_mode(self, mock_audio_device, mock_controller, config):
         """Test pressing 'p' switches to play mode."""
@@ -195,7 +195,7 @@ class TestTUIModeSwitching:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -212,7 +212,7 @@ class TestTUIModeSwitching:
             # Should now be in play mode
             assert app.orchestrator.mode == "play"
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_mode_indicator_updates(self, mock_audio_device, mock_controller, config):
         """Test that mode indicator updates when switching modes."""
@@ -221,7 +221,7 @@ class TestTUIModeSwitching:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -246,7 +246,7 @@ class TestTUIModeSwitching:
 class TestTUIKeyBindings:
     """Test critical keybindings work."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_quit_keybinding(self, mock_audio_device, mock_controller, config):
         """Test that ctrl+q quits the application."""
@@ -255,7 +255,7 @@ class TestTUIKeyBindings:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="edit")
+        orchestrator = Orchestrator(config, start_mode="edit")
         app = LaunchpadSampler(orchestrator, start_mode="edit")
         app.initialize()
 
@@ -269,7 +269,7 @@ class TestTUIKeyBindings:
             # App should be exiting
             # (run_test context manager handles cleanup)
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_escape_stops_audio(self, mock_audio_device, mock_controller, config):
         """Test that escape key stops all audio (panic button)."""
@@ -278,7 +278,7 @@ class TestTUIKeyBindings:
         mock_device_instance.start.return_value = True
         mock_audio_device.return_value = mock_device_instance
 
-        orchestrator = LaunchpadSamplerApp(config, start_mode="play")
+        orchestrator = Orchestrator(config, start_mode="play")
         app = LaunchpadSampler(orchestrator, start_mode="play")
         app.initialize()
 
@@ -300,7 +300,7 @@ class TestTUIKeyBindings:
 class TestTUIWithSamples:
     """Test TUI with loaded samples."""
 
-    @patch('launchsampler.app.DeviceController')
+    @patch('launchsampler.orchestration.orchestrator.DeviceController')
     @patch('launchsampler.core.player.AudioDevice')
     async def test_tui_displays_loaded_samples(
         self, mock_audio_device, mock_controller, config, sample_audio_file, temp_dir
@@ -318,7 +318,7 @@ class TestTUIWithSamples:
         shutil.copy(sample_audio_file, samples_dir / "kick.wav")
 
         # Create orchestrator with samples
-        orchestrator = LaunchpadSamplerApp(
+        orchestrator = Orchestrator(
             config, samples_dir=samples_dir, start_mode="edit"
         )
         app = LaunchpadSampler(orchestrator, start_mode="edit")

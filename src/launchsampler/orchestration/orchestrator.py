@@ -1,7 +1,7 @@
 """
-Top-level Launchpad Sampler Application Orchestrator.
+Application orchestrator for coordinating services and UIs.
 
-This is the main entry point that coordinates all services and UIs.
+This module coordinates all services and UIs for the Launchpad Sampler application.
 The design allows running headless (MIDI-only) or with TUI, and makes
 it easy to add other UI implementations (web, native GUI, etc.).
 """
@@ -22,25 +22,25 @@ from launchsampler.model_manager import ObserverManager
 logger = logging.getLogger(__name__)
 
 
-class LaunchpadSamplerApp:
+class Orchestrator:
     """
     Top-level orchestrator for the Launchpad Sampler application.
 
-    This orchestrator:
-    - Owns core state (Launchpad, Set, mode)
-    - Manages services (Player, SetManager, Editor)
-    - Coordinates UIs (TextualUI, LaunchpadController as LED UI)
-    - Fires app-level events that UIs observe
+    Coordinates:
+    - Core state (Launchpad, Set, mode)
+    - Services (Player, SetManager, Editor)
+    - Multiple UI implementations (TUI, LED, web, etc.)
+    - Application lifecycle (initialize, run, shutdown)
 
     The Textual TUI is just one possible UI - you can run headless with
     just the Launchpad hardware, or add other UIs (web, native) without
     changing this orchestrator.
 
     Architecture:
-        LaunchpadSamplerApp (this class)
+        Orchestrator (this class)
         ├── Core State: launchpad, current_set, mode
         ├── Services: config_service, set_manager, player, editor
-        └── UIs (observers): textual_ui, led_ui (future)
+        └── UIs (observers): textual_ui, led_ui, etc.
     """
 
     def __init__(
@@ -120,7 +120,7 @@ class LaunchpadSamplerApp:
 
         Fires startup events (SET_MOUNTED, MODE_CHANGED) that UIs will handle.
         """
-        logger.info("Initializing LaunchpadSamplerApp services")
+        logger.info("Initializing Orchestrator services")
 
         # Initialize ModelManagerService for centralized config management
         config_path = Path.home() / ".launchsampler" / "config.json"
@@ -185,7 +185,7 @@ class LaunchpadSamplerApp:
         # Set initial mode - Fires MODE_CHANGED event
         self.set_mode(self._start_mode)
 
-        logger.info("LaunchpadSamplerApp initialized successfully")
+        logger.info("Orchestrator initialized successfully")
 
     def run(self) -> None:
         """
@@ -218,7 +218,7 @@ class LaunchpadSamplerApp:
 
     def shutdown(self) -> None:
         """Cleanup when app closes."""
-        logger.info("Shutting down LaunchpadSamplerApp")
+        logger.info("Shutting down Orchestrator")
 
         # Shutdown UIs
         for ui in self._uis:

@@ -1,4 +1,7 @@
   - API Reference:
+    - Orchestration:
+      - Overview: api/orchestration/index.md
+      - Orchestrator: api/orchestration/orchestrator.md
     - Core:
       - Overview: api/core/index.md
       - Player: api/core/player.md
