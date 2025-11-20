@@ -15,7 +15,7 @@ from launchsampler.models import (
     Sample,
     Set,
 )
-from launchsampler.ui_colors import MODE_COLORS
+from launchsampler.ui_shared import MODE_COLORS
 
 
 class TestColor:

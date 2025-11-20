@@ -99,4 +99,3 @@ def get_pad_led_palette_index(pad, is_playing: bool = False) -> int:
 
     # Empty pad is off
     return EMPTY_COLOR.palette
-

@@ -1,7 +1,7 @@
 """Decorators for TUI components."""
 
 from functools import wraps
-from launchsampler.utils.error_handler import handle_errors as _handle_errors
+from launchsampler.exceptions import handle_errors as _handle_errors
 
 
 def require_mode(*modes):

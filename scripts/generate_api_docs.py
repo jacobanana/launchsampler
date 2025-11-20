@@ -77,6 +77,7 @@ def get_package_title(package_name: str) -> str:
     title_map = {
         "model_manager": "Model Manager",
         "led_ui": "LED UI",
+        "ui_shared": "UI Shared",
         "set_manager_service": "Set Manager Service",
     }
 
@@ -215,7 +216,10 @@ def main():
         "services": "Business logic services",
         "model_manager": "Generic model management framework for Pydantic models",
         "models": "Pydantic data models for configuration and state",
-        "utils": "Utility functions and helper classes",
+        "exceptions": "Exception hierarchy and error handling utilities",
+        "protocols": "Observer protocols and domain events",
+        "ui_shared": "Shared UI infrastructure (colors, adapters)",
+        "utils": "Generic utility functions (paths, formatting)",
         "tui": "Terminal user interface",
         "led_ui": "Hardware LED grid user interface support",
     }

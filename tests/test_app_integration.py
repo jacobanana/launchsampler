@@ -10,7 +10,8 @@ import pytest
 
 from launchsampler.app import LaunchpadSamplerApp
 from launchsampler.models import AppConfig, Set, Sample, PlaybackMode
-from launchsampler.protocols import UIAdapter, AppObserver, AppEvent
+from launchsampler.ui_shared import UIAdapter
+from launchsampler.protocols import AppObserver, AppEvent
 
 
 class MockUI(UIAdapter):

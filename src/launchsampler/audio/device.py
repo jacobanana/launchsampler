@@ -277,7 +277,7 @@ class AudioDevice:
 
     def _start_stream(self, config: dict) -> None:
         """Create and start the stream with the given configuration."""
-        from launchsampler.utils.error_handler import wrap_audio_device_error
+        from launchsampler.exceptions import wrap_audio_device_error
 
         try:
             self._stream = sd.OutputStream(**config)

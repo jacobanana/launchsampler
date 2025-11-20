@@ -12,7 +12,8 @@ from textual.binding import Binding
 from launchsampler.core.player import Player
 from launchsampler.models import Launchpad, Set, PlaybackMode
 from launchsampler.services import EditorService, SetManagerService
-from launchsampler.protocols import AppEvent, SelectionEvent, UIAdapter
+from launchsampler.protocols import AppEvent, SelectionEvent
+from launchsampler.ui_shared import UIAdapter
 
 from .decorators import edit_only, handle_action_errors
 from .services import TUIService, NavigationService

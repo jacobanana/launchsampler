@@ -1,6 +1,6 @@
 # Utils
 
-Utility functions and helper classes
+Generic utility functions (paths, formatting)
 
 ::: launchsampler.utils
     options:

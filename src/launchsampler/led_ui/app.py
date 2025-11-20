@@ -3,7 +3,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from launchsampler.protocols import UIAdapter
+from launchsampler.ui_shared import UIAdapter
 from .services import LEDEventHandler, LEDRenderer
 
 if TYPE_CHECKING:

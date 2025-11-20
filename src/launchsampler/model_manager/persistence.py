@@ -31,8 +31,7 @@ from typing import Callable, Optional, Type, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from launchsampler.utils.error_handler import wrap_pydantic_error
-from launchsampler.exceptions import ConfigurationError
+from launchsampler.exceptions import wrap_pydantic_error, ConfigurationError
 
 logger = logging.getLogger(__name__)
 

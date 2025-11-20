@@ -14,7 +14,8 @@ from launchsampler.core.player import Player
 from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices import DeviceController
 from launchsampler.models import AppConfig, Launchpad, Set
-from launchsampler.protocols import AppEvent, AppObserver, UIAdapter
+from launchsampler.protocols import AppEvent, AppObserver
+from launchsampler.ui_shared import UIAdapter
 from launchsampler.services import ModelManagerService, EditorService, SetManagerService
 from launchsampler.model_manager import ObserverManager
 

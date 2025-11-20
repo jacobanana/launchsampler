@@ -1,0 +1,3 @@
+# Base
+
+::: launchsampler.exceptions.base

@@ -255,7 +255,7 @@ def cli(
         # Re-raise Click's Abort exception without modification
         raise
     except Exception as e:
-        from launchsampler.utils.error_handler import format_error_for_display
+        from launchsampler.exceptions import format_error_for_display
 
         logger.exception("Error running application")
 

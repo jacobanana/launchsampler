@@ -202,9 +202,22 @@ nav:
       - Pad: api/models/pad.md
       - Sample: api/models/sample.md
       - Set: api/models/set.md
+    - Exceptions:
+      - Overview: api/exceptions/index.md
+      - Audio: api/exceptions/audio.md
+      - Base: api/exceptions/base.md
+      - Config: api/exceptions/config.md
+      - Handlers: api/exceptions/handlers.md
+    - Protocols:
+      - Overview: api/protocols/index.md
+      - Events: api/protocols/events.md
+      - Observers: api/protocols/observers.md
+    - UI Shared:
+      - Overview: api/ui_shared/index.md
+      - Adapter: api/ui_shared/adapter.md
+      - Colors: api/ui_shared/colors.md
     - Utils:
       - Overview: api/utils/index.md
-      - Error Handler: api/utils/error_handler.md
       - Paths: api/utils/paths.md
     - Tui:
       - Overview: api/tui/index.md

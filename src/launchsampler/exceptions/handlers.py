@@ -3,7 +3,7 @@ Centralized error handling utilities.
 
 This module provides a systematic, layered approach to error handling:
 
-1. **Custom Exceptions** - Typed, user-friendly error classes (see `launchsampler.exceptions`)
+1. **Custom Exceptions** - Typed, user-friendly error classes (see base, audio, config modules)
 2. **Error Context** - Preserve technical details for logging, show friendly messages to users
 3. **Recovery Hints** - Tell users what to do when things fail
 4. **Error Isolation** - One failure shouldn't cascade to others
@@ -33,7 +33,7 @@ This module provides a systematic, layered approach to error handling:
 ### Example 1: Converting Low-Level Errors
 
 ```python
-from launchsampler.utils.error_handler import wrap_audio_device_error
+from launchsampler.exceptions import wrap_audio_device_error
 
 try:
     self._stream = sd.OutputStream(**config)
@@ -51,7 +51,7 @@ Benefits:
 ### Example 2: Config Validation with Custom Exceptions
 
 ```python
-from launchsampler.utils.error_handler import wrap_pydantic_error
+from launchsampler.exceptions import wrap_pydantic_error
 
 try:
     config = AppConfig.model_validate_json(path.read_text())
@@ -68,7 +68,7 @@ Benefits:
 ### Example 3: Batch Operations (Loading Multiple Samples)
 
 ```python
-from launchsampler.utils.error_handler import collect_errors
+from launchsampler.exceptions import collect_errors
 
 def load_samples_from_directory(self, directory: Path):
     '''Load all samples from a directory.'''
@@ -92,7 +92,7 @@ Benefits:
 ### Example 4: Critical Initialization
 
 ```python
-from launchsampler.utils.error_handler import ErrorContext
+from launchsampler.exceptions import ErrorContext
 
 def initialize(self):
     with ErrorContext("initialize player", logger_instance=logger):
@@ -186,10 +186,13 @@ except Exception:
 """
 
 import logging
-from typing import Callable, TypeVar, Optional, Any
+from typing import Callable, TypeVar, Optional
+
 from functools import wraps
 
-from launchsampler.exceptions import LaunchSamplerError
+from .base import LaunchSamplerError
+from .audio import AudioDeviceError, AudioDeviceInUseError, AudioDeviceNotFoundError
+from .config import ConfigFileInvalidError, ConfigValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -356,10 +359,6 @@ def wrap_pydantic_error(error: Exception, file_path: str) -> LaunchSamplerError:
         A ConfigurationError with appropriate type and message
     """
     from pydantic import ValidationError
-    from launchsampler.exceptions import (
-        ConfigFileInvalidError,
-        ConfigValidationError
-    )
 
     error_msg = str(error)
 
@@ -446,11 +445,6 @@ def wrap_audio_device_error(error: Exception, device_id: Optional[int] = None) -
     Returns:
         A LaunchSamplerError with appropriate type and message
     """
-    from launchsampler.exceptions import (
-        AudioDeviceInUseError,
-        AudioDeviceError
-    )
-
     error_msg = str(error)
 
     # Check for device-in-use error
@@ -459,7 +453,6 @@ def wrap_audio_device_error(error: Exception, device_id: Optional[int] = None) -
 
     # Check for device not found
     if "device" in error_msg.lower() and "not found" in error_msg.lower():
-        from launchsampler.exceptions import AudioDeviceNotFoundError
         if device_id is not None:
             return AudioDeviceNotFoundError(device_id)
 

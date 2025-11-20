@@ -71,7 +71,7 @@ class AppConfig(BaseModel):
             ConfigValidationError: If config values fail validation
         """
         from pydantic import ValidationError
-        from launchsampler.utils.error_handler import wrap_pydantic_error
+        from launchsampler.exceptions import wrap_pydantic_error
 
         if path is None:
             path = Path.home() / ".launchsampler" / "config.json"

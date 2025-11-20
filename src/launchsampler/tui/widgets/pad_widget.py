@@ -4,7 +4,7 @@ from textual.widgets import Static
 from textual.message import Message
 
 from launchsampler.models import Pad
-from launchsampler.ui_colors import MODE_COLORS, PLAYING_COLOR
+from launchsampler.ui_shared import MODE_COLORS, PLAYING_COLOR
 
 
 def _generate_pad_css() -> str:

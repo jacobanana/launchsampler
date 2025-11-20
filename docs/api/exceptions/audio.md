@@ -1,0 +1,3 @@
+# Audio
+
+::: launchsampler.exceptions.audio

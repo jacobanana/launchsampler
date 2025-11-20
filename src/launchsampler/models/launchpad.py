@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from .pad import Pad
 from .sample import Sample
 from .enums import PlaybackMode
-from launchsampler.ui_colors import MODE_COLORS
+from launchsampler.ui_shared import MODE_COLORS
 
 logger = logging.getLogger(__name__)
 

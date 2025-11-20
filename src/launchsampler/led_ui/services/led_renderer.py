@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 from launchsampler.devices import DeviceController
 from launchsampler.models import Color
-from launchsampler.ui_colors import get_pad_led_color, get_pad_led_palette_index, PANIC_BUTTON_COLOR
+from launchsampler.ui_shared import get_pad_led_color, get_pad_led_palette_index, PANIC_BUTTON_COLOR
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
