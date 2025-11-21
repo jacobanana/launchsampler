@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from launchsampler.ui_shared import UIAdapter
+
 from .services import LEDEventHandler, LEDRenderer
 
 if TYPE_CHECKING:
@@ -52,7 +53,9 @@ class LaunchpadLEDUI(UIAdapter):
         self.renderer = LEDRenderer(None)
 
         # Create LED event handler (observer) - pass renderer and shared state machine
-        self.event_handler = LEDEventHandler(self.renderer, orchestrator, orchestrator.state_machine)
+        self.event_handler = LEDEventHandler(
+            self.renderer, orchestrator, orchestrator.state_machine
+        )
 
         # Register service with orchestrator services
         self._register_with_services()

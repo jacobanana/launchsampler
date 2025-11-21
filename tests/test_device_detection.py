@@ -1,8 +1,8 @@
 """Tests for device detection and registry functionality."""
 
 import pytest
+
 from launchsampler.devices.registry import DeviceRegistry
-from launchsampler.devices.config import DeviceConfig
 
 
 @pytest.fixture
@@ -90,14 +90,12 @@ class TestDeviceDetection:
         config = registry.detect_device(port_name)
         assert config is not None
         assert config.model == "Launchpad Mini MK3", (
-            "Launchpad Mini MK3 should be detected correctly, "
-            f"not as {config.model}"
+            f"Launchpad Mini MK3 should be detected correctly, not as {config.model}"
         )
 
         # Verify it has the correct SysEx header for Mini (not Pro)
         assert config.sysex_header == [0, 32, 41, 2, 13], (
-            f"Wrong SysEx header: {config.sysex_header}. "
-            "Should be [0, 32, 41, 2, 13] for Mini MK3"
+            f"Wrong SysEx header: {config.sysex_header}. Should be [0, 32, 41, 2, 13] for Mini MK3"
         )
 
 
@@ -126,9 +124,7 @@ class TestDeviceConfig:
     def test_all_devices_have_unique_models(self, registry):
         """Test that all device models are unique."""
         models = [config.model for config in registry.devices]
-        assert len(models) == len(set(models)), (
-            f"Duplicate device models found: {models}"
-        )
+        assert len(models) == len(set(models)), f"Duplicate device models found: {models}"
 
     def test_all_devices_have_detection_patterns(self, registry):
         """Test that all devices have at least one detection pattern."""

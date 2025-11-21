@@ -1,21 +1,23 @@
 """Abstract base class for file/directory browser screens."""
 
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional
+from typing import Any
 
-from textual.screen import Screen
-from textual.app import ComposeResult
-from textual.containers import Vertical, Horizontal, Container
-from textual.widgets import Label, Button, DirectoryTree, Input
-from textual.widget import Widget
-from textual.binding import Binding
 from textual import events
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
+from textual.screen import Screen
+from textual.widget import Widget
+from textual.widgets import Button, DirectoryTree, Input, Label
 
 
 # Combine Screen's metaclass with ABCMeta to resolve metaclass conflict
 class _BrowserScreenMeta(type(Screen), ABCMeta):
     """Metaclass that combines Textual's Screen metaclass with ABC's metaclass."""
+
     pass
 
 
@@ -38,11 +40,11 @@ class FilteredDirectoryTree(DirectoryTree):
 class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     """
     Abstract base class for all file/directory browser screens.
-    
+
     Provides common functionality for navigating directories, path input,
     keyboard shortcuts, and consistent styling. Subclasses implement
     specific selection logic and validation.
-    
+
     Subclasses must implement:
     - _is_valid_selection(path): Validate if a path can be selected
     - _get_selection_value(): Get the value to return on dismiss
@@ -192,7 +194,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     def _get_extra_widgets(self) -> list[Widget]:
         """
         Get additional widgets to include in the layout.
-        
+
         These will be inserted between the path input and instructions.
         Override to add custom widgets (e.g., filename input for save dialog).
 
@@ -204,7 +206,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     def _get_buttons(self) -> list[Button]:
         """
         Get the buttons to display.
-        
+
         Override to customize buttons.
 
         Returns:
@@ -212,13 +214,13 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
         """
         return [
             Button("Select", id="select-btn", variant="primary"),
-            Button("Cancel", id="cancel-btn", variant="default")
+            Button("Cancel", id="cancel-btn", variant="default"),
         ]
 
     def _on_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
         """
         Handle directory node selection in tree.
-        
+
         Override to customize behavior. Default updates selected_path and path input.
 
         Args:
@@ -231,7 +233,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     def _on_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         """
         Handle file node selection in tree.
-        
+
         Override to customize behavior. Default validates and dismisses.
 
         Args:
@@ -247,7 +249,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     def _show_invalid_selection_error(self, path: Path) -> None:
         """
         Show error for invalid selection.
-        
+
         Override to customize error message.
 
         Args:
@@ -258,7 +260,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     def _validate_selection(self) -> bool:
         """
         Validate current selection before confirming.
-        
+
         Override to add additional validation. Default checks _is_valid_selection.
 
         Returns:
@@ -278,31 +280,25 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
             yield Input(
                 value=str(self.start_dir),
                 placeholder="Enter or paste directory path...",
-                id="path-input"
+                id="path-input",
             )
-            
+
             # Allow subclasses to add extra widgets
             extra_widgets = self._get_extra_widgets()
             if extra_widgets:
                 with Container(id="extra-widgets"):
-                    for widget in extra_widgets:
-                        yield widget
-            
-            yield Label(self._get_instructions(), id="instructions")
-            
-            with Horizontal(id="button-row"):
-                for button in self._get_buttons():
-                    yield button
+                    yield from extra_widgets
 
-    def on_directory_tree_directory_selected(
-        self, event: DirectoryTree.DirectorySelected
-    ) -> None:
+            yield Label(self._get_instructions(), id="instructions")
+
+            with Horizontal(id="button-row"):
+                yield from self._get_buttons()
+
+    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
         """Handle directory selection in tree."""
         self._on_tree_directory_selected(event)
 
-    def on_directory_tree_file_selected(
-        self, event: DirectoryTree.FileSelected
-    ) -> None:
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         """Handle file selection in tree."""
         self._on_tree_file_selected(event)
 

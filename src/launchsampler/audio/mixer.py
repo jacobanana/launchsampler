@@ -1,7 +1,5 @@
 """Audio mixer for combining multiple playback states."""
 
-from typing import List
-
 import numpy as np
 import numpy.typing as npt
 
@@ -24,11 +22,7 @@ class AudioMixer:
         """
         self.num_channels = num_channels
 
-    def mix(
-        self,
-        playback_states: List[PlaybackState],
-        num_frames: int
-    ) -> npt.NDArray[np.float32]:
+    def mix(self, playback_states: list[PlaybackState], num_frames: int) -> npt.NDArray[np.float32]:
         """
         Mix multiple playback states into a single buffer.
 
@@ -71,9 +65,7 @@ class AudioMixer:
         return output
 
     def _match_channels(
-        self,
-        frames: npt.NDArray[np.float32],
-        source_channels: int
+        self, frames: npt.NDArray[np.float32], source_channels: int
     ) -> npt.NDArray[np.float32]:
         """
         Convert audio frames to match output channel count.
@@ -108,10 +100,7 @@ class AudioMixer:
         return frames
 
     @staticmethod
-    def apply_master_volume(
-        buffer: npt.NDArray[np.float32],
-        volume: float
-    ) -> None:
+    def apply_master_volume(buffer: npt.NDArray[np.float32], volume: float) -> None:
         """
         Apply master volume to buffer in-place.
 

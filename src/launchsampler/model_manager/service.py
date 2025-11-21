@@ -2,22 +2,22 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Generic, Optional, TypeVar, Type
 from threading import Lock
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from launchsampler.model_manager.protocols import ModelEvent, ModelObserver
 from launchsampler.model_manager.observer import ObserverManager
 from launchsampler.model_manager.persistence import PydanticPersistence
+from launchsampler.model_manager.protocols import ModelEvent, ModelObserver
 
 logger = logging.getLogger(__name__)
 
 # Generic type for any Pydantic model
-ModelType = TypeVar('ModelType', bound=BaseModel)
+ModelType = TypeVar("ModelType", bound=BaseModel)
 
 
-class ModelManagerService(Generic[ModelType]):
+class ModelManagerService[ModelType: BaseModel]:
     """
     Generic service for managing Pydantic-based models.
 
@@ -64,9 +64,9 @@ class ModelManagerService(Generic[ModelType]):
 
     def __init__(
         self,
-        model_type: Type[ModelType],
+        model_type: type[ModelType],
         initial_model: ModelType,
-        default_path: Optional[Path] = None
+        default_path: Path | None = None,
     ):
         """
         Initialize the model manager service.
@@ -83,8 +83,7 @@ class ModelManagerService(Generic[ModelType]):
 
         # Event system
         self._observers = ObserverManager[ModelObserver](
-            lock=self._lock,
-            observer_type_name="model"
+            lock=self._lock, observer_type_name="model"
         )
 
         logger.info(f"ModelManagerService initialized with {model_type.__name__}")
@@ -122,7 +121,7 @@ class ModelManagerService(Generic[ModelType]):
         Note:
             ObserverManager handles exception catching and logging automatically.
         """
-        self._observers.notify('on_model_event', event, **kwargs)
+        self._observers.notify("on_model_event", event, **kwargs)
 
     # =================================================================
     # Model Access
@@ -220,9 +219,7 @@ class ModelManagerService(Generic[ModelType]):
         """
         with self._lock:
             if not hasattr(self._model, key):
-                raise AttributeError(
-                    f"'{self._model_type.__name__}' has no field '{key}'"
-                )
+                raise AttributeError(f"'{self._model_type.__name__}' has no field '{key}'")
 
             # Validate by reconstructing the model (Pydantic 2.x doesn't validate on setattr/model_copy)
             try:
@@ -235,11 +232,7 @@ class ModelManagerService(Generic[ModelType]):
                 raise
 
         # Notify observers (outside lock)
-        self._notify_observers(
-            ModelEvent.MODEL_UPDATED,
-            keys=[key],
-            values=updated_values
-        )
+        self._notify_observers(ModelEvent.MODEL_UPDATED, keys=[key], values=updated_values)
 
         logger.debug(f"Model updated: {key}={value}")
 
@@ -273,9 +266,7 @@ class ModelManagerService(Generic[ModelType]):
             # Validate all keys exist first
             for key in values:
                 if not hasattr(self._model, key):
-                    raise AttributeError(
-                        f"'{self._model_type.__name__}' has no field '{key}'"
-                    )
+                    raise AttributeError(f"'{self._model_type.__name__}' has no field '{key}'")
 
             # Apply all updates with validation (atomic - all or nothing)
             try:
@@ -287,11 +278,7 @@ class ModelManagerService(Generic[ModelType]):
                 raise
 
         # Notify observers (outside lock)
-        self._notify_observers(
-            ModelEvent.MODEL_UPDATED,
-            keys=list(values.keys()),
-            values=values
-        )
+        self._notify_observers(ModelEvent.MODEL_UPDATED, keys=list(values.keys()), values=values)
 
         logger.debug(f"Model batch updated: {list(values.keys())}")
 
@@ -316,10 +303,7 @@ class ModelManagerService(Generic[ModelType]):
             self._model = self._model_type()
 
         # Notify observers (outside lock)
-        self._notify_observers(
-            ModelEvent.MODEL_RESET,
-            model=self._model.model_copy(deep=True)
-        )
+        self._notify_observers(ModelEvent.MODEL_RESET, model=self._model.model_copy(deep=True))
 
         logger.info(f"Model reset to defaults: {self._model_type.__name__}")
 
@@ -327,7 +311,7 @@ class ModelManagerService(Generic[ModelType]):
     # Persistence
     # =================================================================
 
-    def load(self, path: Optional[Path] = None) -> None:
+    def load(self, path: Path | None = None) -> None:
         """
         Load model from file.
 
@@ -363,14 +347,11 @@ class ModelManagerService(Generic[ModelType]):
             self._model = new_model
 
         # Notify observers (outside lock)
-        self._notify_observers(
-            ModelEvent.MODEL_LOADED,
-            path=file_path
-        )
+        self._notify_observers(ModelEvent.MODEL_LOADED, path=file_path)
 
         logger.info(f"Model loaded from {file_path}")
 
-    def save(self, path: Optional[Path] = None) -> None:
+    def save(self, path: Path | None = None) -> None:
         """
         Save model to file.
 
@@ -407,14 +388,11 @@ class ModelManagerService(Generic[ModelType]):
         PydanticPersistence.save_json(model_copy, file_path)
 
         # Notify observers (outside lock)
-        self._notify_observers(
-            ModelEvent.MODEL_SAVED,
-            path=file_path
-        )
+        self._notify_observers(ModelEvent.MODEL_SAVED, path=file_path)
 
         logger.info(f"Model saved to {file_path}")
 
-    def reload(self, path: Optional[Path] = None) -> None:
+    def reload(self, path: Path | None = None) -> None:
         """
         Reload model from file (convenience method).
 

@@ -1,7 +1,7 @@
 """Generic MIDI manager combining input and output."""
 
 import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import mido
 
@@ -22,8 +22,8 @@ class MidiManager:
         self,
         device_filter: Callable[[str], bool],
         poll_interval: float = 5.0,
-        input_port_selector: Optional[Callable[[list[str]], Optional[str]]] = None,
-        output_port_selector: Optional[Callable[[list[str]], Optional[str]]] = None
+        input_port_selector: Callable[[list[str]], str | None] | None = None,
+        output_port_selector: Callable[[list[str]], str | None] | None = None,
     ):
         """
         Initialize MIDI manager.
@@ -50,7 +50,7 @@ class MidiManager:
         """
         self._input_manager.on_message(callback)
 
-    def on_connection_changed(self, callback: Callable[[bool, Optional[str]], None]) -> None:
+    def on_connection_changed(self, callback: Callable[[bool, str | None], None]) -> None:
         """
         Register callback for connection state changes.
 
@@ -93,12 +93,12 @@ class MidiManager:
         return self._input_manager.is_connected and self._output_manager.is_connected
 
     @property
-    def current_input_port(self) -> Optional[str]:
+    def current_input_port(self) -> str | None:
         """Get currently connected input port name."""
         return self._input_manager.current_port
 
     @property
-    def current_output_port(self) -> Optional[str]:
+    def current_output_port(self) -> str | None:
         """Get currently connected output port name."""
         return self._output_manager.current_port
 
@@ -110,10 +110,7 @@ class MidiManager:
         Returns:
             Dictionary with 'input' and 'output' lists of port names
         """
-        return {
-            'input': mido.get_input_names(),
-            'output': mido.get_output_names()
-        }
+        return {"input": mido.get_input_names(), "output": mido.get_output_names()}
 
     def __enter__(self):
         """Context manager entry."""

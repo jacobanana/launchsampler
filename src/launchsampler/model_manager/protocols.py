@@ -8,22 +8,22 @@ This module defines the core protocols and events for the model management syste
 
 from enum import Enum
 from pathlib import Path
-from typing import Generic, Protocol, TypeVar, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
 # Type variable for persistence services
-T = TypeVar('T', bound='BaseModel')
+T = TypeVar("T", bound="BaseModel")
 
 
 class ModelEvent(Enum):
     """Events from model changes (configuration, sets, etc.)."""
 
-    MODEL_LOADED = "model_loaded"    # Model was loaded from disk
-    MODEL_SAVED = "model_saved"      # Model was saved to disk
+    MODEL_LOADED = "model_loaded"  # Model was loaded from disk
+    MODEL_SAVED = "model_saved"  # Model was saved to disk
     MODEL_UPDATED = "model_updated"  # Model value(s) were updated
-    MODEL_RESET = "model_reset"      # Model was reset to defaults
+    MODEL_RESET = "model_reset"  # Model was reset to defaults
 
 
 @runtime_checkable
@@ -59,7 +59,7 @@ class ModelObserver(Protocol):
 
 
 @runtime_checkable
-class PersistenceService(Protocol, Generic[T]):
+class PersistenceService[T: "BaseModel"](Protocol):
     """
     Protocol for services that persist Pydantic models to/from JSON files.
 

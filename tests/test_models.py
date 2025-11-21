@@ -261,7 +261,7 @@ class TestPlaybackMode:
         # Verify all modes have LaunchpadColor values with RGB
         for mode in PlaybackMode:
             assert mode in MODE_COLORS
-            assert hasattr(MODE_COLORS[mode], 'rgb')
+            assert hasattr(MODE_COLORS[mode], "rgb")
             assert isinstance(MODE_COLORS[mode].rgb, Color)
 
 

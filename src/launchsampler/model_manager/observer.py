@@ -6,17 +6,18 @@ need to duplicate observer management code across multiple classes.
 """
 
 import logging
-from typing import Generic, TypeVar, Callable, Optional, Any
+from collections.abc import Callable
 from threading import Lock
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
 # Type variable for the observer protocol
 # Bound to Any to indicate it can be any observer type
-T = TypeVar('T', bound=object)
+T = TypeVar("T", bound=object)
 
 
-class ObserverManager(Generic[T]):
+class ObserverManager[T: object]:
     """
     Generic observer list manager with thread-safe registration and notification.
 
@@ -48,7 +49,7 @@ class ObserverManager(Generic[T]):
         ```
     """
 
-    def __init__(self, lock: Optional[Lock] = None, observer_type_name: str = "observer"):
+    def __init__(self, lock: Lock | None = None, observer_type_name: str = "observer"):
         """
         Initialize the observer manager.
 
@@ -92,7 +93,9 @@ class ObserverManager(Generic[T]):
                 self._observers.remove(observer)
                 logger.debug(f"Unregistered {self._observer_type_name} observer: {observer}")
             else:
-                logger.warning(f"Attempted to unregister unknown {self._observer_type_name} observer: {observer}")
+                logger.warning(
+                    f"Attempted to unregister unknown {self._observer_type_name} observer: {observer}"
+                )
 
     def notify(self, callback_name: str, *args: Any, **kwargs: Any) -> None:
         """
@@ -125,20 +128,16 @@ class ObserverManager(Generic[T]):
             except AttributeError:
                 logger.error(
                     f"{self._observer_type_name} observer {observer} has no method '{callback_name}'",
-                    exc_info=True
+                    exc_info=True,
                 )
             except Exception as e:
                 logger.error(
                     f"Error notifying {self._observer_type_name} observer {observer} via {callback_name}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     def notify_with_filter(
-        self,
-        callback_name: str,
-        filter_fn: Callable[[T], bool],
-        *args: Any,
-        **kwargs: Any
+        self, callback_name: str, filter_fn: Callable[[T], bool], *args: Any, **kwargs: Any
     ) -> None:
         """
         Notify only observers that match the filter predicate.
@@ -174,12 +173,12 @@ class ObserverManager(Generic[T]):
             except AttributeError:
                 logger.error(
                     f"{self._observer_type_name} observer {observer} has no method '{callback_name}'",
-                    exc_info=True
+                    exc_info=True,
                 )
             except Exception as e:
                 logger.error(
                     f"Error notifying {self._observer_type_name} observer {observer} via {callback_name}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
 
     def count(self) -> int:

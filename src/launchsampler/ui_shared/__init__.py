@@ -5,28 +5,28 @@ This package contains shared components used by both TUI and LED UI:
 - adapter: UIAdapter protocol for UI lifecycle management
 """
 
+from .adapter import UIAdapter
 from .colors import (
-    MODE_COLORS,
-    PLAYING_COLOR,
     EMPTY_COLOR,
-    PANIC_BUTTON_COLOR,
-    SELECTED_TUI_CLASS,
     MIDI_ON_TUI_CLASS,
+    MODE_COLORS,
+    PANIC_BUTTON_COLOR,
+    PLAYING_COLOR,
+    SELECTED_TUI_CLASS,
     get_pad_led_color,
     get_pad_led_palette_index,
 )
-from .adapter import UIAdapter
 
 __all__ = [
+    "EMPTY_COLOR",
+    "MIDI_ON_TUI_CLASS",
     # Colors
     "MODE_COLORS",
-    "PLAYING_COLOR",
-    "EMPTY_COLOR",
     "PANIC_BUTTON_COLOR",
+    "PLAYING_COLOR",
     "SELECTED_TUI_CLASS",
-    "MIDI_ON_TUI_CLASS",
-    "get_pad_led_color",
-    "get_pad_led_palette_index",
     # Adapter
     "UIAdapter",
+    "get_pad_led_color",
+    "get_pad_led_palette_index",
 ]

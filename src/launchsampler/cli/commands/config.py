@@ -44,7 +44,7 @@ def validate_audio_device(device_id: int) -> tuple[bool, str | None]:
             return (
                 True,  # Still accept, but warn
                 f"Warning: Device '{device_name}' uses {hostapi_name}. "
-                f"Recommended: {api_names} for low-latency"
+                f"Recommended: {api_names} for low-latency",
             )
         else:
             return True, f"Using device: {device_name} ({hostapi_name})"
@@ -53,7 +53,7 @@ def validate_audio_device(device_id: int) -> tuple[bool, str | None]:
         return (
             False,
             f"Device ID {device_id} not found. "
-            "Use 'launchsampler audio list' to see available devices."
+            "Use 'launchsampler audio list' to see available devices.",
         )
 
 
@@ -64,29 +64,20 @@ builder = ModelCLIBuilder(
     field_overrides={
         "default_audio_device": {
             "short": "a",
-            "help": 'Audio device ID or use "reset --field default_audio_device" for system default'
+            "help": 'Audio device ID or use "reset --field default_audio_device" for system default',
         },
         "default_buffer_size": {
             "short": "b",
-            "help": "Audio buffer size in frames (larger = more stable, higher latency)"
+            "help": "Audio buffer size in frames (larger = more stable, higher latency)",
         },
-        "sets_dir": {
-            "help": "Directory where sample sets are stored"
-        },
-        "midi_poll_interval": {
-            "help": "MIDI polling interval in seconds"
-        },
-        "auto_save": {
-            "help": "Automatically save sets after changes"
-        }
-    }
+        "sets_dir": {"help": "Directory where sample sets are stored"},
+        "midi_poll_interval": {"help": "MIDI polling interval in seconds"},
+        "auto_save": {"help": "Automatically save sets after changes"},
+    },
 )
 
 # Build the config command group
-config = builder.build_group(
-    name="config",
-    help="Configure Launchpad Sampler settings"
-)
+config = builder.build_group(name="config", help="Configure Launchpad Sampler settings")
 
 
 # The config command structure:

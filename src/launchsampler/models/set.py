@@ -3,7 +3,6 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_serializer
 
@@ -24,12 +23,13 @@ class Set(BaseModel):
 
     name: str = Field(description="Set name")
     launchpad: Launchpad = Field(description="Launchpad configuration")
-    samples_root: Optional[Path] = Field(
-        default=None,
-        description="Root directory for sample paths (None = relative to Set file)"
+    samples_root: Path | None = Field(
+        default=None, description="Root directory for sample paths (None = relative to Set file)"
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Creation timestamp")
-    modified_at: datetime = Field(default_factory=datetime.now, description="Last modified timestamp")
+    modified_at: datetime = Field(
+        default_factory=datetime.now, description="Last modified timestamp"
+    )
 
     @field_serializer("created_at", "modified_at")
     def serialize_datetime(self, dt: datetime) -> str:
@@ -37,7 +37,7 @@ class Set(BaseModel):
         return dt.isoformat()
 
     @field_serializer("samples_root")
-    def serialize_samples_root(self, samples_root: Optional[Path]) -> Optional[str]:
+    def serialize_samples_root(self, samples_root: Path | None) -> str | None:
         """Serialize samples_root Path to string using forward slashes for portability."""
         return samples_root.as_posix() if samples_root else None
 
@@ -82,21 +82,16 @@ class Set(BaseModel):
             ValueError: If samples_dir doesn't exist or contains no audio files
         """
         launchpad = Launchpad.from_sample_directory(
-            samples_dir=samples_dir,
-            auto_configure=auto_configure,
-            default_volume=default_volume
+            samples_dir=samples_dir, auto_configure=auto_configure, default_volume=default_volume
         )
 
         return cls(
             name=name,
             launchpad=launchpad,
-            samples_root=samples_dir  # Paths will be relative to this directory
+            samples_root=samples_dir,  # Paths will be relative to this directory
         )
 
     @classmethod
     def create_empty(cls, name: str) -> "Set":
         """Create a new empty set."""
-        return cls(
-            name=name,
-            launchpad=Launchpad.create_empty()
-        )
+        return cls(name=name, launchpad=Launchpad.create_empty())

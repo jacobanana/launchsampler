@@ -1,7 +1,6 @@
 """Set file browser screen for loading saved sets."""
 
 import logging
-from os import path
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -44,7 +43,7 @@ class SetFileBrowserScreen(BaseBrowserScreen):
         Returns:
             True if path is a valid Set file that can be loaded
         """
-        if not (path.exists() and path.is_file() and path.suffix.lower() == '.json'):
+        if not (path.exists() and path.is_file() and path.suffix.lower() == ".json"):
             return False
 
         # Validate it's actually a Set file by trying to load it
@@ -94,13 +93,10 @@ class SetFileBrowserScreen(BaseBrowserScreen):
         """
         if path.is_dir():
             self.notify("Please select a set file, not a directory", severity="warning")
-        elif path.suffix.lower() != '.json':
+        elif path.suffix.lower() != ".json":
             self.notify("Please select a .json set file", severity="error")
         else:
-            self.notify(
-                "Invalid set file - cannot load this file",
-                severity="error"
-            )
+            self.notify("Invalid set file - cannot load this file", severity="error")
 
     def _on_tree_file_selected(self, event) -> None:
         """
@@ -113,7 +109,7 @@ class SetFileBrowserScreen(BaseBrowserScreen):
         logger.info(f"File selected: {file_path}")
 
         # Only auto-select if it's a valid set file
-        if file_path.suffix.lower() == '.json':
+        if file_path.suffix.lower() == ".json":
             logger.info(f"Attempting to load JSON file: {file_path}")
             try:
                 # Try to load metadata
@@ -126,10 +122,7 @@ class SetFileBrowserScreen(BaseBrowserScreen):
                 logger.info(f"Successfully loaded set: {set_obj.name} from {file_path}")
 
                 # Show metadata notification
-                self.notify(
-                    f"{set_obj.name}: {assigned_count} pads, created {created}",
-                    timeout=3
-                )
+                self.notify(f"{set_obj.name}: {assigned_count} pads, created {created}", timeout=3)
 
                 # Auto-select valid set file
                 self._confirm_selection()

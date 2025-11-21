@@ -2,7 +2,8 @@
 
 import logging
 import sys
-from typing import Callable, Optional, Tuple, List, Any
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import sounddevice as sd
@@ -18,12 +19,7 @@ class AudioDevice:
     No application-specific logic - purely generic audio I/O.
     """
 
-    def __init__(
-        self,
-        buffer_size: int = 128,
-        num_channels: int = 2,
-        device: Optional[int] = None
-    ):
+    def __init__(self, buffer_size: int = 128, num_channels: int = 2, device: int | None = None):
         """
         Initialize audio device.
 
@@ -54,9 +50,9 @@ class AudioDevice:
             self.device = None
 
         # Stream state
-        self._stream: Optional[sd.OutputStream] = None
+        self._stream: sd.OutputStream | None = None
         self._is_running = False
-        self._callback: Optional[Callable[[np.ndarray, int], None]] = None
+        self._callback: Callable[[np.ndarray, int], None] | None = None
 
     @staticmethod
     def _get_platform_apis() -> tuple[list[str], str]:
@@ -70,12 +66,12 @@ class AudioDevice:
         Returns:
             Tuple of (api_list, api_names_string)
         """
-        if sys.platform == 'win32':
-            return ['ASIO', 'WASAPI'], "ASIO/WASAPI"
-        elif sys.platform == 'darwin':
-            return ['Core Audio'], "Core Audio"
+        if sys.platform == "win32":
+            return ["ASIO", "WASAPI"], "ASIO/WASAPI"
+        elif sys.platform == "darwin":
+            return ["Core Audio"], "Core Audio"
         else:
-            return ['ALSA', 'JACK'], "ALSA/JACK"
+            return ["ALSA", "JACK"], "ALSA/JACK"
 
     @staticmethod
     def _is_valid_device(device_id: int) -> tuple[bool, str, str]:
@@ -93,9 +89,9 @@ class AudioDevice:
         """
         try:
             device_info = sd.query_devices(device_id)
-            hostapi_info = sd.query_hostapis(device_info['hostapi'])
-            hostapi_name = hostapi_info['name']
-            device_name = device_info['name']
+            hostapi_info = sd.query_hostapis(device_info["hostapi"])
+            hostapi_name = hostapi_info["name"]
+            device_name = device_info["name"]
 
             low_latency_apis, _ = AudioDevice._get_platform_apis()
             is_valid = any(api in hostapi_name for api in low_latency_apis)
@@ -163,7 +159,6 @@ class AudioDevice:
 
         # Try to start the stream
         self._start_stream(stream_kwargs)
-
 
     def stop(self) -> None:
         """Stop audio stream."""
@@ -235,27 +230,29 @@ class AudioDevice:
     def _log_device_info(self, device_id: int) -> None:
         """Log details about the chosen audio device."""
         device_info = sd.query_devices(device_id)
-        hostapi_info = sd.query_hostapis(device_info['hostapi'])
+        hostapi_info = sd.query_hostapis(device_info["hostapi"])
         logger.info(f"Audio device: {device_info['name']}")
         logger.info(f"  Host API: {hostapi_info['name']}")
         logger.info(f"  Max output channels: {device_info['max_output_channels']}")
         logger.info(f"  Default sample rate: {device_info['default_samplerate']} Hz")
-        logger.info(f"  Default low latency: {device_info['default_low_output_latency']*1000:.1f}ms")
+        logger.info(
+            f"  Default low latency: {device_info['default_low_output_latency'] * 1000:.1f}ms"
+        )
 
     def _get_stream_config(self, device_id: int) -> dict:
         """Return appropriate stream configuration for the platform/device."""
-        hostapi_name = sd.query_hostapis(sd.query_devices(device_id)['hostapi'])['name']
-        is_asio = 'ASIO' in hostapi_name
-        is_wasapi = 'WASAPI' in hostapi_name
+        hostapi_name = sd.query_hostapis(sd.query_devices(device_id)["hostapi"])["name"]
+        is_asio = "ASIO" in hostapi_name
+        is_wasapi = "WASAPI" in hostapi_name
 
-        base_config = dict(
-            samplerate=self.sample_rate,
-            blocksize=self.buffer_size,
-            channels=self.num_channels,
-            device=device_id,
-            dtype=np.float32,
-            callback=self._audio_callback,
-        )
+        base_config = {
+            "samplerate": self.sample_rate,
+            "blocksize": self.buffer_size,
+            "channels": self.num_channels,
+            "device": device_id,
+            "dtype": np.float32,
+            "callback": self._audio_callback,
+        }
 
         # ASIO devices
         if is_asio:
@@ -263,10 +260,10 @@ class AudioDevice:
             return base_config
 
         # WASAPI exclusive mode if available (Windows only)
-        if is_wasapi and hasattr(sd, 'WasapiSettings'):
+        if is_wasapi and hasattr(sd, "WasapiSettings"):
             try:
-                base_config['extra_settings'] = sd.WasapiSettings(exclusive=True)
-                base_config['prime_output_buffers_using_stream_callback'] = False
+                base_config["extra_settings"] = sd.WasapiSettings(exclusive=True)
+                base_config["prime_output_buffers_using_stream_callback"] = False
                 logger.debug("Using WASAPI exclusive mode configuration")
                 return base_config
             except sd.PortAudioError:
@@ -294,14 +291,7 @@ class AudioDevice:
             # Convert to our custom exception with user-friendly message
             raise wrap_audio_device_error(e, device_id=self.device) from e
 
-
-    def _audio_callback(
-        self,
-        outdata: np.ndarray,
-        frames: int,
-        time_info,
-        status
-    ) -> None:
+    def _audio_callback(self, outdata: np.ndarray, frames: int, time_info, status) -> None:
         """
         Internal audio callback called by sounddevice.
 
@@ -327,16 +317,16 @@ class AudioDevice:
         if self._stream:
             return self._stream.latency
         return 0.0
-    
+
     @property
     def sample_rate(self) -> int:
         """Get current sample rate from the device."""
         if self.device is not None:
-            return int(sd.query_devices(self.device)['default_samplerate'])
+            return int(sd.query_devices(self.device)["default_samplerate"])
         else:
             # Get default output device sample rate
             default_device_id = sd.default.device[1]  # Output device
-            return int(sd.query_devices(default_device_id)['default_samplerate'])
+            return int(sd.query_devices(default_device_id)["default_samplerate"])
 
     @property
     def device_name(self) -> str:
@@ -344,7 +334,7 @@ class AudioDevice:
         try:
             if self.device is not None:
                 device_info = sd.query_devices(self.device)
-                return device_info['name']
+                return device_info["name"]
             else:
                 # Using default device
                 default_device = sd.default.device[1]  # [input, output]
@@ -356,7 +346,9 @@ class AudioDevice:
             return "Unknown Device"
 
     @staticmethod
-    def list_output_devices(all_devices: bool = False) -> Tuple[List[Tuple[int, str, str, Any]], str]:
+    def list_output_devices(
+        all_devices: bool = False,
+    ) -> tuple[list[tuple[int, str, str, Any]], str]:
         """
         List available audio output devices.
 
@@ -379,17 +371,17 @@ class AudioDevice:
         available_devices = []
 
         for i, device in enumerate(devices):
-            if device['max_output_channels'] > 0:
-                hostapi = hostapis[device['hostapi']]
-                hostapi_name = hostapi['name']
+            if device["max_output_channels"] > 0:
+                hostapi = hostapis[device["hostapi"]]
+                hostapi_name = hostapi["name"]
 
                 if all_devices or any(api in hostapi_name for api in low_latency_apis):
-                    available_devices.append((i, device['name'], hostapi_name, device))
+                    available_devices.append((i, device["name"], hostapi_name, device))
 
         return available_devices, api_names
 
     @staticmethod
-    def get_devices_by_host_api(all_devices: bool = False) -> dict[str, List[Tuple[int, str, Any]]]:
+    def get_devices_by_host_api(all_devices: bool = False) -> dict[str, list[tuple[int, str, Any]]]:
         """
         Get audio output devices grouped by host API.
 
@@ -426,7 +418,7 @@ class AudioDevice:
         return sd.default.device[1]  # Output device
 
     @staticmethod
-    def get_all_host_apis() -> List[dict]:
+    def get_all_host_apis() -> list[dict]:
         """
         Get all available host APIs.
 

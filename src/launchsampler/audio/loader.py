@@ -1,7 +1,6 @@
 """Sample loader for loading audio files."""
 
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import soundfile as sf
@@ -16,7 +15,7 @@ class SampleLoader:
     Handles WAV, FLAC, OGG, and other formats supported by soundfile.
     """
 
-    def __init__(self, target_sample_rate: Optional[int] = None):
+    def __init__(self, target_sample_rate: int | None = None):
         """
         Initialize sample loader.
 
@@ -48,7 +47,7 @@ class SampleLoader:
             info = sf.info(str(path))
 
             # Load audio file
-            data, sample_rate = sf.read(str(path), dtype='float32')
+            data, sample_rate = sf.read(str(path), dtype="float32")
 
             # Handle empty files
             if len(data) == 0:
@@ -68,12 +67,7 @@ class SampleLoader:
         except Exception as e:
             raise RuntimeError(f"Failed to load audio file {path}: {e}") from e
 
-    def _resample(
-        self,
-        data: np.ndarray,
-        orig_sr: int,
-        target_sr: int
-    ) -> np.ndarray:
+    def _resample(self, data: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
         """
         Simple linear resampling.
 
@@ -130,10 +124,10 @@ class SampleLoader:
 
         info = sf.info(str(path))
         return {
-            'sample_rate': info.samplerate,
-            'channels': info.channels,
-            'frames': info.frames,
-            'duration': info.duration,
-            'format': info.format,
-            'subtype': info.subtype,
+            "sample_rate": info.samplerate,
+            "channels": info.channels,
+            "frames": info.frames,
+            "duration": info.duration,
+            "format": info.format,
+            "subtype": info.subtype,
         }

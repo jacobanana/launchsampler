@@ -1,10 +1,8 @@
 """Unit tests for SetManagerService."""
 
-from pathlib import Path
-
 import pytest
 
-from launchsampler.models import AppConfig, Launchpad, Set, Sample, PlaybackMode
+from launchsampler.models import AppConfig, Launchpad, PlaybackMode, Sample, Set
 from launchsampler.services import SetManagerService
 
 
@@ -80,6 +78,7 @@ class TestSetManagerServiceLoad:
 
         # Copy sample to directory
         import shutil
+
         shutil.copy2(sample_audio_file, samples_dir / sample_audio_file.name)
 
         # Create from directory
@@ -102,6 +101,7 @@ class TestSetManagerServiceLoad:
         samples_dir.mkdir()
 
         import shutil
+
         shutil.copy2(sample_audio_file, samples_dir / sample_audio_file.name)
 
         loaded = service.create_from_directory(samples_dir)

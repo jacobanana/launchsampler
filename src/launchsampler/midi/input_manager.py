@@ -1,7 +1,7 @@
 """Generic MIDI input manager with hot-plug support."""
 
 import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import mido
 
@@ -22,7 +22,7 @@ class MidiInputManager(BaseMidiManager[mido.ports.BaseInput]):
         self,
         device_filter: Callable[[str], bool],
         poll_interval: float = 5.0,
-        port_selector: Optional[Callable[[list[str]], Optional[str]]] = None
+        port_selector: Callable[[list[str]], str | None] | None = None,
     ):
         """
         Initialize MIDI input manager.
@@ -34,7 +34,7 @@ class MidiInputManager(BaseMidiManager[mido.ports.BaseInput]):
                           If None, selects first matching port.
         """
         super().__init__(device_filter, poll_interval, port_selector)
-        self._message_callback: Optional[Callable[[mido.Message], None]] = None
+        self._message_callback: Callable[[mido.Message], None] | None = None
 
     def on_message(self, callback: Callable[[mido.Message], None]) -> None:
         """

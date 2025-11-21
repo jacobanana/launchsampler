@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pydantic import BaseModel, Field, field_validator, field_serializer
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class Sample(BaseModel):
@@ -27,10 +27,7 @@ class Sample(BaseModel):
     @classmethod
     def from_file(cls, path: Path) -> "Sample":
         """Create Sample from file path."""
-        return cls(
-            name=path.stem,
-            path=path
-        )
+        return cls(name=path.stem, path=path)
 
     def exists(self) -> bool:
         """Check if the audio file exists."""

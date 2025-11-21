@@ -68,36 +68,36 @@ raise ConfigValidationError(
 See `launchsampler.exceptions.handlers` for utilities to handle these exceptions systematically.
 """
 
-from .base import LaunchSamplerError
 from .audio import AudioDeviceError, AudioDeviceInUseError, AudioDeviceNotFoundError
-from .config import ConfigurationError, ConfigFileInvalidError, ConfigValidationError
+from .base import LaunchSamplerError
+from .config import ConfigFileInvalidError, ConfigurationError, ConfigValidationError
 from .handlers import (
-    handle_errors,
-    ErrorContext,
     ErrorCollector,
-    wrap_pydantic_error,
-    wrap_audio_device_error,
-    format_error_for_display,
+    ErrorContext,
     collect_errors,
+    format_error_for_display,
+    handle_errors,
+    wrap_audio_device_error,
+    wrap_pydantic_error,
 )
 
 __all__ = [
-    # Base
-    "LaunchSamplerError",
     # Audio
     "AudioDeviceError",
     "AudioDeviceInUseError",
     "AudioDeviceNotFoundError",
-    # Config
-    "ConfigurationError",
     "ConfigFileInvalidError",
     "ConfigValidationError",
+    # Config
+    "ConfigurationError",
+    "ErrorCollector",
+    "ErrorContext",
+    # Base
+    "LaunchSamplerError",
+    "collect_errors",
+    "format_error_for_display",
     # Handlers
     "handle_errors",
-    "ErrorContext",
-    "ErrorCollector",
-    "wrap_pydantic_error",
     "wrap_audio_device_error",
-    "format_error_for_display",
-    "collect_errors",
+    "wrap_pydantic_error",
 ]

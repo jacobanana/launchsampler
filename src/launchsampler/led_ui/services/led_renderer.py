@@ -1,11 +1,11 @@
 """LED rendering logic for Launchpad hardware."""
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from launchsampler.devices import DeviceController
 from launchsampler.models import Color
-from launchsampler.ui_shared import get_pad_led_color, get_pad_led_palette_index, PANIC_BUTTON_COLOR
+from launchsampler.ui_shared import PANIC_BUTTON_COLOR, get_pad_led_color, get_pad_led_palette_index
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -28,7 +28,7 @@ class LEDRenderer:
     - Set panic button LED
     """
 
-    def __init__(self, controller: Optional[DeviceController]):
+    def __init__(self, controller: DeviceController | None):
         """
         Initialize the LED renderer.
 

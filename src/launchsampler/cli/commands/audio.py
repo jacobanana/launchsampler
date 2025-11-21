@@ -15,8 +15,8 @@ def _display_device_details(info: dict, indent: str = "    ") -> None:
     """Display device details with specified indentation."""
     click.echo(f"{indent}Channels: {info['max_output_channels']} out")
     click.echo(f"{indent}Sample Rate: {info['default_samplerate']} Hz")
-    if 'default_low_output_latency' in info:
-        latency_ms = info['default_low_output_latency'] * 1000
+    if "default_low_output_latency" in info:
+        latency_ms = info["default_low_output_latency"] * 1000
         click.echo(f"{indent}Latency: {latency_ms:.1f} ms")
     click.echo("")
 
@@ -36,7 +36,7 @@ def list_audio(all: bool, detailed: bool):
         hostapis = AudioDevice.get_all_host_apis()
         click.echo("Available Audio APIs:")
         for api in hostapis:
-            is_default = any(d[2] == api['name'] for d in devices if d[0] == default_device_id)
+            is_default = any(d[2] == api["name"] for d in devices if d[0] == default_device_id)
             if is_default:
                 click.echo(f"  - {api['name']} (default)")
             else:

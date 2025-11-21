@@ -80,27 +80,26 @@ cli.add_command(config_group)
 """
 
 # Core service
-from launchsampler.model_manager.service import ModelManagerService
+# Observer pattern
+from launchsampler.model_manager.observer import ObserverManager
 
 # Persistence
 from launchsampler.model_manager.persistence import PydanticPersistence
-
-# Observer pattern
-from launchsampler.model_manager.observer import ObserverManager
 from launchsampler.model_manager.protocols import (
     ModelEvent,
     ModelObserver,
     PersistenceService,
 )
+from launchsampler.model_manager.service import ModelManagerService
 
 __all__ = [
+    "ModelEvent",
     # Core service
     "ModelManagerService",
-    # Persistence
-    "PydanticPersistence",
+    "ModelObserver",
     # Observer pattern
     "ObserverManager",
-    "ModelEvent",
-    "ModelObserver",
     "PersistenceService",
+    # Persistence
+    "PydanticPersistence",
 ]

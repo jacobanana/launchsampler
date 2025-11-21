@@ -1,7 +1,7 @@
 """Tests for MIDI controller."""
 
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -15,7 +15,7 @@ class TestDeviceController:
 
     def test_observer_registration(self):
         """Test observer registration."""
-        from launchsampler.protocols import MidiObserver, MidiEvent
+        from launchsampler.protocols import MidiObserver
 
         controller = DeviceController()
         observer = Mock(spec=MidiObserver)
@@ -26,8 +26,8 @@ class TestDeviceController:
         controller.unregister_observer(observer)
         assert observer not in controller._observers
 
-    @patch('launchsampler.midi.input_manager.mido.get_input_names')
-    @patch('launchsampler.midi.output_manager.mido.get_output_names')
+    @patch("launchsampler.midi.input_manager.mido.get_input_names")
+    @patch("launchsampler.midi.output_manager.mido.get_output_names")
     def test_start_stop(self, mock_get_output, mock_get_input):
         """Test starting and stopping controller."""
         mock_get_input.return_value = []
@@ -43,8 +43,8 @@ class TestDeviceController:
         # Stop
         controller.stop()
 
-    @patch('launchsampler.midi.input_manager.mido.get_input_names')
-    @patch('launchsampler.midi.output_manager.mido.get_output_names')
+    @patch("launchsampler.midi.input_manager.mido.get_input_names")
+    @patch("launchsampler.midi.output_manager.mido.get_output_names")
     def test_context_manager(self, mock_get_output, mock_get_input):
         """Test context manager usage."""
         mock_get_input.return_value = []
@@ -77,7 +77,11 @@ class TestDeviceController:
         mock_device.output = mock_output
         controller._device = mock_device
 
-        updates = [(0, Color(r=127, g=0, b=0)), (5, Color(r=0, g=127, b=0)), (10, Color(r=0, g=0, b=127))]
+        updates = [
+            (0, Color(r=127, g=0, b=0)),
+            (5, Color(r=0, g=127, b=0)),
+            (10, Color(r=0, g=0, b=127)),
+        ]
 
         # Should delegate to device output
         result = controller.set_leds_bulk(updates)

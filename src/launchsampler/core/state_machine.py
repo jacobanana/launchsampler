@@ -2,10 +2,9 @@
 
 import logging
 from threading import Lock
-from typing import Optional
 
-from launchsampler.protocols import PlaybackEvent, StateObserver
 from launchsampler.model_manager import ObserverManager
+from launchsampler.protocols import PlaybackEvent, StateObserver
 
 logger = logging.getLogger(__name__)
 
@@ -142,4 +141,4 @@ class SamplerStateMachine:
             to safely query the state machine (e.g., is_pad_playing, get_playing_pads)
             during event handling. ObserverManager handles exception catching and logging automatically.
         """
-        self._observers.notify('on_playback_event', event, pad_index)
+        self._observers.notify("on_playback_event", event, pad_index)

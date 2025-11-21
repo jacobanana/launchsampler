@@ -9,6 +9,6 @@ from .core import SamplerEngine
 from .devices import DeviceController
 
 __all__ = [
-    "SamplerEngine",
     "DeviceController",
+    "SamplerEngine",
 ]

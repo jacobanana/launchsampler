@@ -9,18 +9,24 @@ This can be used in:
 - Test environment
 """
 
-from typing import Optional, Callable
-from pathlib import Path
 import logging
+from collections.abc import Callable
+from typing import Optional
 
 from launchsampler.audio import AudioDevice
 from launchsampler.audio.data import AudioData
 from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.core.state_machine import SamplerStateMachine
-from launchsampler.devices import DeviceController
-from launchsampler.models import AppConfig, Set, PlaybackMode
-from launchsampler.protocols import PlaybackEvent, StateObserver, EditEvent, EditObserver, MidiEvent, MidiObserver
 from launchsampler.model_manager import ObserverManager
+from launchsampler.models import AppConfig, PlaybackMode, Set
+from launchsampler.protocols import (
+    EditEvent,
+    EditObserver,
+    MidiEvent,
+    MidiObserver,
+    PlaybackEvent,
+    StateObserver,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +58,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
     - File browsing
     """
 
-    def __init__(self, config: AppConfig, state_machine: Optional[SamplerStateMachine] = None):
+    def __init__(self, config: AppConfig, state_machine: SamplerStateMachine | None = None):
         """
         Initialize player.
 
@@ -62,31 +68,31 @@ class Player(StateObserver, EditObserver, MidiObserver):
                           If None, creates a new instance (for backward compatibility).
         """
         self.config = config
-        self.current_set: Optional[Set] = None
+        self.current_set: Set | None = None
 
         # State machine (injected or created)
         self._state_machine = state_machine or SamplerStateMachine()
 
         # Audio components
-        self._audio_device: Optional[AudioDevice] = None
-        self._engine: Optional[SamplerEngine] = None
+        self._audio_device: AudioDevice | None = None
+        self._engine: SamplerEngine | None = None
 
         # Callbacks for external notification (deprecated - use register_state_observer)
-        self._on_playback_change: Optional[Callable[[PlaybackEvent, int], None]] = None
+        self._on_playback_change: Callable[[PlaybackEvent, int], None] | None = None
 
         # State observers (multiple observers supported)
         self._state_observers = ObserverManager[StateObserver](observer_type_name="state")
 
         # State
         self._is_running = False
-        self._last_error: Optional[Exception] = None
+        self._last_error: Exception | None = None
         logger.info("Player initialized")
 
     # =================================================================
     # Lifecycle
     # =================================================================
 
-    def start(self, initial_set: Optional[Set] = None) -> bool:
+    def start(self, initial_set: Set | None = None) -> bool:
         """
         Start player (audio only - MIDI is managed by orchestrator).
 
@@ -136,15 +142,14 @@ class Player(StateObserver, EditObserver, MidiObserver):
         try:
             # Create audio device
             self._audio_device = AudioDevice(
-                device=self.config.default_audio_device,
-                buffer_size=self.config.default_buffer_size
+                device=self.config.default_audio_device, buffer_size=self.config.default_buffer_size
             )
 
             # Create engine with injected state machine
             self._engine = SamplerEngine(
                 audio_device=self._audio_device,
                 num_pads=64,  # Standard grid size for Launchpad devices
-                state_machine=self._state_machine
+                state_machine=self._state_machine,
             )
 
             # Register as observer
@@ -174,7 +179,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
         self._audio_device = None
         logger.info("Audio engine stopped")
 
-
     # =================================================================
     # Set Management
     # =================================================================
@@ -192,7 +196,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
         if self._engine and self._is_running:
             self._load_set_into_engine(set_obj)
 
-        logger.info(f"Loaded set: {set_obj.name} with {len(set_obj.launchpad.assigned_pads)} samples")
+        logger.info(
+            f"Loaded set: {set_obj.name} with {len(set_obj.launchpad.assigned_pads)} samples"
+        )
 
     def _load_set_into_engine(self, set_obj: Set) -> None:
         """Load all pads from set into audio engine."""
@@ -201,9 +207,8 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
         loaded_count = 0
         for pad_index, pad in enumerate(set_obj.launchpad.pads):
-            if pad.is_assigned:
-                if self._engine.load_sample(pad_index, pad):
-                    loaded_count += 1
+            if pad.is_assigned and self._engine.load_sample(pad_index, pad):
+                loaded_count += 1
 
         logger.info(f"Loaded {loaded_count} samples into engine")
 
@@ -260,7 +265,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
     # MidiObserver Protocol
     # =================================================================
 
-    def on_midi_event(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0) -> None:
+    def on_midi_event(
+        self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0
+    ) -> None:
         """
         Handle MIDI events from controller.
 
@@ -279,7 +286,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
                 if pad.is_assigned:
                     self.trigger_pad(pad_index)
             else:
-                logger.warning(f"MIDI NOTE_ON received but cannot trigger: current_set={self.current_set is not None}, pad_index={pad_index}")
+                logger.warning(
+                    f"MIDI NOTE_ON received but cannot trigger: current_set={self.current_set is not None}, pad_index={pad_index}"
+                )
 
         elif event == MidiEvent.NOTE_OFF:
             # MIDI pad released - release audio if mode supports it
@@ -290,9 +299,13 @@ class Player(StateObserver, EditObserver, MidiObserver):
 
         elif event == MidiEvent.CONTROL_CHANGE:
             # Handle panic button (stop all audio)
-            if (control == self.config.panic_button_cc_control and
-                value == self.config.panic_button_cc_value):
-                logger.info(f"Panic button triggered via MIDI CC (control={control}, value={value})")
+            if (
+                control == self.config.panic_button_cc_control
+                and value == self.config.panic_button_cc_value
+            ):
+                logger.info(
+                    f"Panic button triggered via MIDI CC (control={control}, value={value})"
+                )
                 self.stop_all()
 
         # Connection events don't require action from Player
@@ -313,18 +326,13 @@ class Player(StateObserver, EditObserver, MidiObserver):
             self._on_playback_change(event, pad_index)
 
         # Notify all state observers
-        self._state_observers.notify('on_playback_event', event, pad_index)
+        self._state_observers.notify("on_playback_event", event, pad_index)
 
     # =================================================================
     # EditObserver Protocol
     # =================================================================
 
-    def on_edit_event(
-        self,
-        event: EditEvent,
-        pad_indices: list[int],
-        pads: list
-    ) -> None:
+    def on_edit_event(self, event: EditEvent, pad_indices: list[int], pads: list) -> None:
         """
         Handle editing events and sync audio engine.
 
@@ -343,23 +351,25 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """
         if not self._engine:
             return
-        
+
         logger.debug(f"Player received edit event: {event.value} for pads {pad_indices}")
-        
-        for pad_index, pad in zip(pad_indices, pads):
+
+        for pad_index, pad in zip(pad_indices, pads, strict=False):
             if event in (
                 EditEvent.PAD_ASSIGNED,
                 EditEvent.PAD_DUPLICATED,
-                EditEvent.PAD_MODE_CHANGED
+                EditEvent.PAD_MODE_CHANGED,
             ):
                 # Reload sample into engine
                 if pad.is_assigned:
-                    logger.info(f"Loading sample '{pad.sample.name}' into pad {pad_index} (event: {event.value})")
+                    logger.info(
+                        f"Loading sample '{pad.sample.name}' into pad {pad_index} (event: {event.value})"
+                    )
                     self._engine.load_sample(pad_index, pad)
                 else:
                     logger.info(f"Unloading pad {pad_index} (event: {event.value})")
                     self._engine.unload_sample(pad_index)
-            
+
             elif event == EditEvent.PAD_MOVED:
                 # For moves, reload both pads (source and target)
                 if pad.is_assigned:
@@ -368,23 +378,23 @@ class Player(StateObserver, EditObserver, MidiObserver):
                 else:
                     logger.info(f"Unloading pad {pad_index} (moved)")
                     self._engine.unload_sample(pad_index)
-            
+
             elif event == EditEvent.PAD_CLEARED:
                 # Unload sample
                 logger.info(f"Unloading pad {pad_index} (cleared)")
                 self._engine.unload_sample(pad_index)
-            
+
             elif event == EditEvent.PAD_VOLUME_CHANGED:
                 # Update volume without reloading (more efficient)
                 logger.debug(f"Updating volume for pad {pad_index} to {pad.volume}")
                 self._engine.update_pad_volume(pad_index, pad.volume)
-            
+
             elif event == EditEvent.PADS_CLEARED:
                 # Multiple pads cleared - reload each
                 logger.info(f"Unloading multiple pads: {pad_indices}")
-                for idx, p in zip(pad_indices, pads):
+                for idx, _p in zip(pad_indices, pads, strict=False):
                     self._engine.unload_sample(idx)
-            
+
             # Note: PAD_NAME_CHANGED doesn't affect audio, no action needed
 
     # =================================================================
@@ -409,7 +419,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """
         self._state_observers.unregister(observer)
 
-
     def set_playback_callback(self, callback: Callable[[PlaybackEvent, int], None]) -> None:
         """
         Register callback for playback events (DEPRECATED).
@@ -429,7 +438,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
     def is_running(self) -> bool:
         """Check if player is running."""
         return self._is_running
-
 
     @property
     def active_voices(self) -> int:
@@ -467,7 +475,7 @@ class Player(StateObserver, EditObserver, MidiObserver):
         """
         return self._engine.get_playing_pads() if self._engine else []
 
-    def get_audio_data(self, pad_index: int) -> Optional[AudioData]:
+    def get_audio_data(self, pad_index: int) -> AudioData | None:
         """
         Get audio waveform data for a pad (for visualization).
 

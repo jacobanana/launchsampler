@@ -14,7 +14,7 @@ class FileBrowserScreen(BaseBrowserScreen):
     dismisses when an audio file is chosen.
     """
 
-    AUDIO_EXTENSIONS = {'.wav', '.mp3', '.flac', '.ogg', '.aiff'}
+    AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".aiff"}
 
     def _is_valid_selection(self, path: Path) -> bool:
         """
@@ -26,11 +26,7 @@ class FileBrowserScreen(BaseBrowserScreen):
         Returns:
             True if path is an existing audio file
         """
-        return (
-            path.exists() 
-            and path.is_file() 
-            and path.suffix.lower() in self.AUDIO_EXTENSIONS
-        )
+        return path.exists() and path.is_file() and path.suffix.lower() in self.AUDIO_EXTENSIONS
 
     def _get_selection_value(self) -> Path:
         """
@@ -74,6 +70,6 @@ class FileBrowserScreen(BaseBrowserScreen):
             self.notify("Please select a file, not a directory", severity="warning")
         else:
             self.notify(
-                f"Not an audio file - please select .wav, .mp3, .flac, .ogg, or .aiff",
-                severity="error"
+                "Not an audio file - please select .wav, .mp3, .flac, .ogg, or .aiff",
+                severity="error",
             )

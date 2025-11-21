@@ -1,15 +1,14 @@
 """Unit tests for ModelManagerService."""
 
 from pathlib import Path
-from unittest.mock import Mock
 from threading import Thread
-from typing import Optional
+from unittest.mock import Mock
 
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
+from launchsampler.model_manager import ModelEvent, ModelManagerService, ModelObserver
 from launchsampler.models import AppConfig
-from launchsampler.model_manager import ModelEvent, ModelObserver, ModelManagerService
 
 
 # Test configuration model (renamed to avoid pytest collection warning)
@@ -20,7 +19,7 @@ class SampleConfig(BaseModel):
     int_field: int = 42
     float_field: float = 3.14
     bool_field: bool = True
-    optional_field: Optional[str] = None
+    optional_field: str | None = None
     path_field: Path = Field(default_factory=lambda: Path("/tmp/test"))
 
 
@@ -149,11 +148,7 @@ class TestModelManagerServiceMutation:
         """Test batch updating multiple fields."""
         service.register_observer(mock_observer)
 
-        updates = {
-            "string_field": "batch_updated",
-            "int_field": 777,
-            "bool_field": False
-        }
+        updates = {"string_field": "batch_updated", "int_field": 777, "bool_field": False}
         service.update(updates)
 
         assert service.get("string_field") == "batch_updated"
@@ -264,7 +259,9 @@ class TestModelManagerServicePersistence:
 
         # Create new service and load
         new_config = SampleConfig()
-        new_service = ModelManagerService[SampleConfig](SampleConfig, new_config, temp_dir / "config.json")
+        new_service = ModelManagerService[SampleConfig](
+            SampleConfig, new_config, temp_dir / "config.json"
+        )
         new_service.register_observer(mock_observer)
         new_service.load()
 
@@ -431,6 +428,7 @@ class TestModelManagerServiceThreadSafety:
     @pytest.mark.unit
     def test_concurrent_writes(self, service):
         """Test concurrent writes are safe (no data corruption)."""
+
         def write_config(value):
             for _ in range(50):
                 service.set("int_field", value)
@@ -458,10 +456,9 @@ class TestModelManagerServiceThreadSafety:
             for _ in range(50):
                 service.set("int_field", value)
 
-        threads = (
-            [Thread(target=reader) for _ in range(5)] +
-            [Thread(target=writer, args=(i,)) for i in range(5)]
-        )
+        threads = [Thread(target=reader) for _ in range(5)] + [
+            Thread(target=writer, args=(i,)) for i in range(5)
+        ]
 
         for t in threads:
             t.start()
@@ -483,11 +480,7 @@ class TestModelManagerServiceWithAppConfig:
     @pytest.fixture
     def service(self, app_config, temp_dir):
         """Create a ModelManagerService for AppConfig."""
-        return ModelManagerService[AppConfig](
-            AppConfig,
-            app_config,
-            temp_dir / "app_config.json"
-        )
+        return ModelManagerService[AppConfig](AppConfig, app_config, temp_dir / "app_config.json")
 
     @pytest.mark.unit
     def test_get_appconfig_fields(self, service):
@@ -517,11 +510,7 @@ class TestModelManagerServiceWithAppConfig:
 
         # Load in new service
         new_config = AppConfig()
-        new_service = ModelManagerService[AppConfig](
-            AppConfig,
-            new_config,
-            service._default_path
-        )
+        new_service = ModelManagerService[AppConfig](AppConfig, new_config, service._default_path)
         new_service.load()
 
         assert new_service.get("auto_save") is False

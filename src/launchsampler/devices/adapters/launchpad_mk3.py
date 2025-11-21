@@ -80,11 +80,12 @@ If Novation releases an MK4 with different layout, create a new mapper class.
 """
 
 import logging
-from typing import Tuple, Optional, List
-from launchsampler.models import Color
+
+from launchsampler.devices.config import DeviceConfig
 from launchsampler.devices.protocols import DeviceOutput
 from launchsampler.midi import MidiManager
-from launchsampler.devices.config import DeviceConfig
+from launchsampler.models import Color
+
 from .launchpad_sysex import LaunchpadSysEx, LightingMode
 
 logger = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ class LaunchpadMK3Mapper:
         self.offset = self.PROGRAMMER_MODE_OFFSET
         self.row_spacing = self.PROGRAMMER_MODE_ROW_SPACING
 
-    def note_to_index(self, note: int) -> Optional[int]:
+    def note_to_index(self, note: int) -> int | None:
         """
         Convert MIDI note to logical pad index (0-63).
 
@@ -132,7 +133,7 @@ class LaunchpadMK3Mapper:
 
         return y * 8 + x
 
-    def note_to_xy(self, note: int) -> Tuple[Optional[int], Optional[int]]:
+    def note_to_xy(self, note: int) -> tuple[int | None, int | None]:
         """
         Convert MIDI note to (x, y) coordinates.
 
@@ -154,7 +155,7 @@ class LaunchpadMK3Mapper:
 
         return (col, row)
 
-    def index_to_note(self, index: int) -> Optional[int]:
+    def index_to_note(self, index: int) -> int | None:
         """
         Convert logical pad index to MIDI note.
 
@@ -172,7 +173,7 @@ class LaunchpadMK3Mapper:
 
         return self.xy_to_note(col, row)
 
-    def xy_to_note(self, x: int, y: int) -> Optional[int]:
+    def xy_to_note(self, x: int, y: int) -> int | None:
         """
         Convert (x, y) coordinates to MIDI note.
 
@@ -257,7 +258,7 @@ class LaunchpadMK3Output(DeviceOutput):
         if not self.midi.send(msg):
             logger.warning(f"Failed to set LED {index} (note {note})")
 
-    def set_leds_bulk(self, updates: List[Tuple[int, Color]]) -> None:
+    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> None:
         """
         Set multiple LEDs efficiently.
 

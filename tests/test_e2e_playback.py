@@ -4,33 +4,28 @@ Tests the complete playback pipeline from sample loading through audio output.
 These tests verify that all components work together correctly.
 """
 
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import pytest
-import numpy as np
+from unittest.mock import Mock, patch
 
+import pytest
+
+from launchsampler.models import AppConfig, PlaybackMode
 from launchsampler.orchestration import Orchestrator
-from launchsampler.models import AppConfig, Set, Sample, PlaybackMode, Color
 from launchsampler.protocols import MidiEvent
 
 
 @pytest.fixture
 def config():
     """Create test configuration."""
-    return AppConfig(
-        default_audio_device=None,
-        default_buffer_size=256,
-        midi_poll_interval=5.0
-    )
+    return AppConfig(default_audio_device=None, default_buffer_size=256, midi_poll_interval=5.0)
 
 
 @pytest.mark.integration
 class TestCompletePlaybackFlow:
     """Test complete playback pipeline from load to audio output."""
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_load_sample_assign_trigger_plays(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -68,9 +63,9 @@ class TestCompletePlaybackFlow:
         # (it plays to completion)
         assert app.state_machine.is_pad_playing(pad_id)
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_playback_mode_one_shot(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -102,9 +97,9 @@ class TestCompletePlaybackFlow:
         # Still playing
         assert app.state_machine.is_pad_playing(0)
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_playback_mode_hold(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -137,9 +132,9 @@ class TestCompletePlaybackFlow:
         # Should have stopped
         assert not app.state_machine.is_pad_playing(0)
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_playback_mode_loop(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -176,9 +171,9 @@ class TestCompletePlaybackFlow:
 class TestMultipleSamplePlayback:
     """Test playing multiple samples simultaneously."""
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_multiple_pads_play_simultaneously(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -209,9 +204,9 @@ class TestMultipleSamplePlayback:
         assert app.state_machine.is_pad_playing(1)
         assert app.state_machine.is_pad_playing(2)
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_retriggering_pad_restarts_playback(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -251,9 +246,9 @@ class TestMultipleSamplePlayback:
 class TestModeSwitching:
     """Test switching between edit and play modes."""
 
-    @patch('launchsampler.core.sampler_engine.SamplerEngine.load_sample', return_value=True)
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.sampler_engine.SamplerEngine.load_sample", return_value=True)
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_switching_to_edit_mode_stops_playback(
         self, mock_audio_device, mock_controller, mock_load_sample, config, sample_audio_file
     ):
@@ -283,8 +278,8 @@ class TestModeSwitching:
         # Playback should have stopped
         assert not app.state_machine.is_pad_playing(0)
 
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_edit_mode_midi_does_not_trigger_playback(
         self, mock_audio_device, mock_controller, config, sample_audio_file
     ):
@@ -308,8 +303,8 @@ class TestModeSwitching:
         # Should not be playing (edit mode)
         assert not app.state_machine.is_pad_playing(0)
 
-    @patch('launchsampler.orchestration.orchestrator.DeviceController')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.orchestration.orchestrator.DeviceController")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_mode_switching_preserves_pad_assignments(
         self, mock_audio_device, mock_controller, config, sample_audio_file
     ):

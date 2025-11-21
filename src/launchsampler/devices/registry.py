@@ -97,13 +97,14 @@ not scattered through if/else statements in code.
 
 import logging
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from .schema import DeviceRegistrySchema, DeviceFamily, Device, OSPortSelection
 from .config import DeviceConfig
+from .schema import Device, DeviceFamily, DeviceRegistrySchema, OSPortSelection
 
 if TYPE_CHECKING:
     from launchsampler.midi import MidiManager
+
     from .device import GenericDevice
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,7 @@ class DeviceRegistry:
     and provides device detection and instantiation services.
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize device registry.
 
@@ -155,11 +156,7 @@ class DeviceRegistry:
         logger.info(f"Loaded {len(configs)} device configurations")
         return configs
 
-    def _merge_family_and_device(
-        self,
-        family: DeviceFamily,
-        device: Device
-    ) -> DeviceConfig:
+    def _merge_family_and_device(self, family: DeviceFamily, device: Device) -> DeviceConfig:
         """
         Merge family and device configs into a single DeviceConfig.
 
@@ -175,12 +172,10 @@ class DeviceRegistry:
 
         # Merge port selection rules (device overrides family)
         input_rules = self._merge_port_rules(
-            family.input_port_selection,
-            device.overrides.input_port_selection
+            family.input_port_selection, device.overrides.input_port_selection
         )
         output_rules = self._merge_port_rules(
-            family.output_port_selection,
-            device.overrides.output_port_selection
+            family.output_port_selection, device.overrides.output_port_selection
         )
 
         return DeviceConfig(
@@ -192,13 +187,11 @@ class DeviceRegistry:
             capabilities=family.capabilities,
             input_port_selection=input_rules,
             output_port_selection=output_rules,
-            sysex_header=device.sysex_header
+            sysex_header=device.sysex_header,
         )
 
     def _merge_port_rules(
-        self,
-        base: OSPortSelection,
-        override: Optional[OSPortSelection]
+        self, base: OSPortSelection, override: OSPortSelection | None
     ) -> OSPortSelection:
         """
         Merge port selection rules with overrides.
@@ -217,10 +210,10 @@ class DeviceRegistry:
         return OSPortSelection(
             windows=override.windows if override.windows.prefer else base.windows,
             darwin=override.darwin if override.darwin.prefer else base.darwin,
-            linux=override.linux if override.linux.prefer else base.linux
+            linux=override.linux if override.linux.prefer else base.linux,
         )
 
-    def detect_device(self, port_name: str) -> Optional[DeviceConfig]:
+    def detect_device(self, port_name: str) -> DeviceConfig | None:
         """
         Detect which device config matches a port name.
 
@@ -264,11 +257,7 @@ class DeviceRegistry:
         """
         return self.detect_device(port_name) is not None
 
-    def create_device(
-        self,
-        config: DeviceConfig,
-        midi_manager: "MidiManager"
-    ) -> "GenericDevice":
+    def create_device(self, config: DeviceConfig, midi_manager: "MidiManager") -> "GenericDevice":
         """
         Create a device instance from configuration.
 
@@ -303,7 +292,7 @@ class DeviceRegistry:
 
 
 # Singleton instance
-_registry: Optional[DeviceRegistry] = None
+_registry: DeviceRegistry | None = None
 
 
 def get_registry() -> DeviceRegistry:
