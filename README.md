@@ -1,7 +1,6 @@
 # Launchpad Sampler
 
-[![CI](https://github.com/jacobanana/launchsampler/actions/workflows/test.yml/badge.svg)](https://github.com/jacobanana/launchsampler/actions/workflows/test.yml)
-[![Documentation](https://github.com/jacobanana/launchsampler/actions/workflows/docs.yml/badge.svg)](https://github.com/jacobanana/launchsampler/actions/workflows/docs.yml)
+[![CI](https://github.com/jacobanana/launchsampler/actions/workflows/ci.yml/badge.svg)](https://github.com/jacobanana/launchsampler/actions/workflows/ci.yml)
 
 A lean, type-safe audio sampler for the Novation Launchpad built with Python.
 
