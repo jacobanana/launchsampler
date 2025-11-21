@@ -3,17 +3,17 @@
 from .controller import DeviceController
 from .protocols import (
     DeviceEvent,
-    PadPressEvent,
-    PadReleaseEvent,
     DeviceInput,
     DeviceOutput,
+    PadPressEvent,
+    PadReleaseEvent,
 )
 
 __all__ = [
     "DeviceController",
     "DeviceEvent",
-    "PadPressEvent",
-    "PadReleaseEvent",
     "DeviceInput",
     "DeviceOutput",
+    "PadPressEvent",
+    "PadReleaseEvent",
 ]

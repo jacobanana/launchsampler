@@ -1,9 +1,10 @@
 """Unit tests for TUIService."""
 
-from unittest.mock import Mock, MagicMock, call
+from unittest.mock import Mock, call
+
 import pytest
 
-from launchsampler.models import Launchpad, Pad, Sample
+from launchsampler.models import Launchpad, Sample
 from launchsampler.protocols import AppEvent
 from launchsampler.tui.services import TUIService
 
@@ -70,7 +71,8 @@ class TestTUIServiceObserver:
 
         def query_one_side_effect(widget_type):
             """Return appropriate mock based on widget type."""
-            from launchsampler.tui.widgets import PadGrid, PadDetailsPanel
+            from launchsampler.tui.widgets import PadDetailsPanel, PadGrid
+
             if widget_type == PadGrid:
                 return mock_grid
             elif widget_type == PadDetailsPanel:
@@ -102,7 +104,8 @@ class TestTUIServiceObserver:
         mock_details = Mock()
 
         def query_one_side_effect(widget_type):
-            from launchsampler.tui.widgets import PadGrid, PadDetailsPanel
+            from launchsampler.tui.widgets import PadDetailsPanel, PadGrid
+
             if widget_type == PadGrid:
                 return mock_grid
             elif widget_type == PadDetailsPanel:
@@ -221,7 +224,9 @@ class TestTUIServiceObserver:
         assert call_args[1]["audio_data"] is None
 
     @pytest.mark.unit
-    def test_update_pad_ui_sets_unavailable_when_no_audio_data(self, service, mock_app, sample_audio_file):
+    def test_update_pad_ui_sets_unavailable_when_no_audio_data(
+        self, service, mock_app, sample_audio_file
+    ):
         """Test that pad is marked as unavailable when audio data is None."""
         # Setup: assign sample to pad but audio data unavailable
         mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
@@ -241,7 +246,9 @@ class TestTUIServiceObserver:
         mock_grid.set_pad_unavailable.assert_called_once_with(5, True)
 
     @pytest.mark.unit
-    def test_update_pad_ui_clears_unavailable_when_audio_data_available(self, service, mock_app, sample_audio_file):
+    def test_update_pad_ui_clears_unavailable_when_audio_data_available(
+        self, service, mock_app, sample_audio_file
+    ):
         """Test that pad is marked as available when audio data exists."""
         # Setup: assign sample to pad with audio data available
         mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
@@ -281,7 +288,9 @@ class TestTUIServiceObserver:
         mock_grid.set_pad_unavailable.assert_called_once_with(7, False)
 
     @pytest.mark.unit
-    def test_set_mounted_checks_unavailable_for_all_pads(self, service, mock_app, sample_audio_file):
+    def test_set_mounted_checks_unavailable_for_all_pads(
+        self, service, mock_app, sample_audio_file
+    ):
         """Test that SET_MOUNTED checks availability for all assigned pads."""
         # Setup: assign samples to some pads, some with audio data, some without
         mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)

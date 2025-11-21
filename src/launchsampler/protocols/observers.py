@@ -8,12 +8,12 @@ This module contains observer protocols for the domain:
 - App observers: React to application lifecycle events
 """
 
-from typing import Optional, Protocol, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
 
-from .events import MidiEvent, PlaybackEvent, EditEvent, SelectionEvent, AppEvent
+from .events import AppEvent, EditEvent, MidiEvent, PlaybackEvent, SelectionEvent
 
 
 @runtime_checkable
@@ -25,7 +25,9 @@ class MidiObserver(Protocol):
     and components that need to react to MIDI input (e.g., UI feedback).
     """
 
-    def on_midi_event(self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0) -> None:
+    def on_midi_event(
+        self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0
+    ) -> None:
         """
         Handle MIDI controller events.
 
@@ -76,12 +78,7 @@ class EditObserver(Protocol):
     and components that need to react to edits (audio engine, UI, etc.).
     """
 
-    def on_edit_event(
-        self,
-        event: "EditEvent",
-        pad_indices: list[int],
-        pads: list["Pad"]
-    ) -> None:
+    def on_edit_event(self, event: "EditEvent", pad_indices: list[int], pads: list["Pad"]) -> None:
         """
         Handle editing events.
 
@@ -114,11 +111,7 @@ class SelectionObserver(Protocol):
     doesn't affect audio engine or persistence layers.
     """
 
-    def on_selection_event(
-        self,
-        event: "SelectionEvent",
-        pad_index: Optional[int]
-    ) -> None:
+    def on_selection_event(self, event: "SelectionEvent", pad_index: int | None) -> None:
         """
         Handle selection change events.
 

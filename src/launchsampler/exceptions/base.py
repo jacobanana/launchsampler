@@ -9,8 +9,6 @@ all app-specific errors in one place. The base class provides:
 - `recovery_hint`: Optional suggestion for how to fix the issue
 """
 
-from typing import Optional
-
 
 class LaunchSamplerError(Exception):
     """
@@ -29,11 +27,11 @@ class LaunchSamplerError(Exception):
     def __init__(
         self,
         user_message: str,
-        technical_message: Optional[str] = None,
+        technical_message: str | None = None,
         recoverable: bool = False,
-        recovery_hint: Optional[str] = None,
+        recovery_hint: str | None = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize a LaunchSampler error.

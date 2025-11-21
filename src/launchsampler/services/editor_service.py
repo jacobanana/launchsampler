@@ -2,11 +2,10 @@
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
 
-from launchsampler.models import Launchpad, Pad, Sample, Set, AppConfig, PlaybackMode
-from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.model_manager import ObserverManager
+from launchsampler.models import AppConfig, Launchpad, Pad, PlaybackMode, Sample
+from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.ui_shared import MODE_COLORS
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ class EditorService:
         """
         self._launchpad = None
         self.config = config
-        self._clipboard: Optional[Pad] = None
+        self._clipboard: Pad | None = None
 
         # Event system
         self._observers = ObserverManager[EditObserver](observer_type_name="edit")
@@ -102,12 +101,7 @@ class EditorService:
         """
         self._observers.unregister(observer)
 
-    def _notify_observers(
-        self,
-        event: EditEvent,
-        pad_indices: list[int],
-        pads: list[Pad]
-    ) -> None:
+    def _notify_observers(self, event: EditEvent, pad_indices: list[int], pads: list[Pad]) -> None:
         """
         Notify all registered observers of an edit event.
 
@@ -119,7 +113,7 @@ class EditorService:
         Note:
             ObserverManager handles exception catching and logging automatically.
         """
-        self._observers.notify('on_edit_event', event, pad_indices, pads)
+        self._observers.notify("on_edit_event", event, pad_indices, pads)
 
     # =================================================================
     # Validation
@@ -137,7 +131,7 @@ class EditorService:
             IndexError: If pad_index is out of range
         """
         if not 0 <= pad_index < self.grid_size:
-            raise IndexError(f"{label} {pad_index} out of range (0-{self.grid_size-1})")
+            raise IndexError(f"{label} {pad_index} out of range (0-{self.grid_size - 1})")
 
     def get_pad(self, pad_index: int) -> Pad:
         """
@@ -376,9 +370,7 @@ class EditorService:
 
         # Notify observers about both affected pads
         self._notify_observers(
-            EditEvent.PAD_MOVED,
-            [source_index, target_index],
-            [source_pad, target_pad]
+            EditEvent.PAD_MOVED, [source_index, target_index], [source_pad, target_pad]
         )
 
         return (source_pad, target_pad)
@@ -429,10 +421,12 @@ class EditorService:
                 f"with duplicate from pad {source_index} ('{source_pad.sample.name}')"
             )
         else:
-            logger.info(f"Duplicated sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}")
+            logger.info(
+                f"Duplicated sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}"
+            )
 
         # Deep copy entire source pad but preserve target position
-        new_target = source_pad.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
+        new_target = source_pad.model_copy(deep=True, update={"x": target_pad.x, "y": target_pad.y})
         self.launchpad.pads[target_index] = new_target
 
         # Notify observers
@@ -505,10 +499,14 @@ class EditorService:
                 f"with paste from clipboard ('{self._clipboard.sample.name}')"
             )
         else:
-            logger.info(f"Pasted sample '{self._clipboard.sample.name}' from clipboard to pad {target_index}")
+            logger.info(
+                f"Pasted sample '{self._clipboard.sample.name}' from clipboard to pad {target_index}"
+            )
 
         # Deep copy clipboard to target, preserving target position
-        new_target = self._clipboard.model_copy(deep=True, update={'x': target_pad.x, 'y': target_pad.y})
+        new_target = self._clipboard.model_copy(
+            deep=True, update={"x": target_pad.x, "y": target_pad.y}
+        )
         self.launchpad.pads[target_index] = new_target
 
         # Notify observers (treat paste as assignment to target)

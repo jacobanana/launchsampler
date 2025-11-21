@@ -6,20 +6,13 @@ This module defines exceptions for audio device errors:
 - AudioDeviceNotFoundError: Device was not found
 """
 
-from typing import Optional
-
 from .base import LaunchSamplerError
 
 
 class AudioDeviceError(LaunchSamplerError):
     """Audio device initialization or operation failed."""
 
-    def __init__(
-        self,
-        user_message: str,
-        device_id: Optional[int] = None,
-        **kwargs
-    ):
+    def __init__(self, user_message: str, device_id: int | None = None, **kwargs):
         """
         Initialize audio device error.
 
@@ -34,7 +27,7 @@ class AudioDeviceError(LaunchSamplerError):
 class AudioDeviceInUseError(AudioDeviceError):
     """Audio device is already in use by another application."""
 
-    def __init__(self, device_id: Optional[int] = None, original_error: Optional[str] = None):
+    def __init__(self, device_id: int | None = None, original_error: str | None = None):
         """
         Initialize device-in-use error.
 
@@ -57,7 +50,7 @@ class AudioDeviceInUseError(AudioDeviceError):
             technical_message=tech_msg,
             device_id=device_id,
             recoverable=True,
-            recovery_hint=recovery
+            recovery_hint=recovery,
         )
 
 
@@ -75,8 +68,5 @@ class AudioDeviceNotFoundError(AudioDeviceError):
         recovery = "Run 'launchsampler audio list' to see available devices."
 
         super().__init__(
-            user_message=user_msg,
-            device_id=device_id,
-            recoverable=True,
-            recovery_hint=recovery
+            user_message=user_msg, device_id=device_id, recoverable=True, recovery_hint=recovery
         )

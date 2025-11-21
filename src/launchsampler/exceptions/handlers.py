@@ -186,27 +186,26 @@ except Exception:
 """
 
 import logging
-from typing import Callable, TypeVar, Optional
-
+from collections.abc import Callable
 from functools import wraps
+from typing import TypeVar
 
-from .base import LaunchSamplerError
 from .audio import AudioDeviceError, AudioDeviceInUseError, AudioDeviceNotFoundError
+from .base import LaunchSamplerError
 from .config import ConfigFileInvalidError, ConfigValidationError
-
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
-def handle_errors(
+def handle_errors[T](
     *,
     operation_name: str,
-    user_notification: Optional[Callable[[str], None]] = None,
-    fallback_value: Optional[T] = None,
+    user_notification: Callable[[str], None] | None = None,
+    fallback_value: T | None = None,
     re_raise: bool = True,
-    log_level: int = logging.ERROR
+    log_level: int = logging.ERROR,
 ) -> Callable:
     """
     Decorator for consistent error handling.
@@ -240,6 +239,7 @@ def handle_errors(
     Returns:
         Decorated function
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args, **kwargs) -> T:
@@ -260,9 +260,7 @@ def handle_errors(
             except Exception as e:
                 # Unexpected exceptions
                 logger.log(
-                    log_level,
-                    f"Unexpected error during {operation_name}: {e}",
-                    exc_info=True
+                    log_level, f"Unexpected error during {operation_name}: {e}", exc_info=True
                 )
 
                 if user_notification:
@@ -273,6 +271,7 @@ def handle_errors(
                 return fallback_value
 
         return wrapper
+
     return decorator
 
 
@@ -296,8 +295,8 @@ class ErrorContext:
     def __init__(
         self,
         operation: str,
-        logger_instance: Optional[logging.Logger] = None,
-        re_raise: bool = True
+        logger_instance: logging.Logger | None = None,
+        re_raise: bool = True,
     ):
         """
         Initialize error context.
@@ -310,7 +309,7 @@ class ErrorContext:
         self.operation = operation
         self.logger = logger_instance or logger
         self.re_raise = re_raise
-        self.error: Optional[Exception] = None
+        self.error: Exception | None = None
 
     def __enter__(self):
         """Enter the context."""
@@ -331,14 +330,9 @@ class ErrorContext:
         self.error = exc_val
 
         if isinstance(exc_val, LaunchSamplerError):
-            self.logger.error(
-                f"Failed to {self.operation}: {exc_val.technical_message}"
-            )
+            self.logger.error(f"Failed to {self.operation}: {exc_val.technical_message}")
         else:
-            self.logger.error(
-                f"Failed to {self.operation}: {exc_val}",
-                exc_info=True
-            )
+            self.logger.error(f"Failed to {self.operation}: {exc_val}", exc_info=True)
 
         # Return True to suppress exception, False to re-raise
         return not self.re_raise
@@ -382,31 +376,25 @@ def wrap_pydantic_error(error: Exception, file_path: str) -> LaunchSamplerError:
             if len(errors) == 1:
                 # Single error - use simple message
                 first_error = errors[0]
-                field = ".".join(str(loc) for loc in first_error.get('loc', ('unknown',)))
-                reason = first_error.get('msg', 'validation failed')
-                value = first_error.get('input', None)
+                field = ".".join(str(loc) for loc in first_error.get("loc", ("unknown",)))
+                reason = first_error.get("msg", "validation failed")
+                value = first_error.get("input", None)
 
                 return ConfigValidationError(
-                    field=field,
-                    value=value,
-                    error_msg=reason,
-                    file_path=file_path
+                    field=field, value=value, error_msg=reason, file_path=file_path
                 )
             else:
                 # Multiple errors - show all of them
                 error_lines = []
                 for err in errors:
-                    field = ".".join(str(loc) for loc in err.get('loc', ('unknown',)))
-                    msg = err.get('msg', 'validation failed')
+                    field = ".".join(str(loc) for loc in err.get("loc", ("unknown",)))
+                    msg = err.get("msg", "validation failed")
                     error_lines.append(f"  - {field}: {msg}")
 
                 combined_msg = f"{len(errors)} validation errors:\n" + "\n".join(error_lines)
 
                 return ConfigValidationError(
-                    field="multiple fields",
-                    value=None,
-                    error_msg=combined_msg,
-                    file_path=file_path
+                    field="multiple fields", value=None, error_msg=combined_msg, file_path=file_path
                 )
 
     # Fallback: parse string representation
@@ -423,15 +411,10 @@ def wrap_pydantic_error(error: Exception, file_path: str) -> LaunchSamplerError:
             reason = line
             break
 
-    return ConfigValidationError(
-        field=field,
-        value=None,
-        error_msg=reason,
-        file_path=file_path
-    )
+    return ConfigValidationError(field=field, value=None, error_msg=reason, file_path=file_path)
 
 
-def wrap_audio_device_error(error: Exception, device_id: Optional[int] = None) -> LaunchSamplerError:
+def wrap_audio_device_error(error: Exception, device_id: int | None = None) -> LaunchSamplerError:
     """
     Convert low-level audio errors to LaunchSampler exceptions.
 
@@ -460,11 +443,11 @@ def wrap_audio_device_error(error: Exception, device_id: Optional[int] = None) -
     return AudioDeviceError(
         user_message=f"Audio device error: {error_msg}",
         technical_message=f"Audio device {device_id} error: {error_msg}",
-        device_id=device_id
+        device_id=device_id,
     )
 
 
-def format_error_for_display(error: Exception) -> tuple[str, Optional[str]]:
+def format_error_for_display(error: Exception) -> tuple[str, str | None]:
     """
     Format an exception for user display.
 
@@ -565,7 +548,9 @@ class ErrorCollector:
         if not self.has_errors:
             return f"All operations completed successfully ({self.success_count} total)"
 
-        summary = f"Failed {self.error_count} of {self.error_count + self.success_count} operations:\n"
+        summary = (
+            f"Failed {self.error_count} of {self.error_count + self.success_count} operations:\n"
+        )
         for sub_op, error in self.errors:
             if isinstance(error, LaunchSamplerError):
                 summary += f"  - {sub_op}: {error.user_message}\n"

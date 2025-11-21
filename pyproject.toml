@@ -55,7 +55,20 @@ select = [
     "TCH",    # flake8-type-checking
     "RUF",    # ruff-specific rules
 ]
-ignore = []
+ignore = [
+    "B007",    # Unused loop variable (common in iteration)
+    "B904",    # raise from err (add gradually)
+    "E501",    # Line too long (handled by formatter)
+    "F841",    # Unused local variable (common in tests)
+    "N806",    # Variable naming (constants in functions)
+    "RUF003",  # Ambiguous unicode characters
+    "RUF012",  # Mutable class attributes
+    "RUF043",  # Regex metacharacters in pytest match
+    "SIM102",  # Nested if statements (readability preference)
+    "SIM105",  # Use contextlib.suppress (readability preference)
+    "SIM108",  # Ternary operator (readability preference)
+    "SIM117",  # Nested with statements (readability preference)
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -63,17 +76,18 @@ indent-style = "space"
 
 [tool.mypy]
 python_version = "3.12"
-strict = true
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_any_generics = true
 check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
-warn_unused_ignores = true
+warn_unused_ignores = false
 warn_no_return = true
 follow_imports = "normal"
+# Relax strict mode for gradual adoption
+disallow_untyped_defs = false
+disallow_any_generics = false
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -100,4 +114,8 @@ skip_covered = false
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs"]
-skips = ["B101"]  # Skip assert_used in tests
+skips = [
+    "B101",  # assert_used (fine in tests)
+    "B108",  # hardcoded_tmp_directory (demo files)
+    "B110",  # try_except_pass (intentional in some cases)
+]

@@ -112,16 +112,17 @@ References
 """
 
 from enum import Enum
-from typing import List, Tuple, Optional
+
 import mido
 
 
 class LightingMode(Enum):
     """LED lighting modes."""
-    STATIC = 0      # Static color from palette
-    FLASHING = 1    # Flashing between two colors
-    PULSING = 2     # Pulsing color
-    RGB = 3         # Direct RGB color
+
+    STATIC = 0  # Static color from palette
+    FLASHING = 1  # Flashing between two colors
+    PULSING = 2  # Pulsing color
+    RGB = 3  # Direct RGB color
 
 
 class LaunchpadSysEx:
@@ -138,7 +139,7 @@ class LaunchpadSysEx:
         self.model = None  # Kept for backwards compatibility
 
     @classmethod
-    def from_header(cls, header: list[int]) -> 'LaunchpadSysEx':
+    def from_header(cls, header: list[int]) -> "LaunchpadSysEx":
         """
         Create LaunchpadSysEx from raw SysEx header.
 
@@ -152,10 +153,10 @@ class LaunchpadSysEx:
 
     def programmer_mode(self, enable: bool) -> mido.Message:
         """Build programmer mode toggle message."""
-        data = self.header + [0x0E, 0x01 if enable else 0x00]
-        return mido.Message('sysex', data=data)
+        data = [*self.header, 14, 1 if enable else 0]
+        return mido.Message("sysex", data=data)
 
-    def led_lighting(self, specs: List[Tuple]) -> mido.Message:
+    def led_lighting(self, specs: list[tuple]) -> mido.Message:
         """
         Build LED lighting SysEx message.
 
@@ -163,7 +164,7 @@ class LaunchpadSysEx:
             specs: List of (lighting_type, led_note, *data_bytes)
                    NOTE: led_note is hardware MIDI note, not logical index
         """
-        data = self.header + [0x03]
+        data = [*self.header, 3]
         for spec in specs:
             data.extend(spec)
-        return mido.Message('sysex', data=data)
+        return mido.Message("sysex", data=data)

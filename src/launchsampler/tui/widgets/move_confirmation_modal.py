@@ -1,9 +1,9 @@
 """Modal dialog for confirming pad move operations."""
 
-from textual.screen import ModalScreen
 from textual.app import ComposeResult
-from textual.widgets import Label, Button
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Label
 
 
 class MoveConfirmationModal(ModalScreen[str]):
@@ -79,18 +79,9 @@ class MoveConfirmationModal(ModalScreen[str]):
     def compose(self) -> ComposeResult:
         """Create the modal content."""
         with Vertical(id="dialog"):
-            yield Label(
-                f"Pad {self.target_index} already has a sample",
-                id="question"
-            )
-            yield Label(
-                f'"{self.target_sample_name}"',
-                id="details"
-            )
-            yield Label(
-                "Choose an action:",
-                id="action-prompt"
-            )
+            yield Label(f"Pad {self.target_index} already has a sample", id="question")
+            yield Label(f'"{self.target_sample_name}"', id="details")
+            yield Label("Choose an action:", id="action-prompt")
             with Horizontal(id="button-container"):
                 yield Button("Swap", variant="success", id="swap-btn")
                 yield Button("Overwrite", variant="error", id="overwrite-btn")

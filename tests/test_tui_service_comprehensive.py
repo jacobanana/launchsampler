@@ -1,6 +1,7 @@
 """Comprehensive unit tests for TUIService observer protocols."""
 
-from unittest.mock import Mock, call
+from unittest.mock import Mock
+
 import pytest
 
 from launchsampler.models import Launchpad, Sample
@@ -49,7 +50,8 @@ class TestTUIServiceEditObserver:
         mock_details = Mock()
 
         def query_one_side_effect(widget_type):
-            from launchsampler.tui.widgets import PadGrid, PadDetailsPanel
+            from launchsampler.tui.widgets import PadDetailsPanel, PadGrid
+
             if widget_type == PadGrid:
                 return mock_grid
             elif widget_type == PadDetailsPanel:
@@ -59,9 +61,7 @@ class TestTUIServiceEditObserver:
 
         # Call event handler
         service.on_edit_event(
-            EditEvent.PAD_ASSIGNED,
-            pad_indices=[7],
-            pads=[mock_app.launchpad.pads[7]]
+            EditEvent.PAD_ASSIGNED, pad_indices=[7], pads=[mock_app.launchpad.pads[7]]
         )
 
         # Verify grid was updated
@@ -78,13 +78,14 @@ class TestTUIServiceEditObserver:
 
         # Call event handler - should not raise
         service.on_edit_event(
-            EditEvent.PAD_CLEARED,
-            pad_indices=[0],
-            pads=[mock_app.launchpad.pads[0]]
+            EditEvent.PAD_CLEARED, pad_indices=[0], pads=[mock_app.launchpad.pads[0]]
         )
 
         # Verify error was logged
-        assert "error handling edit event" in caplog.text.lower() or "test exception" in caplog.text.lower()
+        assert (
+            "error handling edit event" in caplog.text.lower()
+            or "test exception" in caplog.text.lower()
+        )
 
 
 class TestTUIServiceMidiObserver:
@@ -284,11 +285,7 @@ class TestTUIServiceUIHelpers:
 
         # Verify status bar was updated with MIDI status from orchestrator
         mock_status.update_state.assert_called_once_with(
-            mode="edit",
-            connected=False,
-            voices=0,
-            audio_device="Default",
-            midi_device=None
+            mode="edit", connected=False, voices=0, audio_device="Default", midi_device=None
         )
 
     @pytest.mark.unit
@@ -325,7 +322,8 @@ class TestTUIServiceUIHelpers:
         mock_details = Mock()
 
         def query_one_side_effect(widget_type):
-            from launchsampler.tui.widgets import PadGrid, PadDetailsPanel
+            from launchsampler.tui.widgets import PadDetailsPanel, PadGrid
+
             if widget_type == PadGrid:
                 return mock_grid
             elif widget_type == PadDetailsPanel:
@@ -351,7 +349,8 @@ class TestTUIServiceUIHelpers:
         mock_details = Mock()
 
         def query_one_side_effect(widget_type):
-            from launchsampler.tui.widgets import PadGrid, PadDetailsPanel
+            from launchsampler.tui.widgets import PadDetailsPanel, PadGrid
+
             if widget_type == PadGrid:
                 return mock_grid
             elif widget_type == PadDetailsPanel:

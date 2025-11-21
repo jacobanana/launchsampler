@@ -1,10 +1,9 @@
 """Save set browser screen for choosing save location and filename."""
 
 from pathlib import Path
-from typing import Any, Optional
 
-from textual.widgets import Input, Label
 from textual.widget import Widget
+from textual.widgets import Input, Label
 
 from .base_browser import BaseBrowserScreen
 
@@ -49,11 +48,11 @@ class SaveSetBrowserScreen(BaseBrowserScreen):
         """
         name_input = self.query_one("#name-input", Input)
         filename = name_input.value.strip()
-        
+
         # Remove .json extension if user added it
-        if filename.endswith('.json'):
+        if filename.endswith(".json"):
             filename = filename[:-5]
-        
+
         return (self.selected_path, filename)
 
     def _get_title(self) -> str:
@@ -90,8 +89,8 @@ class SaveSetBrowserScreen(BaseBrowserScreen):
             Input(
                 placeholder="my-drums",
                 value=self.default_name if self.default_name != "untitled" else "",
-                id="name-input"
-            )
+                id="name-input",
+            ),
         ]
 
     def _validate_selection(self) -> bool:
@@ -104,15 +103,12 @@ class SaveSetBrowserScreen(BaseBrowserScreen):
         # Check directory is valid
         if not self._is_valid_selection(self.selected_path):
             return False
-        
+
         # Check filename is not empty
         name_input = self.query_one("#name-input", Input)
         filename = name_input.value.strip()
-        
-        if not filename:
-            return False
-        
-        return True
+
+        return filename
 
     def _show_invalid_selection_error(self, path: Path) -> None:
         """
@@ -123,7 +119,7 @@ class SaveSetBrowserScreen(BaseBrowserScreen):
         """
         name_input = self.query_one("#name-input", Input)
         filename = name_input.value.strip()
-        
+
         if not filename:
             self.notify("Please enter a set name", severity="warning")
         elif not self._is_valid_selection(path):

@@ -102,12 +102,7 @@ class LEDEventHandler(AppObserver, EditObserver, MidiObserver, StateObserver):
     # EditObserver Protocol - Editing events
     # =================================================================
 
-    def on_edit_event(
-        self,
-        event: "EditEvent",
-        pad_indices: list[int],
-        pads: list["Pad"]
-    ) -> None:
+    def on_edit_event(self, event: "EditEvent", pad_indices: list[int], pads: list["Pad"]) -> None:
         """
         Handle editing events and update LEDs.
 
@@ -123,7 +118,7 @@ class LEDEventHandler(AppObserver, EditObserver, MidiObserver, StateObserver):
 
         try:
             # Update LEDs for edited pads
-            for pad_index, pad in zip(pad_indices, pads):
+            for pad_index, pad in zip(pad_indices, pads, strict=False):
                 self._update_pad_led(pad_index, pad)
 
         except Exception as e:
@@ -133,7 +128,9 @@ class LEDEventHandler(AppObserver, EditObserver, MidiObserver, StateObserver):
     # MidiObserver Protocol - MIDI controller events
     # =================================================================
 
-    def on_midi_event(self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0) -> None:
+    def on_midi_event(
+        self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0
+    ) -> None:
         """
         Handle MIDI events from controller.
 

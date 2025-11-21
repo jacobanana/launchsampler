@@ -1,11 +1,9 @@
 """Details panel showing information and controls for selected pad."""
 
-from typing import Optional
-
-from textual.containers import Vertical, Horizontal, Grid
 from textual.app import ComposeResult
-from textual.widgets import Label, Button, Input, Rule, RadioButton, RadioSet
+from textual.containers import Grid, Horizontal, Vertical
 from textual.message import Message
+from textual.widgets import Button, Input, Label, RadioButton, RadioSet, Rule
 
 from launchsampler.audio.data import AudioData
 from launchsampler.models import Pad
@@ -22,16 +20,16 @@ class NoTabInput(Input):
         padding: 0;
         margin: 0;
     }
-    
+
     NoTabInput:focus {
         border: none;
     }
-    
+
     NoTabInput.-invalid {
         border: none;
         background: $error 20%;
     }
-    
+
     NoTabInput.-invalid:focus {
         border: none;
     }
@@ -258,7 +256,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
     def __init__(self) -> None:
         """Initialize details panel."""
         super().__init__()
-        self.selected_pad_index: Optional[int] = None
+        self.selected_pad_index: int | None = None
 
     def compose(self) -> ComposeResult:
         """Create the details panel widgets."""
@@ -293,14 +291,13 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield Button("\\[X] Delete", id="clear-btn", variant="default", disabled=True)
 
         yield Rule()
-        yield Label("", id="sample-info") # gets updated by update_for_pad
+        yield Label("", id="sample-info")  # gets updated by update_for_pad
 
         with Grid(classes="control-buttons"):
             yield Button("▶", id="test-btn", variant="success", disabled=True)
             yield Button("■", id="stop-btn", variant="error", disabled=True)
 
-
-    def update_for_pad(self, pad_index: int, pad: Pad, audio_data: Optional[AudioData] = None) -> None:
+    def update_for_pad(self, pad_index: int, pad: Pad, audio_data: AudioData | None = None) -> None:
         """
         Update the panel to show info for selected pad.
 
@@ -327,23 +324,20 @@ class PadDetailsPanel(Vertical, can_focus=True):
                 audio_info_str = f"\nDuration: {audio_data.duration:.2f}s"
                 audio_info_str += f"\nSample Rate: {audio_data.sample_rate} Hz"
                 audio_info_str += f"\nChannels: {audio_data.num_channels}"
-                
+
                 # Add format info if available
                 if audio_data.format:
                     audio_info_str += f"\nFormat: {audio_data.format}"
                     if audio_data.subtype:
                         audio_info_str += f" ({audio_data.subtype})"
-                
+
                 # Add file size
                 info = audio_data.get_info()
                 audio_info_str += f"\nSize: {info['size_str']}"
             else:
                 audio_info_str = "\n[b]⚠️ File not found[/b]"
-            
-            sample_info.update(
-                f"Path: {pad.sample.path}"
-                f"{audio_info_str}"
-            )
+
+            sample_info.update(f"Path: {pad.sample.path}{audio_info_str}")
         else:
             sample_info.update("[dim]No sample assigned[/dim]")
 
@@ -398,7 +392,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
                 "toggle": "mode-toggle",
                 "hold": "mode-hold",
                 "loop": "mode-loop",
-                "loop_toggle": "mode-looptoggle"
+                "loop_toggle": "mode-looptoggle",
             }
             radio_id = mode_map.get(pad.mode.value)
             if radio_id:

@@ -9,14 +9,14 @@ from .sample import Sample
 from .set import Set
 
 __all__ = [
-    # Enums
-    "LaunchpadColor",
-    "PlaybackMode",
+    "AppConfig",
     # Models
     "Color",
-    "Sample",
-    "Pad",
     "Launchpad",
+    # Enums
+    "LaunchpadColor",
+    "Pad",
+    "PlaybackMode",
+    "Sample",
     "Set",
-    "AppConfig",
 ]

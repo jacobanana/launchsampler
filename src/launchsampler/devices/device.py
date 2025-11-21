@@ -1,9 +1,9 @@
 """Generic device implementation using config-driven architecture."""
 
 import logging
-from typing import Optional
-from .protocols import DeviceInput, DeviceOutput
+
 from .config import DeviceConfig
+from .protocols import DeviceInput, DeviceOutput
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,7 @@ class GenericDevice:
     """
 
     def __init__(
-        self,
-        config: DeviceConfig,
-        input_handler: DeviceInput,
-        output_handler: DeviceOutput
+        self, config: DeviceConfig, input_handler: DeviceInput, output_handler: DeviceOutput
     ):
         """
         Initialize generic device.
@@ -65,11 +62,11 @@ class GenericDevice:
         return config.matches(port_name)
 
     @staticmethod
-    def select_input_port(matching_ports: list[str], config: DeviceConfig) -> Optional[str]:
+    def select_input_port(matching_ports: list[str], config: DeviceConfig) -> str | None:
         """Select best input port using device config."""
         return config.select_input_port(matching_ports)
 
     @staticmethod
-    def select_output_port(matching_ports: list[str], config: DeviceConfig) -> Optional[str]:
+    def select_output_port(matching_ports: list[str], config: DeviceConfig) -> str | None:
         """Select best output port using device config."""
         return config.select_output_port(matching_ports)

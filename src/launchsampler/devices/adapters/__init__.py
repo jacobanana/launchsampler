@@ -5,13 +5,11 @@ Adapters translate between generic device protocols and hardware-specific
 MIDI messages, note mappings, and LED control.
 """
 
-from typing import Optional, Type, Tuple
-from ..protocols import DeviceOutput
 from ..input import NoteMapper
-
+from ..protocols import DeviceOutput
 
 # Type for adapter tuple (Mapper, Output)
-Adapter = Tuple[Type[NoteMapper], Type[DeviceOutput]]
+Adapter = tuple[type[NoteMapper], type[DeviceOutput]]
 
 
 # Registry of adapters
@@ -19,7 +17,9 @@ Adapter = Tuple[Type[NoteMapper], Type[DeviceOutput]]
 ADAPTERS: dict[str, Adapter] = {}
 
 
-def register_adapter(name: str, mapper_class: Type[NoteMapper], output_class: Type[DeviceOutput]) -> None:
+def register_adapter(
+    name: str, mapper_class: type[NoteMapper], output_class: type[DeviceOutput]
+) -> None:
     """
     Register a device adapter.
 
@@ -31,7 +31,7 @@ def register_adapter(name: str, mapper_class: Type[NoteMapper], output_class: Ty
     ADAPTERS[name] = (mapper_class, output_class)
 
 
-def get_adapter(name: str) -> Optional[Adapter]:
+def get_adapter(name: str) -> Adapter | None:
     """
     Get adapter classes by name.
 
@@ -44,7 +44,12 @@ def get_adapter(name: str) -> Optional[Adapter]:
     return ADAPTERS.get(name)
 
 
-# Register built-in adapters
-from .launchpad_mk3 import LaunchpadMK3Mapper, LaunchpadMK3Output
+def _register_builtin_adapters() -> None:
+    """Register built-in adapters. Called on module import."""
+    from .launchpad_mk3 import LaunchpadMK3Mapper, LaunchpadMK3Output
 
-register_adapter("LaunchpadMK3", LaunchpadMK3Mapper, LaunchpadMK3Output)
+    register_adapter("LaunchpadMK3", LaunchpadMK3Mapper, LaunchpadMK3Output)
+
+
+# Register built-in adapters on module import
+_register_builtin_adapters()

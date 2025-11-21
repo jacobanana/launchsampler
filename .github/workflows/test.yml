@@ -88,7 +88,7 @@ jobs:
 
       - name: Run bandit security checks
         run: |
-          uv run bandit -r launchsampler/ -f json -o bandit-report.json
+          uv run bandit -r src/launchsampler/ -f json -o bandit-report.json
         continue-on-error: true
 
       - name: Upload bandit report

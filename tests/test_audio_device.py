@@ -22,17 +22,17 @@ class TestAudioDevice:
         assert len(api_names) > 0
 
         # Check platform-specific values
-        if sys.platform == 'win32':
-            assert 'ASIO' in apis
-            assert 'WASAPI' in apis
-            assert 'ASIO/WASAPI' == api_names
-        elif sys.platform == 'darwin':
-            assert 'Core Audio' in apis
-            assert 'Core Audio' == api_names
+        if sys.platform == "win32":
+            assert "ASIO" in apis
+            assert "WASAPI" in apis
+            assert api_names == "ASIO/WASAPI"
+        elif sys.platform == "darwin":
+            assert "Core Audio" in apis
+            assert api_names == "Core Audio"
         else:
-            assert 'ASIO' in apis
-            assert 'JACK' in apis
-            assert 'ALSA/JACK' == api_names
+            assert "ASIO" in apis
+            assert "JACK" in apis
+            assert api_names == "ALSA/JACK"
 
     def test_list_output_devices_returns_tuple(self):
         """Test that list_output_devices returns devices and API names."""
@@ -88,9 +88,9 @@ class TestAudioDevice:
 
         invalid_device = None
         for i, device in enumerate(devices):
-            if device['max_output_channels'] > 0:
-                hostapi = hostapis[device['hostapi']]
-                if not any(api in hostapi['name'] for api in low_latency_apis):
+            if device["max_output_channels"] > 0:
+                hostapi = hostapis[device["hostapi"]]
+                if not any(api in hostapi["name"] for api in low_latency_apis):
                     invalid_device = i
                     break
 
@@ -129,10 +129,7 @@ class TestAudioDevice:
 
         if devices:
             device_id = devices[0][0]
-            device = AudioDevice(
-                device=device_id,
-                buffer_size=128
-            )
+            device = AudioDevice(device=device_id, buffer_size=128)
 
             assert device.buffer_size == 128
             assert device.device == device_id
@@ -208,15 +205,19 @@ class TestAudioDevice:
 
     def test_device_in_use_error_message(self):
         """Test that device-in-use errors provide helpful message."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         import sounddevice as sd
+
         from launchsampler.exceptions import AudioDeviceInUseError
 
         # Mock sounddevice to raise an error with PaErrorCode -9996
         mock_stream = MagicMock()
-        mock_stream.side_effect = Exception("Error opening OutputStream: Invalid device [PaErrorCode -9996]")
+        mock_stream.side_effect = Exception(
+            "Error opening OutputStream: Invalid device [PaErrorCode -9996]"
+        )
 
-        with patch.object(sd, 'OutputStream', mock_stream):
+        with patch.object(sd, "OutputStream", mock_stream):
             device = AudioDevice(device=None)
             device.set_callback(lambda outdata, frames: None)
 

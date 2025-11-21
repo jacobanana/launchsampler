@@ -46,7 +46,7 @@ class StatusBar(Static):
         connected: bool,
         voices: int,
         audio_device: str = "Unknown",
-        midi_device: str = "No Device"
+        midi_device: str = "No Device",
     ) -> None:
         """
         Update all status information.
@@ -81,10 +81,7 @@ class StatusBar(Static):
         audio_text = f"🔊 {self._audio_device}"
 
         # MIDI device with connection status
-        if self._connected:
-            midi_text = f"🎹 {self._midi_device}"
-        else:
-            midi_text = "🎹 No MIDI"
+        midi_text = f"🎹 {self._midi_device}" if self._connected else "🎹 No MIDI"
 
         # Voice count
         voice_text = f"♫ {self._voices}" if self._voices > 0 else ""

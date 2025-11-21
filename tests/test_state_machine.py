@@ -187,5 +187,5 @@ class TestSamplerStateMachine(unittest.TestCase):
         assert calls[2][0] == (PlaybackEvent.PAD_FINISHED, 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -1,9 +1,9 @@
 """Modal dialog for confirming paste operations."""
 
-from textual.screen import ModalScreen
 from textual.app import ComposeResult
-from textual.widgets import Label, Button
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Label
 
 
 class PasteConfirmationModal(ModalScreen[bool]):
@@ -77,18 +77,9 @@ class PasteConfirmationModal(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         """Create the modal content."""
         with Vertical(id="dialog"):
-            yield Label(
-                f"Pad {self.target_index} already has a sample",
-                id="question"
-            )
-            yield Label(
-                f'"{self.current_sample_name}"',
-                id="details"
-            )
-            yield Label(
-                "Overwrite with clipboard contents?",
-                id="action-prompt"
-            )
+            yield Label(f"Pad {self.target_index} already has a sample", id="question")
+            yield Label(f'"{self.current_sample_name}"', id="details")
+            yield Label("Overwrite with clipboard contents?", id="action-prompt")
             with Horizontal(id="button-container"):
                 yield Button("Overwrite", variant="error", id="overwrite-btn")
                 yield Button("Cancel", variant="default", id="cancel-btn")
