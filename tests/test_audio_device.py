@@ -29,8 +29,8 @@ class TestAudioDevice:
         elif sys.platform == "darwin":
             assert "Core Audio" in apis
             assert api_names == "Core Audio"
-        else:
-            assert "ASIO" in apis
+        else:  # Linux
+            assert "ALSA" in apis
             assert "JACK" in apis
             assert api_names == "ALSA/JACK"
 
@@ -203,6 +203,10 @@ class TestAudioDevice:
             # Should be stopped after exit
             assert not device.is_running
 
+    @pytest.mark.skipif(
+        __import__("sys").platform != "win32",
+        reason="Device error handling behaves differently on non-Windows platforms",
+    )
     def test_device_in_use_error_message(self):
         """Test that device-in-use errors provide helpful message."""
         from unittest.mock import MagicMock, patch

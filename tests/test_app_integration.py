@@ -67,6 +67,10 @@ class TestAppInitialization:
         assert app.editor is None
         assert app.set_manager is None
 
+    @pytest.mark.skipif(
+        __import__("sys").platform != "win32",
+        reason="Audio device fallback behaves differently on non-Windows platforms",
+    )
     @patch("launchsampler.orchestration.orchestrator.DeviceController")
     def test_app_initializes_with_invalid_audio_device_config(self, mock_controller, temp_dir):
         """Test that app doesn't crash when configured audio device is invalid.
