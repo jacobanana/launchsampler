@@ -23,6 +23,15 @@ repos:
         args: ["-c", "pyproject.toml"]
         additional_dependencies: ["bandit[toml]"]
 
+  - repo: local
+    hooks:
+      - id: generate-api-docs
+        name: Generate API docs
+        entry: uv run python scripts/generate_api_docs.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # Uncomment to run tests on every commit (slow)
   # - repo: local
   #   hooks:

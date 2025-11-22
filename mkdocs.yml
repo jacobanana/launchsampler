@@ -177,11 +177,12 @@ nav:
     - Devices:
       - Overview: api/devices/index.md
       - 'Adapters: Launchpad Mk3': api/devices/adapters/launchpad_mk3.md
-      - 'Adapters: Launchpad Sysex': api/devices/adapters/launchpad_sysex.md
       - Config: api/devices/config.md
       - Controller: api/devices/controller.md
       - Device: api/devices/device.md
       - Input: api/devices/input.md
+      - 'Launchpad: Palette Mk3': api/devices/launchpad/palette_mk3.md
+      - 'Launchpad: Sysex': api/devices/launchpad/sysex.md
       - Protocols: api/devices/protocols.md
       - Registry: api/devices/registry.md
       - Schema: api/devices/schema.md
@@ -221,6 +222,7 @@ nav:
       - Colors: api/ui_shared/colors.md
     - Utils:
       - Overview: api/utils/index.md
+      - Audio: api/utils/audio.md
       - Paths: api/utils/paths.md
     - Tui:
       - Overview: api/tui/index.md
