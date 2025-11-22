@@ -9,13 +9,14 @@ from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
+from textual.message_pump import _MessagePumpMeta
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, DirectoryTree, Input, Label
 
 
 # Combine Screen's metaclass with ABCMeta to resolve metaclass conflict
-class _BrowserScreenMeta(type(Screen), ABCMeta):
+class _BrowserScreenMeta(_MessagePumpMeta, ABCMeta):
     """Metaclass that combines Textual's Screen metaclass with ABC's metaclass."""
 
     pass
@@ -339,7 +340,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
     def action_select_current(self) -> None:
         """Select the currently highlighted item."""
         tree = self.query_one("#tree", DirectoryTree)
-        if tree.cursor_node:
+        if tree.cursor_node and tree.cursor_node.data:
             cursor_path = Path(str(tree.cursor_node.data.path))
             self.selected_path = cursor_path
             self._confirm_selection()
@@ -418,7 +419,7 @@ class BaseBrowserScreen(Screen, metaclass=_BrowserScreenMeta):
                     tree.select_node(tree.cursor_node.parent)
                     event.prevent_default()
                     event.stop()
-                else:
+                elif tree.cursor_node.data:
                     # We're at the root node, navigate up one directory level
                     current_path = Path(str(tree.cursor_node.data.path))
                     parent_path = current_path.parent

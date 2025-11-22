@@ -40,7 +40,7 @@ class NoTabInput(Input):
         super().__init__(*args, **kwargs)
         self._just_submitted = False
 
-    def action_submit(self) -> None:
+    async def action_submit(self) -> None:
         """Override submit action to prevent focus moving to next field."""
         # Run validators and post submitted message
         self.validate(self.value)
@@ -49,8 +49,9 @@ class NoTabInput(Input):
         self._just_submitted = True
         # Focus the grandparent (PadDetailsPanel) to remove focus from input
         # Structure: PadDetailsPanel > Horizontal > NoTabInput
+        # Type ignore: mypy doesn't recognize that parent.parent is a Widget at runtime
         if self.parent and self.parent.parent:
-            self.parent.parent.focus()
+            self.parent.parent.focus()  # type: ignore[attr-defined]
 
     def _on_blur(self, event) -> None:
         """Submit when losing focus (e.g., via Tab)."""

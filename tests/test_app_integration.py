@@ -156,6 +156,10 @@ class TestAppInitialization:
         app = Orchestrator(config)
         app.initialize()
 
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
+
         # Verify player is registered as observer on editor
         assert app.player in app.editor._observers._observers
 

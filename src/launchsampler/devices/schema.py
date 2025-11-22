@@ -25,14 +25,16 @@ class PortSelectionRules(BaseModel):
 class OSPortSelection(BaseModel):
     """OS-specific port selection rules."""
 
-    windows: PortSelectionRules = Field(default_factory=PortSelectionRules)
-    darwin: PortSelectionRules = Field(default_factory=PortSelectionRules)  # macOS
-    linux: PortSelectionRules = Field(default_factory=PortSelectionRules)
+    # Mypy doesn't recognize Pydantic models as valid callables for default_factory
+    windows: PortSelectionRules = Field(default_factory=PortSelectionRules)  # type: ignore[arg-type]
+    darwin: PortSelectionRules = Field(default_factory=PortSelectionRules)  # type: ignore[arg-type]
+    linux: PortSelectionRules = Field(default_factory=PortSelectionRules)  # type: ignore[arg-type]
 
     def get_for_current_os(self) -> PortSelectionRules:
         """Get rules for current operating system."""
         os_name = platform.system().lower()
-        return getattr(self, os_name, PortSelectionRules())
+        # Mypy incorrectly thinks fallback is required despite having a default
+        return getattr(self, os_name, PortSelectionRules())  # type: ignore[call-arg]
 
 
 class DeviceCapabilities(BaseModel):

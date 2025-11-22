@@ -99,7 +99,7 @@ class PadGrid(Container):
             pad: New pad state (explicitly passed)
         """
         if pad_index in self.pad_widgets:
-            self.pad_widgets[pad_index].update(pad)
+            self.pad_widgets[pad_index].update_pad(pad)
 
     def select_pad(self, pad_index: int) -> None:
         """

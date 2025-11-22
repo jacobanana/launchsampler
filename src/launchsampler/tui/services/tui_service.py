@@ -295,7 +295,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             midi_device_name = midi_controller.device_name if midi_controller else "No MIDI"
 
             status.update_state(
-                mode=self.app._sampler_mode,
+                mode=self.app._sampler_mode,  # type: ignore[arg-type]
                 connected=is_midi_connected,
                 voices=self.app.player.active_voices,
                 audio_device=self.app.player.audio_device_name,

@@ -108,7 +108,7 @@ class SaveSetBrowserScreen(BaseBrowserScreen):
         name_input = self.query_one("#name-input", Input)
         filename = name_input.value.strip()
 
-        return filename
+        return bool(filename)
 
     def _show_invalid_selection_error(self, path: Path) -> None:
         """

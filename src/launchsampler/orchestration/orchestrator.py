@@ -311,9 +311,10 @@ class Orchestrator:
             logger.warning("EditorService not initialized - cannot update launchpad reference")
 
         # Update player (audio engine sync)
-        if self.player.is_running:
+        # Player is guaranteed to exist after initialize()
+        if self.player.is_running:  # type: ignore[union-attr]
             logger.info("Loading set into Player")
-            self.player.load_set(self.current_set)
+            self.player.load_set(self.current_set)  # type: ignore[union-attr]
         else:
             logger.warning("Player not running - cannot load set")
 
@@ -343,7 +344,8 @@ class Orchestrator:
             )
 
         # Save
-        self.set_manager.save_set(self.current_set, path)
+        # SetManagerService is guaranteed to exist after initialize()
+        self.set_manager.save_set(self.current_set, path)  # type: ignore[union-attr]
 
         # Notify observers
         self._notify_observers(AppEvent.SET_SAVED, path=path, set_name=self.current_set.name)

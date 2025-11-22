@@ -160,7 +160,7 @@ class PadWidget(Static):
         self._is_unavailable = False
         self.update_display()
 
-    def update(self, pad: Pad) -> None:
+    def update_pad(self, pad: Pad) -> None:
         """
         Update display with new pad state.
 

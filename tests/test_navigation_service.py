@@ -245,10 +245,12 @@ class TestNavigationService:
 
         # Move right, then left - should return to start
         right_pad = nav.get_neighbor(start_pad, "right")
+        assert right_pad is not None
         back_pad = nav.get_neighbor(right_pad, "left")
         assert back_pad == start_pad
 
         # Move up, then down - should return to start
         up_pad = nav.get_neighbor(start_pad, "up")
+        assert up_pad is not None
         down_pad = nav.get_neighbor(up_pad, "down")
         assert down_pad == start_pad

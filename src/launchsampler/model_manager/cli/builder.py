@@ -38,6 +38,7 @@ Example Usage:
 import logging
 from collections.abc import Callable
 from pathlib import Path
+from types import UnionType
 from typing import (
     Any,
     TypeVar,
@@ -92,9 +93,10 @@ class TypeMapper:
             # Path → click.Path(path_type=Path)
             ```
         """
-        # Handle Optional[T] (which is Union[T, None])
+        # Handle Optional[T] and Union types
+        # This handles both Union[T, None] and the T | None syntax (UnionType)
         origin = get_origin(python_type)
-        if origin is Union:
+        if origin is Union or isinstance(python_type, UnionType):
             args = get_args(python_type)
             # Filter out NoneType to get the actual type
             non_none_types = [t for t in args if t is not type(None)]

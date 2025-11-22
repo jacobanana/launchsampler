@@ -40,6 +40,10 @@ class TestCompletePlaybackFlow:
         app = Orchestrator(config)
         app.initialize()
 
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
+
         # Assign sample to pad 0
         app.editor.assign_sample(0, sample_audio_file)
         app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
@@ -79,6 +83,10 @@ class TestCompletePlaybackFlow:
         app = Orchestrator(config)
         app.initialize()
 
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
+
         # Load sample and assign as ONE_SHOT
         app.editor.assign_sample(0, sample_audio_file)
         app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
@@ -112,6 +120,10 @@ class TestCompletePlaybackFlow:
 
         app = Orchestrator(config)
         app.initialize()
+
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
 
         # Load sample and assign as HOLD
         app.editor.assign_sample(0, sample_audio_file)
@@ -147,6 +159,10 @@ class TestCompletePlaybackFlow:
 
         app = Orchestrator(config)
         app.initialize()
+
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
 
         # Load sample and assign as LOOP
         app.editor.assign_sample(0, sample_audio_file)
@@ -187,6 +203,10 @@ class TestMultipleSamplePlayback:
         app = Orchestrator(config)
         app.initialize()
 
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
+
         # Load sample and assign to multiple pads
         for pad_id in [0, 1, 2]:
             app.editor.assign_sample(pad_id, sample_audio_file)
@@ -219,6 +239,10 @@ class TestMultipleSamplePlayback:
 
         app = Orchestrator(config)
         app.initialize()
+
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
 
         # Load sample
         app.editor.assign_sample(0, sample_audio_file)
@@ -262,6 +286,10 @@ class TestModeSwitching:
         app = Orchestrator(config, start_mode="play")
         app.initialize()
 
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
+
         # Load and trigger sample
         app.editor.assign_sample(0, sample_audio_file)
         app.editor.set_pad_mode(0, PlaybackMode.LOOP)
@@ -293,6 +321,10 @@ class TestModeSwitching:
         app = Orchestrator(config, start_mode="edit")
         app.initialize()
 
+        # Ensure services are initialized
+        assert app.editor is not None
+        assert app.player is not None
+
         # Load sample
         app.editor.assign_sample(0, sample_audio_file)
         app.editor.set_pad_mode(0, PlaybackMode.ONE_SHOT)
@@ -317,6 +349,9 @@ class TestModeSwitching:
 
         app = Orchestrator(config, start_mode="edit")
         app.initialize()
+
+        # Ensure services are initialized
+        assert app.editor is not None
 
         # Assign sample in edit mode
         app.editor.assign_sample(0, sample_audio_file)

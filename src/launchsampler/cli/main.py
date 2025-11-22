@@ -73,7 +73,11 @@ def setup_logging(verbose: int, debug: bool, log_file: Path | None, log_level: s
 @click.pass_context
 @click.version_option(version="0.1.0", prog_name="launchsampler")
 @click.option(
-    "--set", "-s", type=str, default=None, help="Name of saved set to load (from config/sets/)"
+    "--set",
+    "-s",
+    type=click.STRING,
+    default=None,
+    help="Name of saved set to load (from config/sets/)",
 )
 @click.option(
     "--mode",
@@ -101,7 +105,10 @@ def setup_logging(verbose: int, debug: bool, log_file: Path | None, log_level: s
     help="Enable debug mode (DEBUG level, logs to ./launchsampler-debug.log)",
 )
 @click.option(
-    "--log-file", type=click.Path(path_type=Path), default=None, help="Custom log file path"
+    "--log-file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Custom log file path",
 )
 @click.option(
     "--log-level",
