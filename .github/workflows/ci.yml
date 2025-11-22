@@ -106,8 +106,28 @@ jobs:
 
       - name: Run bandit security checks
         run: |
-          uv run bandit -r src/launchsampler/ -f json -o bandit-report.json
-        continue-on-error: true
+          uv run bandit -r src/launchsampler/ -f json -o bandit-report.json || true
+          uv run bandit -r src/launchsampler/ || true
+
+      - name: Display bandit summary
+        if: always()
+        run: |
+          if [ -f bandit-report.json ]; then
+            echo "## Bandit Security Scan Results"
+            SEVERITY_HIGH=$(python -c "import json; print(json.load(open('bandit-report.json'))['metrics']['_totals']['SEVERITY.HIGH'])")
+            SEVERITY_MEDIUM=$(python -c "import json; print(json.load(open('bandit-report.json'))['metrics']['_totals']['SEVERITY.MEDIUM'])")
+            SEVERITY_LOW=$(python -c "import json; print(json.load(open('bandit-report.json'))['metrics']['_totals']['SEVERITY.LOW'])")
+            echo "High severity issues: $SEVERITY_HIGH"
+            echo "Medium severity issues: $SEVERITY_MEDIUM"
+            echo "Low severity issues: $SEVERITY_LOW"
+
+            if [ "$SEVERITY_HIGH" -gt 0 ] || [ "$SEVERITY_MEDIUM" -gt 0 ]; then
+              echo "⚠️ Security issues found! Check the artifact for details."
+              exit 1
+            else
+              echo "✅ No high or medium severity issues found"
+            fi
+          fi
 
       - name: Upload bandit report
         if: always()
