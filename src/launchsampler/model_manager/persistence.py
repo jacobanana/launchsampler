@@ -221,7 +221,7 @@ class PydanticPersistence:
             ) from e
 
     @staticmethod
-    def load_json_or_default(
+    def load_or_default(
         path: Path, model_type: type[T], default_factory: Callable | None = None
     ) -> T:
         """
@@ -246,7 +246,7 @@ class PydanticPersistence:
 
         Example:
             ```python
-            config = PydanticPersistence.load_json_or_default(
+            config = PydanticPersistence.load_or_default(
                 path=Path("config.json"),
                 model_type=AppConfig,
                 default_factory=lambda: AppConfig(debug=True)

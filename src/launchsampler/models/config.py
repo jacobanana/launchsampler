@@ -4,6 +4,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_serializer
 
+from launchsampler.model_manager.persistence import PydanticPersistence
+
 
 class AppConfig(BaseModel):
     """Application configuration and settings."""
@@ -56,25 +58,24 @@ class AppConfig(BaseModel):
         """
         Load config from file or return default.
 
+        This is a convenience method that handles the default path logic
+        and ensures directories are created.
+
+        Args:
+            path: Path to config file. If None, uses default location
+                  (~/.launchsampler/config.json).
+
         Raises:
             ConfigFileInvalidError: If config file has invalid JSON syntax
             ConfigValidationError: If config values fail validation
         """
-        from pydantic import ValidationError
-
-        from launchsampler.exceptions import wrap_pydantic_error
-
         if path is None:
             path = Path.home() / ".launchsampler" / "config.json"
 
-        if path.exists():
-            try:
-                return cls.model_validate_json(path.read_text())
-            except ValidationError as e:
-                # Convert Pydantic error to our custom exception
-                raise wrap_pydantic_error(e, str(path)) from e
+        # Load using PydanticPersistence
+        config = PydanticPersistence.load_or_default(path, cls)
 
-        config = cls()
+        # Domain-specific post-processing
         config.ensure_directories()
         return config
 

@@ -15,7 +15,8 @@ and palette indices for all 128 Launchpad colors. CSS class names are automatica
 derived from the PlaybackMode enum values.
 """
 
-from launchsampler.models import Color, LaunchpadColor, PlaybackMode
+from launchsampler.devices.launchpad import LaunchpadColor
+from launchsampler.models import Color, PlaybackMode
 
 # Playback Mode Colors
 # Maps each playback mode to its corresponding LaunchpadColor

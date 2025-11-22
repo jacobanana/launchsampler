@@ -181,11 +181,11 @@ class TestPersistenceSafety:
         # Verify file was NOT created
         assert not config_path.exists()
 
-    def test_load_json_or_default_missing_file(self, tmp_path: Path):
-        """Test load_json_or_default with missing file."""
+    def test_load_or_default_missing_file(self, tmp_path: Path):
+        """Test load_or_default with missing file."""
         config_path = tmp_path / "missing.json"
 
-        result = PydanticPersistence.load_json_or_default(config_path, SampleModel)
+        result = PydanticPersistence.load_or_default(config_path, SampleModel)
 
         # Should return default values
         assert result.name == "test"
@@ -194,14 +194,14 @@ class TestPersistenceSafety:
         # Should NOT create file
         assert not config_path.exists()
 
-    def test_load_json_or_default_corrupted_file_raises(self, tmp_path: Path):
-        """Test that load_json_or_default raises on corrupted files."""
+    def test_load_or_default_corrupted_file_raises(self, tmp_path: Path):
+        """Test that load_or_default raises on corrupted files."""
         config_path = tmp_path / "corrupted.json"
         config_path.write_text("{ invalid }", encoding="utf-8")
 
         # Corrupted files should raise ConfigurationError
         with pytest.raises(ConfigurationError):
-            PydanticPersistence.load_json_or_default(config_path, SampleModel)
+            PydanticPersistence.load_or_default(config_path, SampleModel)
 
     def test_backup_preserves_file_metadata(self, tmp_path: Path):
         """Test that backup preserves file metadata (timestamps, permissions)."""

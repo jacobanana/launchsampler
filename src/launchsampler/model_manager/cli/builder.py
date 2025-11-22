@@ -51,6 +51,7 @@ from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
 from launchsampler.exceptions import ConfigurationError
+from launchsampler.model_manager.persistence import PydanticPersistence
 from launchsampler.model_manager.service import ModelManagerService
 
 logger = logging.getLogger(__name__)
@@ -291,7 +292,10 @@ class ModelCLIBuilder[ModelType: BaseModel]:
         if "type" in overrides:
             click_type = overrides["type"]
         else:
-            click_type = TypeMapper.to_click_type(field_info.annotation)
+            if field_info.annotation is None:
+                click_type = click.STRING  # Default to STRING if no annotation
+            else:
+                click_type = TypeMapper.to_click_type(field_info.annotation)
 
         # Get help text
         help_text = self._get_field_help(field_name, field_info)
@@ -336,10 +340,11 @@ class ModelCLIBuilder[ModelType: BaseModel]:
 
                 try:
                     # Load current model
-                    model = self.model_type.load_or_default(self.config_path)
+                    model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
 
                     # Create service
-                    service = ModelManagerService[self.model_type](
+                    # Note: Generic class instantiation with runtime type variable confuses mypy
+                    service = ModelManagerService[self.model_type](  # type: ignore[name-defined]
                         self.model_type, model, default_path=self.config_path
                     )
 
@@ -409,7 +414,7 @@ class ModelCLIBuilder[ModelType: BaseModel]:
 
             try:
                 # Try to load - this will validate
-                model = self.model_type.load_or_default(self.config_path)
+                model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
 
                 if fields:
                     # Validate specific fields
@@ -424,13 +429,15 @@ class ModelCLIBuilder[ModelType: BaseModel]:
 
                         value = getattr(model, field)
                         field_info = model.model_fields.get(field)
-                        field_type = field_info.annotation if field_info else "unknown"
+                        field_type = field_info.annotation if field_info else None
 
                         # Format the type name nicely
-                        if hasattr(field_type, "__name__"):
+                        if field_type and hasattr(field_type, "__name__"):
                             type_name = field_type.__name__
-                        else:
+                        elif field_type:
                             type_name = str(field_type).replace("typing.", "")
+                        else:
+                            type_name = "unknown"
 
                         click.echo(f"{CHECK} {field:28s} {type_name:15s} = {value}")
 
@@ -457,13 +464,15 @@ class ModelCLIBuilder[ModelType: BaseModel]:
                     for key in exposed_fields:
                         value = model_dict[key]
                         field_info = model.model_fields.get(key)
-                        field_type = field_info.annotation if field_info else "unknown"
+                        field_type = field_info.annotation if field_info else None
 
                         # Format the type name nicely
-                        if hasattr(field_type, "__name__"):
+                        if field_type and hasattr(field_type, "__name__"):
                             type_name = field_type.__name__
-                        else:
+                        elif field_type:
                             type_name = str(field_type).replace("typing.", "")
+                        else:
+                            type_name = "unknown"
 
                         click.echo(f"  {CHECK} {key:28s} {type_name:15s} = {value}")
                     click.echo("")
@@ -506,8 +515,9 @@ class ModelCLIBuilder[ModelType: BaseModel]:
             try:
                 if fields:
                     # Reset specific fields
-                    model = self.model_type.load_or_default(self.config_path)
-                    service = ModelManagerService[self.model_type](
+                    model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
+                    # Note: Generic class instantiation with runtime type variable confuses mypy
+                    service = ModelManagerService[self.model_type](  # type: ignore[name-defined]
                         self.model_type, model, default_path=self.config_path
                     )
 
@@ -531,7 +541,8 @@ class ModelCLIBuilder[ModelType: BaseModel]:
                 else:
                     # Reset all fields
                     default_model = self.model_type()
-                    service = ModelManagerService[self.model_type](
+                    # Note: Generic class instantiation with runtime type variable confuses mypy
+                    service = ModelManagerService[self.model_type](  # type: ignore[name-defined]
                         self.model_type, default_model, default_path=self.config_path
                     )
                     service.save()
@@ -584,7 +595,7 @@ class ModelCLIBuilder[ModelType: BaseModel]:
             field = kwargs.get("field")
             try:
                 # Load model
-                model = self.model_type.load_or_default(self.config_path)
+                model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
 
                 if field:
                     # Show specific field

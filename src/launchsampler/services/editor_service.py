@@ -43,8 +43,8 @@ class EditorService:
         Args:
             config: Application configuration
         """
-        self._launchpad = None
-        self.config = config
+        self._launchpad: Launchpad | None = None
+        self.config: AppConfig = config
         self._clipboard: Pad | None = None
 
         # Event system
@@ -54,6 +54,8 @@ class EditorService:
     @property
     def launchpad(self) -> Launchpad:
         """Get the launchpad being edited."""
+        if self._launchpad is None:
+            raise RuntimeError("Launchpad not initialized. Call update_launchpad first.")
         return self._launchpad
 
     def update_launchpad(self, launchpad: Launchpad) -> None:
@@ -410,19 +412,21 @@ class EditorService:
 
         # Check if target is occupied and overwrite is disabled
         if not overwrite and target_pad.is_assigned:
-            raise ValueError(
-                f"Target pad {target_index} already has sample '{target_pad.sample.name}'"
-            )
+            target_sample = target_pad.get_sample()
+            raise ValueError(f"Target pad {target_index} already has sample '{target_sample.name}'")
 
         # Log if we're overwriting an existing sample
         if target_pad.is_assigned:
+            target_sample = target_pad.get_sample()
+            source_sample = source_pad.get_sample()
             logger.info(
-                f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
-                f"with duplicate from pad {source_index} ('{source_pad.sample.name}')"
+                f"Overwriting pad {target_index} (was '{target_sample.name}') "
+                f"with duplicate from pad {source_index} ('{source_sample.name}')"
             )
         else:
+            source_sample = source_pad.get_sample()
             logger.info(
-                f"Duplicated sample '{source_pad.sample.name}' from pad {source_index} to pad {target_index}"
+                f"Duplicated sample '{source_sample.name}' from pad {source_index} to pad {target_index}"
             )
 
         # Deep copy entire source pad but preserve target position
@@ -460,7 +464,8 @@ class EditorService:
         # Deep copy the pad to clipboard
         self._clipboard = pad.model_copy(deep=True)
 
-        logger.info(f"Copied pad {pad_index} ('{pad.sample.name}') to clipboard")
+        sample = pad.get_sample()
+        logger.info(f"Copied pad {pad_index} ('{sample.name}') to clipboard")
         return self._clipboard
 
     def paste_pad(self, target_index: int, overwrite: bool = False) -> Pad:
@@ -488,19 +493,21 @@ class EditorService:
 
         # Check if target is occupied and overwrite is disabled
         if not overwrite and target_pad.is_assigned:
-            raise ValueError(
-                f"Target pad {target_index} already has sample '{target_pad.sample.name}'"
-            )
+            target_sample = target_pad.get_sample()
+            raise ValueError(f"Target pad {target_index} already has sample '{target_sample.name}'")
 
         # Log if we're overwriting an existing sample
+        # Note: clipboard is guaranteed to have a sample (copied from an assigned pad)
+        clipboard_sample = self._clipboard.get_sample()
         if target_pad.is_assigned:
+            target_sample = target_pad.get_sample()
             logger.info(
-                f"Overwriting pad {target_index} (was '{target_pad.sample.name}') "
-                f"with paste from clipboard ('{self._clipboard.sample.name}')"
+                f"Overwriting pad {target_index} (was '{target_sample.name}') "
+                f"with paste from clipboard ('{clipboard_sample.name}')"
             )
         else:
             logger.info(
-                f"Pasted sample '{self._clipboard.sample.name}' from clipboard to pad {target_index}"
+                f"Pasted sample '{clipboard_sample.name}' from clipboard to pad {target_index}"
             )
 
         # Deep copy clipboard to target, preserving target position
@@ -548,7 +555,8 @@ class EditorService:
         # Notify observers (source pad is now cleared)
         self._notify_observers(EditEvent.PAD_CLEARED, [pad_index], [new_pad])
 
-        logger.info(f"Cut pad {pad_index} ('{self._clipboard.sample.name}') to clipboard")
+        clipboard_sample = self._clipboard.get_sample()
+        logger.info(f"Cut pad {pad_index} ('{clipboard_sample.name}') to clipboard")
         return self._clipboard
 
     def clear_all(self) -> int:
