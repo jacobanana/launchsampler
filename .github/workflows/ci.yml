@@ -206,6 +206,7 @@ jobs:
   docs:
     name: Build & Deploy Docs
     runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - name: Checkout repository
