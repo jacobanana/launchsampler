@@ -89,8 +89,8 @@ class TestEditorServiceDuplicatePad:
         # Modify target's color
         target_pad.color = Color(r=50, g=50, b=50)
 
-        # Verify source color unchanged
-        assert source_pad.color.r == 127  # ONE_SHOT default red
+        # Verify source color unchanged (now 8-bit: 255 instead of 7-bit: 127)
+        assert source_pad.color.r == 255  # ONE_SHOT default red (8-bit)
         assert target_pad.color.r == 50
 
     @pytest.mark.unit
@@ -199,7 +199,7 @@ class TestEditorServiceDuplicatePad:
 
             target_pad = editor.get_pad(target_index)
             assert target_pad.mode == mode
-            assert target_pad.color == MODE_COLORS[mode].rgb
+            assert target_pad.color == MODE_COLORS[mode]
 
     @pytest.mark.unit
     def test_duplicate_pad_volume_independence(self, editor, sample_audio_file):

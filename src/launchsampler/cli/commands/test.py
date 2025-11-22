@@ -71,10 +71,11 @@ def test(verbose):
         click.echo("Setting pads 0-3 (bottom row) to RGB colors...")
 
         # RGB colors - bottom row (pads 0-3)
-        controller.set_pad_color(0, Color(r=127, g=0, b=0))  # Red
-        controller.set_pad_color(1, Color(r=127, g=127, b=0))  # Yellow
-        controller.set_pad_color(2, Color(r=0, g=127, b=0))  # Green
-        controller.set_pad_color(3, Color(r=0, g=0, b=127))  # Blue
+        # Using 8-bit RGB (0-255) - device adapter converts to 7-bit for MIDI
+        controller.set_pad_color(0, Color(r=255, g=0, b=0))  # Red
+        controller.set_pad_color(1, Color(r=255, g=255, b=0))  # Yellow
+        controller.set_pad_color(2, Color(r=0, g=255, b=0))  # Green
+        controller.set_pad_color(3, Color(r=0, g=0, b=255))  # Blue
 
         click.echo("  [OK] RGB mode - 4 pads set")
         time.sleep(2)
@@ -83,9 +84,10 @@ def test(verbose):
         click.echo("Setting pads 8-10 (second row) to flashing...")
 
         # Flashing colors - second row (pads 8-10)
-        controller.set_pad_flashing(8, Color(r=0, g=127, b=0))  # Green flash
-        controller.set_pad_flashing(9, Color(r=127, g=0, b=127))  # Pink flash
-        controller.set_pad_flashing(10, Color(r=0, g=127, b=127))  # Cyan flash
+        # Device adapter converts RGB to nearest palette index for animations
+        controller.set_pad_flashing(8, Color(r=0, g=255, b=0))  # Green flash
+        controller.set_pad_flashing(9, Color(r=255, g=0, b=255))  # Pink flash
+        controller.set_pad_flashing(10, Color(r=0, g=255, b=255))  # Cyan flash
 
         click.echo("  [OK] Flashing mode - 3 pads set")
         time.sleep(2)
@@ -94,9 +96,10 @@ def test(verbose):
         click.echo("Setting pads 16-18 (third row) to pulsing...")
 
         # Pulsing colors - third row (pads 16-18)
-        controller.set_pad_pulsing(16, Color(r=0, g=0, b=127))  # Blue pulse
-        controller.set_pad_pulsing(17, Color(r=127, g=0, b=127))  # Pink pulse
-        controller.set_pad_pulsing(18, Color(r=127, g=127, b=0))  # Yellow pulse
+        # Device adapter converts RGB to nearest palette index for animations
+        controller.set_pad_pulsing(16, Color(r=0, g=0, b=255))  # Blue pulse
+        controller.set_pad_pulsing(17, Color(r=255, g=0, b=255))  # Pink pulse
+        controller.set_pad_pulsing(18, Color(r=255, g=255, b=0))  # Yellow pulse
 
         click.echo("  [OK] Pulsing mode - 3 pads set")
         time.sleep(2)
@@ -105,10 +108,10 @@ def test(verbose):
         click.echo("Setting pads 24-27 (fourth row) to static colors...")
 
         # Static colors - fourth row (pads 24-27)
-        controller.set_pad_color(24, Color(r=127, g=0, b=0))  # Red
-        controller.set_pad_color(25, Color(r=127, g=127, b=0))  # Yellow
-        controller.set_pad_color(26, Color(r=0, g=127, b=0))  # Green
-        controller.set_pad_color(27, Color(r=0, g=0, b=127))  # Blue
+        controller.set_pad_color(24, Color(r=255, g=0, b=0))  # Red
+        controller.set_pad_color(25, Color(r=255, g=255, b=0))  # Yellow
+        controller.set_pad_color(26, Color(r=0, g=255, b=0))  # Green
+        controller.set_pad_color(27, Color(r=0, g=0, b=255))  # Blue
 
         click.echo("  [OK] Static colors - 4 pads set")
 

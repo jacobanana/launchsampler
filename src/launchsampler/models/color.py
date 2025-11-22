@@ -1,21 +1,31 @@
 """Color model for LED control."""
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Color(BaseModel):
-    """RGB color"""
+    """Standard 8-bit RGB color model.
 
-    r: int = Field(ge=0, le=127, description="Red (0-127)")
-    g: int = Field(ge=0, le=127, description="Green (0-127)")
-    b: int = Field(ge=0, le=127, description="Blue (0-127)")
+    Uses standard 8-bit RGB (0-255) as the application's color representation.
+    Device-specific conversions (e.g., 7-bit for MIDI SysEx) are handled
+    by device adapters.
+
+    The model is frozen to ensure hashability, which is required for
+    LRU caching in color approximation functions.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    r: int = Field(ge=0, le=255, description="Red (0-255)")
+    g: int = Field(ge=0, le=255, description="Green (0-255)")
+    b: int = Field(ge=0, le=255, description="Blue (0-255)")
 
     @field_validator("r", "g", "b")
     @classmethod
     def validate_rgb(cls, v: int) -> int:
         """Ensure RGB values are in valid range."""
-        if not 0 <= v <= 127:
-            raise ValueError("RGB values must be between 0 and 127")
+        if not 0 <= v <= 255:
+            raise ValueError("RGB values must be between 0 and 255")
         return v
 
     @classmethod
@@ -27,17 +37,31 @@ class Color(BaseModel):
         """Convert to RGB tuple."""
         return (self.r, self.g, self.b)
 
-    def to_hex(self) -> str:
-        """Convert to CSS hex color string (e.g., '#FF00FF').
+    def to_7bit(self) -> tuple[int, int, int]:
+        """Convert to 7-bit RGB for MIDI SysEx messages.
 
-        Note: Launchpad uses 0-127 range, but CSS hex uses 0-255 range.
-        This method scales the values by 2 for proper CSS display.
+        Hardware devices like Launchpad use 7-bit values (0-127) for MIDI.
+        This method downsamples 8-bit (0-255) to 7-bit using right bit shift.
+
+        Returns:
+            tuple[int, int, int]: RGB values in 0-127 range
+
+        Example:
+            >>> color = Color(r=255, g=128, b=0)
+            >>> color.to_7bit()
+            (127, 64, 0)
+        """
+        return (self.r >> 1, self.g >> 1, self.b >> 1)
+
+    def to_hex(self) -> str:
+        """Convert to CSS hex color string (e.g., '#FF0000').
 
         Returns:
             str: Hex color string in format '#RRGGBB'
+
+        Example:
+            >>> color = Color(r=255, g=0, b=0)
+            >>> color.to_hex()
+            '#FF0000'
         """
-        # Scale from 0-127 to 0-255 for CSS compatibility
-        r_scaled = self.r * 2
-        g_scaled = self.g * 2
-        b_scaled = self.b * 2
-        return f"#{r_scaled:02X}{g_scaled:02X}{b_scaled:02X}"
+        return f"#{self.r:02X}{self.g:02X}{self.b:02X}"

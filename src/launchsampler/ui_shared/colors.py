@@ -10,35 +10,35 @@ Color Scheme:
 - Selected pads (TUI only): Warning color
 - MIDI-triggered pads (TUI only): Primary color
 
-The colors are defined using the LaunchpadColor enum, which contains both RGB values
-and palette indices for all 128 Launchpad colors. CSS class names are automatically
-derived from the PlaybackMode enum values.
+All colors are device-agnostic 8-bit RGB values. Device adapters handle
+conversion to hardware-specific formats (e.g., 7-bit for MIDI, palette indices
+for animations).
 """
 
-from launchsampler.devices.launchpad import LaunchpadColor
+from launchsampler.colors import COLORS
 from launchsampler.models import Color, PlaybackMode
 
 # Playback Mode Colors
-# Maps each playback mode to its corresponding LaunchpadColor
-MODE_COLORS: dict[PlaybackMode, LaunchpadColor] = {
-    PlaybackMode.ONE_SHOT: LaunchpadColor.RED,
-    PlaybackMode.TOGGLE: LaunchpadColor.ORANGE,
-    PlaybackMode.HOLD: LaunchpadColor.BLUE,
-    PlaybackMode.LOOP: LaunchpadColor.GREEN,
-    PlaybackMode.LOOP_TOGGLE: LaunchpadColor.MAGENTA,
+# Maps each playback mode to its corresponding color
+MODE_COLORS: dict[PlaybackMode, Color] = {
+    PlaybackMode.ONE_SHOT: COLORS.RED,
+    PlaybackMode.TOGGLE: COLORS.ORANGE,
+    PlaybackMode.HOLD: COLORS.BLUE,
+    PlaybackMode.LOOP: COLORS.GREEN,
+    PlaybackMode.LOOP_TOGGLE: COLORS.MAGENTA,
 }
 
 # Playback State Colors
 # These colors override mode colors when the pad is in a specific state
 
 # Playing state (audio is currently playing)
-PLAYING_COLOR = LaunchpadColor.YELLOW
+PLAYING_COLOR = COLORS.YELLOW
 
 # Empty pad (no sample assigned)
-EMPTY_COLOR = LaunchpadColor.BLACK
+EMPTY_COLOR = COLORS.BLACK
 
 # Panic button color (for emergency stop LED indicator)
-PANIC_BUTTON_COLOR = LaunchpadColor.PANIC_RED
+PANIC_BUTTON_COLOR = COLORS.RED_DARK
 
 # TUI-only states (not applicable to LED UI)
 
@@ -49,51 +49,26 @@ SELECTED_TUI_CLASS = "selected"  # Uses $warning theme color in TUI
 MIDI_ON_TUI_CLASS = "midi_on"  # Uses $primary theme color in TUI
 
 
-def get_pad_led_color(pad, is_playing: bool = False) -> Color:
-    """Get the LED color for a pad based on its state.
+def get_pad_color(pad, is_playing: bool = False) -> Color:
+    """Get the color for a pad based on its state.
 
-    This is the single source of truth for LED colors.
-    Both TUI (via CSS classes) and LED UI (via palette colors) should
-    reflect the same color scheme.
-
-    Args:
-        pad: The Pad model
-        is_playing: Whether the pad is currently playing audio
-
-    Returns:
-        Color: The RGB color to display
-    """
-    # Playing state takes priority
-    if is_playing:
-        return PLAYING_COLOR.rgb
-
-    # Assigned pad shows mode color
-    if pad.is_assigned:
-        return MODE_COLORS[pad.mode].rgb
-
-    # Empty pad is off
-    return EMPTY_COLOR.rgb
-
-
-def get_pad_led_palette_index(pad, is_playing: bool = False) -> int:
-    """Get the Launchpad palette color index for a pad based on its state.
-
-    This is for LED UI implementations that need palette indices.
+    This is the single source of truth for pad colors.
+    Both TUI and LED UI use this function to determine colors.
 
     Args:
         pad: The Pad model
         is_playing: Whether the pad is currently playing audio
 
     Returns:
-        int: Launchpad palette color index (0-127)
+        Color: The 8-bit RGB color to display
     """
     # Playing state takes priority
     if is_playing:
-        return PLAYING_COLOR.palette
+        return PLAYING_COLOR
 
     # Assigned pad shows mode color
     if pad.is_assigned:
-        return MODE_COLORS[pad.mode].palette
+        return MODE_COLORS[pad.mode]
 
     # Empty pad is off
-    return EMPTY_COLOR.palette
+    return EMPTY_COLOR
