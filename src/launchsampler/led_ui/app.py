@@ -4,9 +4,11 @@ import logging
 from typing import TYPE_CHECKING
 
 from launchsampler.ui_shared import UIAdapter
+
 from .services import LEDEventHandler, LEDRenderer
 
 if TYPE_CHECKING:
+    from launchsampler.devices import DeviceController
     from launchsampler.orchestration import Orchestrator
 
 logger = logging.getLogger(__name__)
@@ -46,13 +48,15 @@ class LaunchpadLEDUI(UIAdapter):
 
         # We'll use the orchestrator's LaunchpadController (shared resource)
         # This avoids MIDI port conflicts
-        self.controller = None  # Will be set in register_with_services()
+        self.controller: DeviceController | None = None  # Will be set in register_with_services()
 
         # Create LED renderer (stateless) - controller will be set later
         self.renderer = LEDRenderer(None)
 
         # Create LED event handler (observer) - pass renderer and shared state machine
-        self.event_handler = LEDEventHandler(self.renderer, orchestrator, orchestrator.state_machine)
+        self.event_handler = LEDEventHandler(
+            self.renderer, orchestrator, orchestrator.state_machine
+        )
 
         # Register service with orchestrator services
         self._register_with_services()
@@ -99,10 +103,10 @@ class LaunchpadLEDUI(UIAdapter):
             logger.warning("No MIDI controller available - LED UI will not function")
 
         # Register for edit events
-        orchestrator.editor.register_observer(self.event_handler)
+        orchestrator.editor.register_observer(self.event_handler)  # type: ignore[union-attr]
 
         # Register for playback state events
-        orchestrator.player.register_state_observer(self.event_handler)
+        orchestrator.player.register_state_observer(self.event_handler)  # type: ignore[union-attr]
 
         # Register for MIDI events (connection/disconnection only)
         if orchestrator.midi_controller:

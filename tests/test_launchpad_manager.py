@@ -6,7 +6,7 @@ import pytest
 
 from launchsampler.audio import AudioDevice
 from launchsampler.core import SamplerEngine
-from launchsampler.models import Pad, PlaybackMode, Sample
+from launchsampler.models import Pad, Sample
 
 
 @pytest.mark.unit
@@ -155,8 +155,8 @@ class TestSamplerEngine:
 
                 info = manager.get_playback_info(0)
                 assert info is not None
-                assert 'is_playing' in info
-                assert 'volume' in info
+                assert "is_playing" in info
+                assert "volume" in info
 
     def test_is_pad_playing(self):
         """Test is_pad_playing method."""
@@ -259,16 +259,16 @@ class TestSamplerEngine:
 
                 audio_data = manager.get_audio_data(0)
                 assert audio_data is not None
-                assert hasattr(audio_data, 'duration')
-                assert hasattr(audio_data, 'sample_rate')
-                assert hasattr(audio_data, 'num_channels')
-                assert hasattr(audio_data, 'num_frames')
-                assert hasattr(audio_data, 'data')
-                
+                assert hasattr(audio_data, "duration")
+                assert hasattr(audio_data, "sample_rate")
+                assert hasattr(audio_data, "num_channels")
+                assert hasattr(audio_data, "num_frames")
+                assert hasattr(audio_data, "data")
+
                 # Verify we can call get_info() on it
                 info = audio_data.get_info()
                 assert info is not None
-                assert 'duration' in info
+                assert "duration" in info
 
     def test_get_audio_info(self):
         """Test getting audio file info for loaded pad."""
@@ -291,32 +291,34 @@ class TestSamplerEngine:
 
                 info = manager.get_audio_info(0)
                 assert info is not None
-                assert 'duration' in info
-                assert 'sample_rate' in info
-                assert 'num_channels' in info
-                assert 'num_frames' in info
-                assert 'size_bytes' in info
-                assert 'size_str' in info
-                
+                assert "duration" in info
+                assert "sample_rate" in info
+                assert "num_channels" in info
+                assert "num_frames" in info
+                assert "size_bytes" in info
+                assert "size_str" in info
+
                 # Check types and values
-                assert isinstance(info['duration'], float)
-                assert info['duration'] > 0
-                assert isinstance(info['sample_rate'], int)
-                assert info['sample_rate'] > 0
-                assert isinstance(info['num_channels'], int)
-                assert info['num_channels'] in (1, 2)
-                assert isinstance(info['num_frames'], int)
-                assert info['num_frames'] > 0
-                assert isinstance(info['size_bytes'], int)
-                assert info['size_bytes'] > 0
-                assert isinstance(info['size_str'], str)
-                assert 'B' in info['size_str'] or 'KB' in info['size_str'] or 'MB' in info['size_str']
-                
+                assert isinstance(info["duration"], float)
+                assert info["duration"] > 0
+                assert isinstance(info["sample_rate"], int)
+                assert info["sample_rate"] > 0
+                assert isinstance(info["num_channels"], int)
+                assert info["num_channels"] in (1, 2)
+                assert isinstance(info["num_frames"], int)
+                assert info["num_frames"] > 0
+                assert isinstance(info["size_bytes"], int)
+                assert info["size_bytes"] > 0
+                assert isinstance(info["size_str"], str)
+                assert (
+                    "B" in info["size_str"] or "KB" in info["size_str"] or "MB" in info["size_str"]
+                )
+
                 # Format info should be present if file was loaded with metadata
-                if 'format' in info:
-                    assert isinstance(info['format'], str)
-                if 'subtype' in info:
-                    assert isinstance(info['subtype'], str)
+                if "format" in info:
+                    assert isinstance(info["format"], str)
+                if "subtype" in info:
+                    assert isinstance(info["subtype"], str)
 
     def test_context_manager(self):
         """Test using SamplerEngine as context manager."""

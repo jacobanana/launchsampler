@@ -1,17 +1,22 @@
 """Generic device protocols and abstractions."""
 
-from abc import ABC, abstractmethod
-from typing import Protocol, Optional, Tuple, List
-from enum import Enum
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from launchsampler.models import Color
 
 
 class DeviceEvent:
     """Generic device event (input from hardware)."""
+
     pass
 
 
 class PadPressEvent(DeviceEvent):
     """Pad was pressed."""
+
     def __init__(self, pad_index: int, velocity: int):
         self.pad_index = pad_index  # Logical 0-63
         self.velocity = velocity
@@ -19,12 +24,14 @@ class PadPressEvent(DeviceEvent):
 
 class PadReleaseEvent(DeviceEvent):
     """Pad was released."""
+
     def __init__(self, pad_index: int):
         self.pad_index = pad_index  # Logical 0-63
 
 
 class ControlChangeEvent(DeviceEvent):
     """MIDI control change received."""
+
     def __init__(self, control: int, value: int):
         self.control = control
         self.value = value
@@ -33,7 +40,7 @@ class ControlChangeEvent(DeviceEvent):
 class DeviceInput(Protocol):
     """Protocol for device input handling."""
 
-    def parse_message(self, msg) -> Optional[DeviceEvent]:
+    def parse_message(self, msg) -> DeviceEvent | None:
         """
         Parse incoming message into device event.
 
@@ -54,25 +61,70 @@ class DeviceOutput(Protocol):
         """Shutdown and cleanup."""
         ...
 
-    def set_led(self, index: int, color: 'Color') -> None:
+    def set_led(self, index: int, color: Color) -> None:
         """
-        Set single LED by logical index.
+        Set single LED color.
 
         Args:
             index: Logical pad index (0-63)
-            color: RGB color
+            color: RGB color object (each channel 0-127)
+
+        Note:
+            Device implementation chooses whether to use RGB or convert to palette.
         """
         ...
 
-    def set_leds_bulk(self, updates: List[Tuple[int, 'Color']]) -> None:
+    def set_leds(self, updates: list[tuple[int, Color]]) -> None:
         """
         Set multiple LEDs efficiently.
 
         Args:
             updates: List of (logical_index, color) tuples
+
+        Note:
+            Device implementation chooses whether to use RGB or convert to palette.
         """
         ...
 
     def clear_all(self) -> None:
-        """Clear all LEDs."""
+        """Clear all LEDs (turn off)."""
+        ...
+
+    def set_led_flashing(self, index: int, color: Color) -> None:
+        """
+        Set LED to flash/blink animation.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: RGB color object (device converts to palette internally)
+
+        Note:
+            Device implementation converts RGB to nearest palette color.
+        """
+        ...
+
+    def set_led_pulsing(self, index: int, color: Color) -> None:
+        """
+        Set LED to pulse/breathe animation.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: RGB color object (device converts to palette internally)
+
+        Note:
+            Device implementation converts RGB to nearest palette color.
+        """
+        ...
+
+    def set_control_led(self, control: int, color: Color) -> None:
+        """
+        Set control button LED (non-pad buttons).
+
+        Args:
+            control: Control button identifier (device-specific, e.g., CC number)
+            color: RGB color object (each channel 0-127)
+
+        Note:
+            Device implementation chooses whether to use RGB or convert to palette.
+        """
         ...

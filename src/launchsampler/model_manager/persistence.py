@@ -23,20 +23,20 @@ Safety Features:
     - Only auto-saves when file is missing (FileNotFoundError)
 """
 
-import json
 import logging
 import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional, Type, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from launchsampler.exceptions import wrap_pydantic_error, ConfigurationError
+from launchsampler.exceptions import ConfigurationError, wrap_pydantic_error
 
 logger = logging.getLogger(__name__)
 
 # Type variable bound to Pydantic BaseModel
-T = TypeVar('T', bound=BaseModel)
+T = TypeVar("T", bound=BaseModel)
 
 
 class PydanticPersistence:
@@ -68,7 +68,7 @@ class PydanticPersistence:
     """
 
     @staticmethod
-    def load_json(path: Path, model_type: Type[T]) -> T:
+    def load_json(path: Path, model_type: type[T]) -> T:
         """
         Load and validate a Pydantic model from a JSON file.
 
@@ -111,6 +111,7 @@ class PydanticPersistence:
 
             if not json_content or not json_content.strip():
                 from launchsampler.exceptions import ConfigFileInvalidError
+
                 raise ConfigFileInvalidError(str(path), "File is empty")
 
             # Validate and parse with Pydantic
@@ -132,10 +133,8 @@ class PydanticPersistence:
             # Unexpected errors - wrap in ConfigurationError
             logger.error(f"Unexpected error loading {model_type.__name__} from {path}: {e}")
             from launchsampler.exceptions import ConfigFileInvalidError
-            raise ConfigFileInvalidError(
-                str(path),
-                f"Unexpected error: {e}"
-            ) from e
+
+            raise ConfigFileInvalidError(str(path), f"Unexpected error: {e}") from e
 
     @staticmethod
     def save_json(
@@ -143,7 +142,7 @@ class PydanticPersistence:
         path: Path,
         indent: int = 2,
         create_parents: bool = True,
-        backup: bool = True
+        backup: bool = True,
     ) -> None:
         """
         Save a Pydantic model to a JSON file with automatic backup and atomic write.
@@ -188,7 +187,7 @@ class PydanticPersistence:
 
             # Create backup if file exists and backup is requested
             if backup and path.exists():
-                backup_path = path.with_suffix(path.suffix + '.bak')
+                backup_path = path.with_suffix(path.suffix + ".bak")
                 shutil.copy2(path, backup_path)
                 logger.debug(f"Created backup: {backup_path}")
 
@@ -196,9 +195,9 @@ class PydanticPersistence:
             json_content = data.model_dump_json(indent=indent)
 
             # Atomic write: write to temp file first, then rename
-            temp_path = path.with_suffix(path.suffix + '.tmp')
+            temp_path = path.with_suffix(path.suffix + ".tmp")
             try:
-                temp_path.write_text(json_content, encoding='utf-8')
+                temp_path.write_text(json_content, encoding="utf-8")
                 # Atomic rename (overwrites destination on most systems)
                 temp_path.replace(path)
                 logger.debug(f"Saved {type(data).__name__} to {path}")
@@ -218,14 +217,12 @@ class PydanticPersistence:
             raise ConfigurationError(
                 user_message=f"Failed to save configuration to {path}",
                 technical_message=f"Failed to save {type(data).__name__}: {e}",
-                recovery_hint="Check file permissions and disk space. Backup file (.bak) may be available."
+                recovery_hint="Check file permissions and disk space. Backup file (.bak) may be available.",
             ) from e
 
     @staticmethod
-    def load_json_or_default(
-        path: Path,
-        model_type: Type[T],
-        default_factory: Optional[Callable] = None
+    def load_or_default(
+        path: Path, model_type: type[T], default_factory: Callable | None = None
     ) -> T:
         """
         Load a model from JSON, or return a default if the file doesn't exist.
@@ -249,7 +246,7 @@ class PydanticPersistence:
 
         Example:
             ```python
-            config = PydanticPersistence.load_json_or_default(
+            config = PydanticPersistence.load_or_default(
                 path=Path("config.json"),
                 model_type=AppConfig,
                 default_factory=lambda: AppConfig(debug=True)
@@ -271,7 +268,7 @@ class PydanticPersistence:
                 return model_type()
 
     @staticmethod
-    def validate_json(path: Path, model_type: Type[T]) -> tuple[bool, Optional[str]]:
+    def validate_json(path: Path, model_type: type[T]) -> tuple[bool, str | None]:
         """
         Validate a JSON file against a Pydantic model without loading it.
 
@@ -310,9 +307,9 @@ class PydanticPersistence:
     @staticmethod
     def ensure_valid_or_create(
         path: Path,
-        model_type: Type[T],
-        default_factory: Optional[Callable] = None,
-        auto_save: bool = True
+        model_type: type[T],
+        default_factory: Callable | None = None,
+        auto_save: bool = True,
     ) -> T:
         """
         Ensure a valid JSON file exists, creating a default if needed.
@@ -354,10 +351,7 @@ class PydanticPersistence:
             logger.info(f"File not found: {path}, creating default {model_type.__name__}")
 
             # Create default instance
-            if default_factory:
-                instance = default_factory()
-            else:
-                instance = model_type()
+            instance = default_factory() if default_factory else model_type()
 
             # Auto-save if requested (no backup needed since file doesn't exist)
             if auto_save:

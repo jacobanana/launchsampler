@@ -8,16 +8,15 @@ it easy to add other UI implementations (web, native GUI, etc.).
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from launchsampler.core.player import Player
 from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.devices import DeviceController
+from launchsampler.model_manager import ObserverManager
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver
+from launchsampler.services import EditorService, ModelManagerService, SetManagerService
 from launchsampler.ui_shared import UIAdapter
-from launchsampler.services import ModelManagerService, EditorService, SetManagerService
-from launchsampler.model_manager import ObserverManager
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +45,10 @@ class Orchestrator:
     def __init__(
         self,
         config: AppConfig,
-        set_name: Optional[str] = None,
-        samples_dir: Optional[Path] = None,
+        set_name: str | None = None,
+        samples_dir: Path | None = None,
         start_mode: str = "edit",
-        headless: bool = False
+        headless: bool = False,
     ):
         """
         Initialize the orchestrator.
@@ -70,19 +69,19 @@ class Orchestrator:
         self._start_mode = start_mode
 
         # Core state - owned by orchestrator
-        self._mode: Optional[str] = None
+        self._mode: str | None = None
         self.launchpad: Launchpad = Launchpad.create_empty()
         self.current_set: Set = Set.create_empty("Untitled")
 
         # Shared resources - hardware and state
         self.state_machine = SamplerStateMachine()
-        self.midi_controller: Optional[DeviceController] = None
+        self.midi_controller: DeviceController | None = None
 
         # Services (domain logic)
-        self.config_service: Optional[ModelManagerService[AppConfig]] = None
-        self.set_manager: Optional[SetManagerService] = None
-        self.player: Optional[Player] = None
-        self.editor: Optional[EditorService] = None
+        self.config_service: ModelManagerService[AppConfig] | None = None
+        self.set_manager: SetManagerService | None = None
+        self.player: Player | None = None
+        self.editor: EditorService | None = None
 
         # UI repository
         self._uis: list[UIAdapter] = []
@@ -125,9 +124,7 @@ class Orchestrator:
         # Initialize ModelManagerService for centralized config management
         config_path = Path.home() / ".launchsampler" / "config.json"
         self.config_service = ModelManagerService[AppConfig](
-            AppConfig,
-            self.config,
-            default_path=config_path
+            AppConfig, self.config, default_path=config_path
         )
         logger.info("ModelManagerService initialized")
 
@@ -161,26 +158,21 @@ class Orchestrator:
         # This must happen AFTER MIDI controller is created but BEFORE loading set
         for ui in self._uis:
             # UIs should expose their observer service for edit events
-            if hasattr(ui, 'register_with_services'):
+            if hasattr(ui, "register_with_services"):
                 ui.register_with_services(self)
 
         # Load initial set (SetManagerService handles I/O)
         # Fires SET_MOUNTED event - UIs are already observing
         loaded_set, was_auto_created = self.set_manager.load_set(
-            self._initial_set_name,
-            self._initial_samples_dir
+            self._initial_set_name, self._initial_samples_dir
         )
         self.mount_set(loaded_set)
 
         # If set was auto-created, notify observers
         if was_auto_created:
             self._app_observers.notify(
-                'on_app_event',
-                AppEvent.SET_AUTO_CREATED,
-                set_name=loaded_set.name
+                "on_app_event", AppEvent.SET_AUTO_CREATED, set_name=loaded_set.name
             )
-
-
 
         # Set initial mode - Fires MODE_CHANGED event
         self.set_mode(self._start_mode)
@@ -238,9 +230,7 @@ class Orchestrator:
     def _start_midi(self) -> bool:
         """Start MIDI controller (shared resource)."""
         try:
-            self.midi_controller = DeviceController(
-                poll_interval=self.config.midi_poll_interval
-            )
+            self.midi_controller = DeviceController(poll_interval=self.config.midi_poll_interval)
             self.midi_controller.start()
             logger.info("MIDI controller started")
             return True
@@ -284,7 +274,7 @@ class Orchestrator:
             event: The app event that occurred
             **kwargs: Event-specific data
         """
-        self._app_observers.notify('on_app_event', event, **kwargs)
+        self._app_observers.notify("on_app_event", event, **kwargs)
 
     # =================================================================
     # Set Management
@@ -310,7 +300,7 @@ class Orchestrator:
             launchpad=self.launchpad,
             samples_root=loaded_set.samples_root,
             created_at=loaded_set.created_at,
-            modified_at=loaded_set.modified_at
+            modified_at=loaded_set.modified_at,
         )
 
         # Update editor (launchpad reference sync)
@@ -321,18 +311,21 @@ class Orchestrator:
             logger.warning("EditorService not initialized - cannot update launchpad reference")
 
         # Update player (audio engine sync)
-        if self.player.is_running:
+        # Player is guaranteed to exist after initialize()
+        if self.player.is_running:  # type: ignore[union-attr]
             logger.info("Loading set into Player")
-            self.player.load_set(self.current_set)
+            self.player.load_set(self.current_set)  # type: ignore[union-attr]
         else:
-            logger.warning("Player not running - cannot load set")  
+            logger.warning("Player not running - cannot load set")
 
         # Notify observers (UIs will sync)
         self._notify_observers(AppEvent.SET_MOUNTED)
 
-        logger.info(f"Mounted set: {self.current_set.name} with {len(self.launchpad.assigned_pads)} samples")
+        logger.info(
+            f"Mounted set: {self.current_set.name} with {len(self.launchpad.assigned_pads)} samples"
+        )
 
-    def save_set(self, path: Path, name: Optional[str] = None) -> None:
+    def save_set(self, path: Path, name: str | None = None) -> None:
         """
         Save the current set.
 
@@ -347,11 +340,12 @@ class Orchestrator:
                 launchpad=self.launchpad,
                 samples_root=self.current_set.samples_root,
                 created_at=self.current_set.created_at,
-                modified_at=self.current_set.modified_at
+                modified_at=self.current_set.modified_at,
             )
 
         # Save
-        self.set_manager.save_set(self.current_set, path)
+        # SetManagerService is guaranteed to exist after initialize()
+        self.set_manager.save_set(self.current_set, path)  # type: ignore[union-attr]
 
         # Notify observers
         self._notify_observers(AppEvent.SET_SAVED, path=path, set_name=self.current_set.name)
@@ -391,7 +385,7 @@ class Orchestrator:
         return True
 
     @property
-    def mode(self) -> Optional[str]:
+    def mode(self) -> str | None:
         """
         Get the current app mode.
 

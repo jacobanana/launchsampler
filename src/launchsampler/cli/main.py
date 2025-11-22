@@ -3,16 +3,15 @@
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional
 
 import click
 
-from .commands import audio_group, midi_group, config, test
+from .commands import audio_group, config, midi_group, test
 
 logger = logging.getLogger(__name__)
 
 
-def setup_logging(verbose: int, debug: bool, log_file: Optional[Path], log_level: str) -> None:
+def setup_logging(verbose: int, debug: bool, log_file: Path | None, log_level: str) -> None:
     """
     Configure logging for the application.
 
@@ -23,9 +22,7 @@ def setup_logging(verbose: int, debug: bool, log_file: Optional[Path], log_level
         log_level: Log level for file logging (DEBUG/INFO/WARNING/ERROR)
     """
     # Determine log level based on flags
-    if debug:
-        level = logging.DEBUG
-    elif verbose >= 2:
+    if debug or verbose >= 2:
         level = logging.DEBUG
     elif verbose == 1:
         level = logging.INFO
@@ -51,15 +48,14 @@ def setup_logging(verbose: int, debug: bool, log_file: Optional[Path], log_level
 
     # Configure logging format
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # Create rotating file handler (keeps last 5 files, max 10MB each)
     file_handler = logging.handlers.RotatingFileHandler(
         log_path,
         maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5
+        backupCount=5,
     )
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
@@ -77,63 +73,59 @@ def setup_logging(verbose: int, debug: bool, log_file: Optional[Path], log_level
 @click.pass_context
 @click.version_option(version="0.1.0", prog_name="launchsampler")
 @click.option(
-    '--set',
-    '-s',
-    type=str,
+    "--set",
+    "-s",
+    type=click.STRING,
     default=None,
-    help='Name of saved set to load (from config/sets/)'
+    help="Name of saved set to load (from config/sets/)",
 )
 @click.option(
-    '--mode',
-    '-m',
-    type=click.Choice(['edit', 'play'], case_sensitive=False),
-    default='play',
-    help='Start in edit or play mode (default: play)'
+    "--mode",
+    "-m",
+    type=click.Choice(["edit", "play"], case_sensitive=False),
+    default="play",
+    help="Start in edit or play mode (default: play)",
 )
 @click.option(
-    '--led-ui/--no-led-ui',
+    "--led-ui/--no-led-ui",
     default=True,
-    help='Enable LED UI on Launchpad hardware (default: enabled)'
+    help="Enable LED UI on Launchpad hardware (default: enabled)",
 )
 @click.option(
-    '--samples-dir',
-    '-d',
+    "--samples-dir",
+    "-d",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     default=None,
-    help='Load samples from directory'
+    help="Load samples from directory",
 )
+@click.option("-v", "--verbose", count=True, help="Increase verbosity (-v: INFO, -vv: DEBUG)")
 @click.option(
-    '-v', '--verbose',
-    count=True,
-    help='Increase verbosity (-v: INFO, -vv: DEBUG)'
-)
-@click.option(
-    '--debug',
+    "--debug",
     is_flag=True,
-    help='Enable debug mode (DEBUG level, logs to ./launchsampler-debug.log)'
+    help="Enable debug mode (DEBUG level, logs to ./launchsampler-debug.log)",
 )
 @click.option(
-    '--log-file',
+    "--log-file",
     type=click.Path(path_type=Path),
     default=None,
-    help='Custom log file path'
+    help="Custom log file path",
 )
 @click.option(
-    '--log-level',
-    type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR'], case_sensitive=False),
-    default='INFO',
-    help='Log level for file logging (default: INFO)'
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
+    default="INFO",
+    help="Log level for file logging (default: INFO)",
 )
 def cli(
     ctx,
-    set: Optional[str],
+    set: str | None,
     mode: str,
     led_ui: bool,
-    samples_dir: Optional[Path],
+    samples_dir: Path | None,
     verbose: int,
     debug: bool,
-    log_file: Optional[Path],
-    log_level: str
+    log_file: Path | None,
+    log_level: str,
 ):
     """
     Launchpad Sampler - MIDI-controlled audio sample player for Novation Launchpad.
@@ -183,10 +175,10 @@ def cli(
         return
 
     # Lazy imports to avoid loading heavy dependencies during doc generation
+    from launchsampler.led_ui import LaunchpadLEDUI
     from launchsampler.models import AppConfig
     from launchsampler.orchestration import Orchestrator
     from launchsampler.tui import LaunchpadSampler
-    from launchsampler.led_ui import LaunchpadLEDUI
 
     # Setup logging (TUI uses stdout, so we log to files)
     setup_logging(verbose, debug, log_file, log_level)
@@ -216,14 +208,11 @@ def cli(
             set_name=set,
             samples_dir=samples_dir,
             start_mode=mode.lower(),
-            headless=False
+            headless=False,
         )
 
         # Create TUI (NOT initialized yet)
-        tui = LaunchpadSampler(
-            orchestrator=orchestrator,
-            start_mode=mode.lower()
-        )
+        tui = LaunchpadSampler(orchestrator=orchestrator, start_mode=mode.lower())
 
         # Register TUI with orchestrator
         orchestrator.register_ui(tui)
@@ -250,6 +239,7 @@ def cli(
         if e.code != 0:
             logger.error(f"Application exited with error code: {e.code}")
         import sys
+
         sys.exit(e.code)
     except click.Abort:
         # Re-raise Click's Abort exception without modification
@@ -263,9 +253,9 @@ def cli(
         user_message, recovery_hint = format_error_for_display(e)
 
         # Show clean error message without traceback
-        click.echo("\n" + "="*70, err=True)
+        click.echo("\n" + "=" * 70, err=True)
         click.echo(f"ERROR: {user_message}", err=True)
-        click.echo("="*70, err=True)
+        click.echo("=" * 70, err=True)
 
         # Show recovery hint if available
         if recovery_hint:
@@ -276,10 +266,11 @@ def cli(
 
         # Exit with error code without showing traceback
         import sys
+
         sys.exit(1)
     finally:
         # Ensure proper cleanup if orchestrator was created
-        if 'orchestrator' in locals():
+        if "orchestrator" in locals():
             orchestrator.shutdown()
 
 

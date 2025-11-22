@@ -2,30 +2,34 @@
 
 import logging
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal
-from textual.widgets import Header, Footer, Button, RadioSet
 from textual.binding import Binding
+from textual.containers import Horizontal
+from textual.widgets import Button, Footer, Header, RadioSet
 
 from launchsampler.core.player import Player
-from launchsampler.models import Launchpad, Set, PlaybackMode
-from launchsampler.services import EditorService, SetManagerService
+from launchsampler.models import Launchpad, PlaybackMode, Set
 from launchsampler.protocols import AppEvent, SelectionEvent
-from launchsampler.ui_shared import UIAdapter
+from launchsampler.services import EditorService, SetManagerService
 
 from .decorators import edit_only, handle_action_errors
-from .services import TUIService, NavigationService
-from .widgets import (
-    PadGrid,
-    PadDetailsPanel,
-    StatusBar,
-    MoveConfirmationModal,
-    ClearConfirmationModal,
-    PasteConfirmationModal,
+from .screens import (
+    DirectoryBrowserScreen,
+    FileBrowserScreen,
+    SaveSetBrowserScreen,
+    SetFileBrowserScreen,
 )
-from .screens import FileBrowserScreen, DirectoryBrowserScreen, SetFileBrowserScreen, SaveSetBrowserScreen
+from .services import NavigationService, TUIService
+from .widgets import (
+    ClearConfirmationModal,
+    MoveConfirmationModal,
+    PadDetailsPanel,
+    PadGrid,
+    PasteConfirmationModal,
+    StatusBar,
+)
 
 if TYPE_CHECKING:
     from launchsampler.orchestration import Orchestrator
@@ -99,11 +103,7 @@ class LaunchpadSampler(App):
     # Initialization & Lifecycle - App setup, Textual lifecycle hooks
     # =================================================================
 
-    def __init__(
-        self,
-        orchestrator: "Orchestrator",
-        start_mode: str = "play"
-    ):
+    def __init__(self, orchestrator: "Orchestrator", start_mode: str = "play"):
         """
         Initialize the Textual UI application.
 
@@ -123,15 +123,15 @@ class LaunchpadSampler(App):
         self._start_mode = start_mode
 
         # UI-specific ephemeral state (not persisted)
-        self._selected_pad_index: Optional[int] = None
+        self._selected_pad_index: int | None = None
 
         # Services
-        self.tui_service: Optional[TUIService] = None  # Initialized in initialize()
+        self.tui_service: TUIService | None = None  # Initialized in initialize()
         self.navigation: NavigationService = NavigationService(orchestrator.launchpad)
 
         self._selection_observers: list = []  # For SelectionObserver pattern
         self._initialized = False  # Track initialization state
-        self._startup_error: Optional[Exception] = None  # Store startup errors to display after exit
+        self._startup_error: Exception | None = None  # Store startup errors to display after exit
         logger.info("LaunchpadSampler TUI created")
 
     # =================================================================
@@ -179,7 +179,7 @@ class LaunchpadSampler(App):
         logger.info("Registering TUI service with orchestrator services")
 
         # Register for edit events
-        orchestrator.editor.register_observer(self.tui_service)
+        orchestrator.editor.register_observer(self.tui_service)  # type: ignore[union-attr]
 
         # Register for MIDI events (for visual feedback - green borders)
         if orchestrator.midi_controller:
@@ -187,11 +187,11 @@ class LaunchpadSampler(App):
             logger.info("TUI service registered as MIDI observer")
 
         # Register for playback events
-        orchestrator.player.set_playback_callback(self.tui_service.on_playback_event)
+        orchestrator.player.set_playback_callback(self.tui_service.on_playback_event)  # type: ignore[union-attr]
 
         logger.info("TUI service registered with all orchestrator services")
 
-    def run(self) -> None:
+    def run(self, **kwargs: Any) -> Any:  # type: ignore[override]
         """
         Run the Textual TUI (blocks until app exits).
 
@@ -206,7 +206,7 @@ class LaunchpadSampler(App):
 
         logger.info("Starting Textual TUI")
         # Call Textual's run method (blocks until app exits)
-        super().run()
+        super().run(**kwargs)
 
         # After Textual exits, check if there was a startup error
         # Re-raise the original exception to preserve type and attributes
@@ -249,6 +249,8 @@ class LaunchpadSampler(App):
         Do NOT mutate this directly. Use EditorService methods to make
         changes (they fire events for observer synchronization).
         """
+        if not self.orchestrator.launchpad:
+            raise RuntimeError("Launchpad not initialized yet")
         return self.orchestrator.launchpad
 
     @property
@@ -259,25 +261,33 @@ class LaunchpadSampler(App):
         To change sets, use orchestrator.mount_set() which fires
         AppEvent.SET_MOUNTED for observers.
         """
+        if not self.orchestrator.current_set:
+            raise RuntimeError("No set is currently mounted")
         return self.orchestrator.current_set
 
     @property
     def set_manager(self) -> SetManagerService:
         """Get the set manager service from orchestrator."""
+        if not self.orchestrator.set_manager:
+            raise RuntimeError("SetManager service not initialized yet")
         return self.orchestrator.set_manager
 
     @property
     def player(self) -> Player:
         """Get the player service from orchestrator."""
+        if not self.orchestrator.player:
+            raise RuntimeError("Player service not initialized yet")
         return self.orchestrator.player
 
     @property
     def editor(self) -> EditorService:
         """Get the editor service from orchestrator."""
+        if not self.orchestrator.editor:
+            raise RuntimeError("Editor service not initialized yet")
         return self.orchestrator.editor
 
     @property
-    def _sampler_mode(self) -> Optional[str]:
+    def _sampler_mode(self) -> str | None:
         """
         READ-ONLY access to current mode.
 
@@ -294,7 +304,7 @@ class LaunchpadSampler(App):
     # =================================================================
 
     @property
-    def selected_pad_index(self) -> Optional[int]:
+    def selected_pad_index(self) -> int | None:
         """Get the currently selected pad index (UI state)."""
         return self._selected_pad_index
 
@@ -326,7 +336,7 @@ class LaunchpadSampler(App):
         if observer not in self._selection_observers:
             self._selection_observers.append(observer)
 
-    def _notify_selection_observers(self, event, pad_index: Optional[int]) -> None:
+    def _notify_selection_observers(self, event, pad_index: int | None) -> None:
         """Notify all selection observers."""
         for observer in self._selection_observers:
             try:
@@ -446,10 +456,10 @@ class LaunchpadSampler(App):
     # Mode Management - Edit/Play mode switching
     # =================================================================
 
-    def action_switch_mode(self, mode: str) -> None:
+    async def action_switch_mode(self, mode: str) -> None:
         """
         Switch between edit and play modes.
-        
+
         Entry point for keybindings (E/P keys). Delegates to _set_mode.
 
         Args:
@@ -576,7 +586,7 @@ class LaunchpadSampler(App):
             "mode-toggle": PlaybackMode.TOGGLE,
             "mode-hold": PlaybackMode.HOLD,
             "mode-loop": PlaybackMode.LOOP,
-            "mode-looptoggle": PlaybackMode.LOOP_TOGGLE
+            "mode-looptoggle": PlaybackMode.LOOP_TOGGLE,
         }
 
         pressed_id = event.pressed.id if event.pressed else None
@@ -606,7 +616,9 @@ class LaunchpadSampler(App):
             self.notify(f"Error updating name: {e}", severity="error")
 
     @edit_only
-    def on_pad_details_panel_move_pad_requested(self, event: PadDetailsPanel.MovePadRequested) -> None:
+    def on_pad_details_panel_move_pad_requested(
+        self, event: PadDetailsPanel.MovePadRequested
+    ) -> None:
         """Handle move pad request from details panel."""
         try:
             source_index = event.source_index
@@ -622,10 +634,10 @@ class LaunchpadSampler(App):
                 logger.info(f"Target pad {target_index} has sample, showing modal")
 
                 # Show modal and handle result via callback
-                def handle_move_choice(result: str) -> None:
+                def handle_move_choice(result: str | None) -> None:
                     """Handle the user's choice from the modal."""
                     logger.info(f"Modal callback received result: {result}")
-                    if result == "cancel":
+                    if result is None or result == "cancel":
                         logger.info("User cancelled move")
                         return
                     elif result == "swap":
@@ -644,9 +656,11 @@ class LaunchpadSampler(App):
                     MoveConfirmationModal(
                         source_index=source_index,
                         target_index=target_index,
-                        target_sample_name=target_pad.sample.name if target_pad.sample else "Unknown"
+                        target_sample_name=target_pad.get_sample().name
+                        if target_pad.sample
+                        else "Unknown",
                     ),
-                    callback=handle_move_choice
+                    callback=handle_move_choice,
                 )
                 logger.info("Modal pushed, waiting for user input")
             else:
@@ -676,7 +690,7 @@ class LaunchpadSampler(App):
         # Capture selected pad index (guaranteed not None here)
         selected_pad = self.selected_pad_index
 
-        def handle_file(file_path: Optional[Path]) -> None:
+        def handle_file(file_path: Path | None) -> None:
             if file_path:
                 try:
                     # Assign sample (events handle audio/UI sync automatically)
@@ -684,17 +698,14 @@ class LaunchpadSampler(App):
 
                     # Safe to access sample.name after assign_sample
                     if pad.sample:
-                        self.notify(f"Assigned: {pad.sample.name}")
+                        self.notify(f"Assigned: {pad.get_sample().name}")
                 except Exception as e:
                     logger.error(f"Error assigning sample: {e}")
                     self.notify(f"Error: {e}", severity="error")
 
         # Start browsing from current samples_root if available, otherwise home
         browse_dir = self.current_set.samples_root if self.current_set.samples_root else Path.home()
-        self.push_screen(
-            FileBrowserScreen(browse_dir),
-            handle_file
-        )
+        self.push_screen(FileBrowserScreen(browse_dir), handle_file)
 
     def action_save(self) -> None:
         """Save the current set."""
@@ -702,7 +713,7 @@ class LaunchpadSampler(App):
         if len(self.screen_stack) > 1:
             return
 
-        def handle_save(result: Optional[tuple[Path, str]]) -> None:
+        def handle_save(result: tuple[Path, str] | None) -> None:
             if result:
                 directory, filename = result
                 try:
@@ -724,8 +735,7 @@ class LaunchpadSampler(App):
 
         # Start in the sets directory
         self.push_screen(
-            SaveSetBrowserScreen(self.config.sets_dir, self.current_set.name),
-            handle_save
+            SaveSetBrowserScreen(self.config.sets_dir, self.current_set.name), handle_save
         )
 
     def action_load(self) -> None:
@@ -734,7 +744,7 @@ class LaunchpadSampler(App):
         if len(self.screen_stack) > 1:
             return
 
-        def handle_load(set_path: Optional[Path]) -> None:
+        def handle_load(set_path: Path | None) -> None:
             if set_path:
                 try:
                     # Load set using SetManagerService
@@ -758,7 +768,7 @@ class LaunchpadSampler(App):
         if len(self.screen_stack) > 1:
             return
 
-        def handle_directory_selected(dir_path: Optional[Path]) -> None:
+        def handle_directory_selected(dir_path: Path | None) -> None:
             if dir_path:
                 try:
                     # Load samples using SetManagerService
@@ -770,7 +780,9 @@ class LaunchpadSampler(App):
                     # Switch to edit mode after loading directory
                     self._set_mode("edit")
 
-                    self.notify(f"Loaded {len(self.launchpad.assigned_pads)} samples from {dir_path.name}")
+                    self.notify(
+                        f"Loaded {len(self.launchpad.assigned_pads)} samples from {dir_path.name}"
+                    )
 
                 except Exception as e:
                     logger.error(f"Error loading directory: {e}")
@@ -794,7 +806,7 @@ class LaunchpadSampler(App):
 
         try:
             pad = self.editor.copy_pad(selected_pad)
-            self.notify(f"Copied: {pad.sample.name}", severity="information")
+            self.notify(f"Copied: {pad.get_sample().name}", severity="information")
         except ValueError as e:
             self.notify(str(e), severity="error")
 
@@ -814,7 +826,7 @@ class LaunchpadSampler(App):
         # Cut pad (events handle audio/UI sync automatically)
         pad = self.editor.cut_pad(selected_pad)
 
-        self.notify(f"Cut: {pad.sample.name}", severity="information")
+        self.notify(f"Cut: {pad.get_sample().name}", severity="information")
 
     @edit_only
     def action_paste_pad(self) -> None:
@@ -832,7 +844,7 @@ class LaunchpadSampler(App):
             # Try paste with overwrite=False first (events handle audio/UI sync automatically)
             pad = self.editor.paste_pad(selected_pad, overwrite=False)
 
-            self.notify(f"Pasted: {pad.sample.name}", severity="information")
+            self.notify(f"Pasted: {pad.get_sample().name}", severity="information")
 
         except ValueError as e:
             # Check if it's because target is occupied
@@ -840,19 +852,21 @@ class LaunchpadSampler(App):
                 # Show confirmation modal
                 target_pad = self.editor.get_pad(selected_pad)
 
-                def handle_paste_confirm(overwrite: bool) -> None:
+                def handle_paste_confirm(overwrite: bool | None) -> None:
+                    if overwrite is None:
+                        return  # User cancelled
                     if overwrite:
                         try:
                             # Paste (events handle audio/UI sync automatically)
                             pad = self.editor.paste_pad(selected_pad, overwrite=True)
-                            self.notify(f"Pasted: {pad.sample.name}", severity="information")
+                            self.notify(f"Pasted: {pad.get_sample().name}", severity="information")
                         except Exception as e:
                             logger.error(f"Error pasting: {e}")
                             self.notify(f"Error: {e}", severity="error")
 
                 self.push_screen(
-                    PasteConfirmationModal(selected_pad, target_pad.sample.name),
-                    handle_paste_confirm
+                    PasteConfirmationModal(selected_pad, target_pad.get_sample().name),
+                    handle_paste_confirm,
                 )
             else:
                 # Some other error
@@ -873,9 +887,9 @@ class LaunchpadSampler(App):
             return
 
         # Show confirmation modal
-        def handle_confirmation(confirmed: bool) -> None:
-            if not confirmed:
-                return
+        def handle_confirmation(confirmed: bool | None) -> None:
+            if confirmed is None or not confirmed:
+                return  # User cancelled or declined
 
             try:
                 # Clear pad (events handle audio/UI sync automatically)
@@ -887,8 +901,7 @@ class LaunchpadSampler(App):
                 self.notify(f"Error: {e}", severity="error")
 
         self.push_screen(
-            ClearConfirmationModal(selected_pad, pad.sample.name),
-            handle_confirmation
+            ClearConfirmationModal(selected_pad, pad.get_sample().name), handle_confirmation
         )
 
     # =================================================================
@@ -1058,7 +1071,7 @@ class LaunchpadSampler(App):
 
         try:
             # Try duplicate with overwrite=False first (events handle audio/UI sync automatically)
-            pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
+            self.editor.duplicate_pad(selected_pad, target_index, overwrite=False)
 
             # Move selection to duplicated pad
             self.select_pad(target_index)
@@ -1070,11 +1083,13 @@ class LaunchpadSampler(App):
                 # Show confirmation modal
                 target_pad = self.editor.get_pad(target_index)
 
-                def handle_duplicate_confirm(overwrite: bool) -> None:
+                def handle_duplicate_confirm(overwrite: bool | None) -> None:
+                    if overwrite is None:
+                        return  # User cancelled
                     if overwrite:
                         try:
                             # Duplicate (events handle audio/UI sync automatically)
-                            pad = self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
+                            self.editor.duplicate_pad(selected_pad, target_index, overwrite=True)
 
                             # Move selection to duplicated pad
                             self.select_pad(target_index)  # Event system handles UI sync
@@ -1083,10 +1098,13 @@ class LaunchpadSampler(App):
                             logger.error(f"Error duplicating: {e}")
                             self.notify(f"Error: {e}", severity="error")
 
-                from launchsampler.tui.widgets.paste_confirmation_modal import PasteConfirmationModal
+                from launchsampler.tui.widgets.paste_confirmation_modal import (
+                    PasteConfirmationModal,
+                )
+
                 self.push_screen(
-                    PasteConfirmationModal(target_index, target_pad.sample.name),
-                    handle_duplicate_confirm
+                    PasteConfirmationModal(target_index, target_pad.get_sample().name),
+                    handle_duplicate_confirm,
                 )
             else:
                 # Some other error
@@ -1115,12 +1133,13 @@ class LaunchpadSampler(App):
 
         # If target is occupied, show swap confirmation
         if target_pad.is_assigned:
-            def handle_move_confirm(action: str) -> None:
-                if action == "cancel":
-                    return
-                
-                swap = (action == "swap")
-                
+
+            def handle_move_confirm(action: str | None) -> None:
+                if action is None or action == "cancel":
+                    return  # User cancelled
+
+                swap = action == "swap"
+
                 # Stop playback if pads are playing
                 source_was_playing = self.player.is_pad_playing(selected_pad)
                 target_was_playing = self.player.is_pad_playing(target_index)
@@ -1136,8 +1155,8 @@ class LaunchpadSampler(App):
                 # Note: UI will update automatically via PAD_STOPPED events
 
             self.push_screen(
-                MoveConfirmationModal(selected_pad, target_index, target_pad.sample.name),
-                handle_move_confirm
+                MoveConfirmationModal(selected_pad, target_index, target_pad.get_sample().name),
+                handle_move_confirm,
             )
         else:
             # Move to empty target
@@ -1161,9 +1180,11 @@ class LaunchpadSampler(App):
             swap: Whether to swap or overwrite
         """
         try:
-            logger.info(f"Executing pad move from {source_index} to {target_index} with swap={swap}")
+            logger.info(
+                f"Executing pad move from {source_index} to {target_index} with swap={swap}"
+            )
             # Perform the move (events handle audio/UI sync automatically)
-            source_pad, target_pad = self.editor.move_pad(source_index, target_index, swap=swap)
+            _source_pad, _target_pad = self.editor.move_pad(source_index, target_index, swap=swap)
 
             # Update selection based on operation type
             if swap:
@@ -1195,7 +1216,7 @@ class LaunchpadSampler(App):
                 return
 
             # Set mode (events handle audio/UI sync automatically)
-            pad = self.editor.set_pad_mode(selected_pad, mode)
+            self.editor.set_pad_mode(selected_pad, mode)
 
         except Exception as e:
             logger.error(f"Error setting mode: {e}")

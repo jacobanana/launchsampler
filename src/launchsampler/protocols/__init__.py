@@ -8,26 +8,26 @@ For generic model management protocols (ModelEvent, ModelObserver, PersistenceSe
 see launchsampler.model_manager.protocols.
 """
 
-from .events import MidiEvent, PlaybackEvent, EditEvent, SelectionEvent, AppEvent
+from .events import AppEvent, EditEvent, MidiEvent, PlaybackEvent, SelectionEvent
 from .observers import (
-    MidiObserver,
-    StateObserver,
-    EditObserver,
-    SelectionObserver,
     AppObserver,
+    EditObserver,
+    MidiObserver,
+    SelectionObserver,
+    StateObserver,
 )
 
 __all__ = [
+    "AppEvent",
+    "AppObserver",
+    "EditEvent",
+    "EditObserver",
     # Events
     "MidiEvent",
-    "PlaybackEvent",
-    "EditEvent",
-    "SelectionEvent",
-    "AppEvent",
     # Observers
     "MidiObserver",
-    "StateObserver",
-    "EditObserver",
+    "PlaybackEvent",
+    "SelectionEvent",
     "SelectionObserver",
-    "AppObserver",
+    "StateObserver",
 ]

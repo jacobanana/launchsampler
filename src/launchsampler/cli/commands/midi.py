@@ -1,13 +1,15 @@
 """MIDI command implementations."""
 
+import contextlib
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime
 
 import click
 import mido
 
-from launchsampler.midi import MidiManager, MidiInputManager
+from launchsampler.midi import MidiInputManager, MidiManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,25 +26,25 @@ def list_midi():
     ports = MidiManager.list_ports()
 
     click.echo("MIDI Input Ports:\n")
-    if not ports['input']:
+    if not ports["input"]:
         click.echo("  No MIDI input ports found.")
     else:
-        for i, port in enumerate(ports['input']):
+        for i, port in enumerate(ports["input"]):
             click.echo(f"  [{i}] {port}")
 
     click.echo("\nMIDI Output Ports:\n")
-    if not ports['output']:
+    if not ports["output"]:
         click.echo("  No MIDI output ports found.")
     else:
-        for i, port in enumerate(ports['output']):
+        for i, port in enumerate(ports["output"]):
             click.echo(f"  [{i}] {port}")
 
 
 @midi_group.command(name="monitor")
 @click.option(
-    '--filter-clock/--no-filter-clock',
+    "--filter-clock/--no-filter-clock",
     default=True,
-    help='Filter out clock messages (default: enabled)'
+    help="Filter out clock messages (default: enabled)",
 )
 def monitor_midi(filter_clock: bool):
     """
@@ -76,20 +78,23 @@ def monitor_midi(filter_clock: bool):
     try:
         for port_name in ports:
             # Create manager that accepts any port matching this exact name
+            def make_filter(name: str) -> Callable[[str], bool]:
+                return lambda p: p == name
+
             manager = MidiInputManager(
-                device_filter=lambda p, name=port_name: p == name,
-                poll_interval=10.0  # Don't need frequent polling for monitoring
+                device_filter=make_filter(port_name),
+                poll_interval=10.0,  # Don't need frequent polling for monitoring
             )
 
             # Register callback to display messages
             def make_callback(name):
                 def callback(msg):
                     # Filter clock if requested
-                    if filter_clock and msg.type == 'clock':
+                    if filter_clock and msg.type == "clock":
                         return
 
                     # Format timestamp
-                    timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+                    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
 
                     # Display message
                     click.echo(f"[{timestamp}] {name}: {msg}")
@@ -110,7 +115,5 @@ def monitor_midi(filter_clock: bool):
     finally:
         # Stop all managers
         for manager in managers:
-            try:
+            with contextlib.suppress(Exception):
                 manager.stop()
-            except Exception:
-                pass

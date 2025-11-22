@@ -1,7 +1,6 @@
 """Path utility functions."""
 
 from pathlib import Path
-from typing import Optional
 
 
 def format_bytes(size_bytes: int) -> str:
@@ -29,7 +28,7 @@ def format_bytes(size_bytes: int) -> str:
         return f"{size_bytes / (1024 * 1024):.1f} MB"
 
 
-def find_common_path(paths: list[Path]) -> Optional[Path]:
+def find_common_path(paths: list[Path]) -> Path | None:
     """Find the most specific common parent path shared by all paths.
 
     Args:
@@ -51,7 +50,7 @@ def find_common_path(paths: list[Path]) -> Optional[Path]:
     abs_paths = [p.resolve() for p in paths]
 
     # Get all parent parts for each path
-    all_parts = [list(p.parents)[::-1] + [p.parent] for p in abs_paths]
+    all_parts = [[*list(p.parents)[::-1], p.parent] for p in abs_paths]
 
     # Find common prefix by comparing parts
     if not all_parts:

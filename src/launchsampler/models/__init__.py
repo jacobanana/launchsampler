@@ -2,21 +2,20 @@
 
 from .color import Color
 from .config import AppConfig
-from .enums import LaunchpadColor, PlaybackMode
+from .enums import PlaybackMode
 from .launchpad import Launchpad
 from .pad import Pad
 from .sample import Sample
 from .set import Set
 
 __all__ = [
-    # Enums
-    "LaunchpadColor",
-    "PlaybackMode",
+    "AppConfig",
     # Models
     "Color",
-    "Sample",
-    "Pad",
     "Launchpad",
+    "Pad",
+    # Enums
+    "PlaybackMode",
+    "Sample",
     "Set",
-    "AppConfig",
 ]

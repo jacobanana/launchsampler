@@ -1,7 +1,7 @@
 """Widget representing a single pad in the grid."""
 
-from textual.widgets import Static
 from textual.message import Message
+from textual.widgets import Static
 
 from launchsampler.models import Pad
 from launchsampler.ui_shared import MODE_COLORS, PLAYING_COLOR
@@ -28,81 +28,99 @@ def _generate_pad_css() -> str:
     for mode, launchpad_color in MODE_COLORS.items():
         css_class = mode.value  # e.g., "one_shot", "loop", "hold", "loop_toggle"
         hex_color = launchpad_color.rgb.to_hex()
-        css_lines.extend([
-            f"PadWidget.{css_class} {{",
-            f"    background: {hex_color} 20%;",
-            f"    border: solid {hex_color};",
-            "}",
-            "",
-        ])
+        css_lines.extend(
+            [
+                f"PadWidget.{css_class} {{",
+                f"    background: {hex_color} 20%;",
+                f"    border: solid {hex_color};",
+                "}",
+                "",
+            ]
+        )
 
     # Empty pad styling
-    css_lines.extend([
-        "PadWidget.empty {",
-        "    background: $surface 10%;",
-        "    border: solid $surface;",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.empty {",
+            "    background: $surface 10%;",
+            "    border: solid $surface;",
+            "}",
+            "",
+        ]
+    )
 
     # Selection styling (TUI only)
-    css_lines.extend([
-        "PadWidget.selected {",
-        "    border: double $warning 80%;",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.selected {",
+            "    border: double $warning 80%;",
+            "}",
+            "",
+        ]
+    )
 
     # MIDI on styling (TUI only)
-    css_lines.extend([
-        "PadWidget.midi_on {",
-        "    border: double $primary 60%;",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.midi_on {",
+            "    border: double $primary 60%;",
+            "}",
+            "",
+        ]
+    )
 
     # Playing/active state from centralized color
     playing_hex = PLAYING_COLOR.rgb.to_hex()
-    css_lines.extend([
-        "PadWidget.active {",
-        f"    background: {playing_hex} 60%;",
-        f"    border: solid {playing_hex};",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.active {",
+            f"    background: {playing_hex} 60%;",
+            f"    border: solid {playing_hex};",
+            "}",
+            "",
+        ]
+    )
 
     # Unavailable sample state (file not found)
     # Base state - show error border and background
-    css_lines.extend([
-        "PadWidget.unavailable {",
-        "    background: $error 10%;",
-        "    border: solid $error;",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.unavailable {",
+            "    background: $error 10%;",
+            "    border: solid $error;",
+            "}",
+            "",
+        ]
+    )
 
     # Unavailable + selected state - selection border takes priority over error border
-    css_lines.extend([
-        "PadWidget.unavailable.selected {",
-        "    border: double $warning 80%;",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.unavailable.selected {",
+            "    border: double $warning 80%;",
+            "}",
+            "",
+        ]
+    )
 
     # Unavailable + active state - active border takes priority over error border
-    css_lines.extend([
-        f"PadWidget.unavailable.active {{",
-        f"    border: solid {playing_hex};",
-        "}",
-        "",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.unavailable.active {",
+            f"    border: solid {playing_hex};",
+            "}",
+            "",
+        ]
+    )
 
     # Unavailable + midi_on state - midi border takes priority over error border
-    css_lines.extend([
-        "PadWidget.unavailable.midi_on {",
-        "    border: double $primary 60%;",
-        "}",
-    ])
+    css_lines.extend(
+        [
+            "PadWidget.unavailable.midi_on {",
+            "    border: double $primary 60%;",
+            "}",
+        ]
+    )
 
     return "\n".join(css_lines)
 
@@ -142,7 +160,7 @@ class PadWidget(Static):
         self._is_unavailable = False
         self.update_display()
 
-    def update(self, pad: Pad) -> None:
+    def update_pad(self, pad: Pad) -> None:
         """
         Update display with new pad state.
 

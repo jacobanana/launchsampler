@@ -80,12 +80,13 @@ If Novation releases an MK4 with different layout, create a new mapper class.
 """
 
 import logging
-from typing import Tuple, Optional, List
-from launchsampler.models import Color
+
+from launchsampler.devices.config import DeviceConfig
+from launchsampler.devices.launchpad import LaunchpadPalette
+from launchsampler.devices.launchpad.sysex import LaunchpadSysEx, LightingMode
 from launchsampler.devices.protocols import DeviceOutput
 from launchsampler.midi import MidiManager
-from launchsampler.devices.config import DeviceConfig
-from .launchpad_sysex import LaunchpadSysEx, LightingMode
+from launchsampler.models import Color
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class LaunchpadMK3Mapper:
         self.offset = self.PROGRAMMER_MODE_OFFSET
         self.row_spacing = self.PROGRAMMER_MODE_ROW_SPACING
 
-    def note_to_index(self, note: int) -> Optional[int]:
+    def note_to_index(self, note: int) -> int | None:
         """
         Convert MIDI note to logical pad index (0-63).
 
@@ -132,7 +133,7 @@ class LaunchpadMK3Mapper:
 
         return y * 8 + x
 
-    def note_to_xy(self, note: int) -> Tuple[Optional[int], Optional[int]]:
+    def note_to_xy(self, note: int) -> tuple[int | None, int | None]:
         """
         Convert MIDI note to (x, y) coordinates.
 
@@ -154,7 +155,7 @@ class LaunchpadMK3Mapper:
 
         return (col, row)
 
-    def index_to_note(self, index: int) -> Optional[int]:
+    def index_to_note(self, index: int) -> int | None:
         """
         Convert logical pad index to MIDI note.
 
@@ -172,7 +173,7 @@ class LaunchpadMK3Mapper:
 
         return self.xy_to_note(col, row)
 
-    def xy_to_note(self, x: int, y: int) -> Optional[int]:
+    def xy_to_note(self, x: int, y: int) -> int | None:
         """
         Convert (x, y) coordinates to MIDI note.
 
@@ -208,6 +209,8 @@ class LaunchpadMK3Output(DeviceOutput):
         self.midi = midi_manager
         self.config = config
         self.mapper = LaunchpadMK3Mapper(config)
+        if config.sysex_header is None:
+            raise ValueError("sysex_header is required for LaunchpadMK3")
         self.sysex = LaunchpadSysEx.from_header(config.sysex_header)
         self._initialized = False
 
@@ -240,11 +243,11 @@ class LaunchpadMK3Output(DeviceOutput):
 
     def set_led(self, index: int, color: Color) -> None:
         """
-        Set single LED using logical index.
+        Set single LED color.
 
         Args:
             index: Logical pad index (0-63)
-            color: RGB color (0-127 per channel)
+            color: RGB color object (each channel 0-127)
         """
         note = self.mapper.index_to_note(index)
         if note is None:
@@ -257,7 +260,7 @@ class LaunchpadMK3Output(DeviceOutput):
         if not self.midi.send(msg):
             logger.warning(f"Failed to set LED {index} (note {note})")
 
-    def set_leds_bulk(self, updates: List[Tuple[int, Color]]) -> None:
+    def set_leds(self, updates: list[tuple[int, Color]]) -> None:
         """
         Set multiple LEDs efficiently.
 
@@ -281,66 +284,49 @@ class LaunchpadMK3Output(DeviceOutput):
         msg = self.sysex.led_lighting(specs)
 
         if not self.midi.send(msg):
-            logger.warning(f"Failed to set {len(specs)} LEDs in bulk")
+            logger.warning(f"Failed to set {len(specs)} LEDs")
         else:
-            logger.debug(f"Set {len(specs)} LEDs in bulk")
+            logger.debug(f"Set {len(specs)} LEDs")
 
-    def set_led_flashing(self, index: int, color: int) -> None:
+    def set_led_flashing(self, index: int, color: Color) -> None:
         """
-        Set LED to flash using palette color.
+        Set LED to flash/blink animation.
 
         Args:
             index: Logical pad index (0-63)
-            color: Palette color index (0-127)
+            color: RGB color object (converted to nearest palette color)
         """
         note = self.mapper.index_to_note(index)
         if note is None:
             logger.error(f"Invalid pad index: {index}")
             return
 
-        spec = (LightingMode.FLASHING.value, note, 0, color)
+        palette_color = LaunchpadPalette.from_color(color)
+        spec = (LightingMode.FLASHING.value, note, 0, palette_color)
         msg = self.sysex.led_lighting([spec])
 
         if not self.midi.send(msg):
             logger.warning(f"Failed to set LED {index} flashing (note {note})")
 
-    def set_led_pulsing(self, index: int, color: int) -> None:
+    def set_led_pulsing(self, index: int, color: Color) -> None:
         """
-        Set LED to pulse using palette color.
+        Set LED to pulse/breathe animation.
 
         Args:
             index: Logical pad index (0-63)
-            color: Palette color index (0-127)
+            color: RGB color object (converted to nearest palette color)
         """
         note = self.mapper.index_to_note(index)
         if note is None:
             logger.error(f"Invalid pad index: {index}")
             return
 
-        spec = (LightingMode.PULSING.value, note, color)
+        palette_color = LaunchpadPalette.from_color(color)
+        spec = (LightingMode.PULSING.value, note, palette_color)
         msg = self.sysex.led_lighting([spec])
 
         if not self.midi.send(msg):
             logger.warning(f"Failed to set LED {index} pulsing (note {note})")
-
-    def set_led_static(self, index: int, color: int) -> None:
-        """
-        Set LED to static palette color.
-
-        Args:
-            index: Logical pad index (0-63)
-            color: Palette color index (0-127)
-        """
-        note = self.mapper.index_to_note(index)
-        if note is None:
-            logger.error(f"Invalid pad index: {index}")
-            return
-
-        spec = (LightingMode.STATIC.value, note, color)
-        msg = self.sysex.led_lighting([spec])
-
-        if not self.midi.send(msg):
-            logger.warning(f"Failed to set LED {index} static (note {note})")
 
     def set_control_led(self, cc_number: int, color: Color) -> None:
         """

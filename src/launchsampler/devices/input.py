@@ -63,15 +63,17 @@ It just asks the mapper "what logical index is this MIDI note?"
 applications. Note that velocity=0 on note_on is actually a note_off.
 """
 
-from typing import Optional, Protocol
+from typing import Protocol
+
 import mido
-from .protocols import DeviceInput, DeviceEvent, PadPressEvent, PadReleaseEvent, ControlChangeEvent
+
+from .protocols import ControlChangeEvent, DeviceEvent, DeviceInput, PadPressEvent, PadReleaseEvent
 
 
 class NoteMapper(Protocol):
     """Protocol for device-specific note mapping."""
 
-    def note_to_index(self, note: int) -> Optional[int]:
+    def note_to_index(self, note: int) -> int | None:
         """Convert hardware MIDI note to logical pad index."""
         ...
 
@@ -88,6 +90,8 @@ class GenericInput(DeviceInput):
     and delegates hardware-specific note mapping to a device mapper.
     """
 
+    mapper: NoteMapper
+
     def __init__(self, mapper: NoteMapper):
         """
         Initialize generic input parser.
@@ -98,7 +102,7 @@ class GenericInput(DeviceInput):
         """
         self.mapper = mapper
 
-    def parse_message(self, msg: mido.Message) -> Optional[DeviceEvent]:
+    def parse_message(self, msg: mido.Message) -> DeviceEvent | None:
         """
         Parse incoming MIDI message into device events.
 
@@ -113,11 +117,11 @@ class GenericInput(DeviceInput):
             should be ignored or is not supported
         """
         # Filter out clock messages
-        if msg.type == 'clock':
+        if msg.type == "clock":
             return None
 
         # Handle note on/off
-        if msg.type == 'note_on':
+        if msg.type == "note_on":
             # Convert note to logical index using device mapper
             pad_index = self.mapper.note_to_index(msg.note)
             if pad_index is None:
@@ -129,13 +133,13 @@ class GenericInput(DeviceInput):
             else:
                 return PadReleaseEvent(pad_index)
 
-        elif msg.type == 'note_off':
+        elif msg.type == "note_off":
             pad_index = self.mapper.note_to_index(msg.note)
             if pad_index is None:
                 return None
             return PadReleaseEvent(pad_index)
 
-        elif msg.type == 'control_change':
+        elif msg.type == "control_change":
             return ControlChangeEvent(msg.control, msg.value)
 
         return None

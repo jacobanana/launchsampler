@@ -1,10 +1,11 @@
 """Grid widget containing 8x8 pad widgets."""
 
-from textual.containers import Container
 from textual.app import ComposeResult
+from textual.containers import Container
 from textual.message import Message
 
 from launchsampler.models import Launchpad, Pad
+
 from .pad_widget import PadWidget
 
 
@@ -98,7 +99,7 @@ class PadGrid(Container):
             pad: New pad state (explicitly passed)
         """
         if pad_index in self.pad_widgets:
-            self.pad_widgets[pad_index].update(pad)
+            self.pad_widgets[pad_index].update_pad(pad)
 
     def select_pad(self, pad_index: int) -> None:
         """

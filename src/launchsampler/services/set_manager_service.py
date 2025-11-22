@@ -4,12 +4,11 @@ import copy
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
+from launchsampler.model_manager import PydanticPersistence
 from launchsampler.models import Set
 from launchsampler.models.config import AppConfig
 from launchsampler.utils import find_common_path
-from launchsampler.model_manager import PydanticPersistence
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +61,17 @@ class SetManagerService:
         for pad in set_obj.launchpad.pads:
             if pad.is_assigned and pad.sample:
                 original_path = pad.sample.path
-                logger.debug(f"Processing sample: {original_path} (is_absolute: {pad.sample.path.is_absolute()})")
+                logger.debug(
+                    f"Processing sample: {original_path} (is_absolute: {pad.sample.path.is_absolute()})"
+                )
 
                 if not pad.sample.path.is_absolute():
                     pad.sample.path = root / pad.sample.path
                     logger.debug(f"Resolved {original_path} -> {pad.sample.path}")
                 else:
-                    logger.warning(f"Sample path already absolute, not resolving: {pad.sample.path}")
+                    logger.warning(
+                        f"Sample path already absolute, not resolving: {pad.sample.path}"
+                    )
 
         logger.info(f"Loaded set from {path}")
         return set_obj
@@ -98,7 +101,7 @@ class SetManagerService:
             logger.error(f"Error opening set from {path}: {e}")
             raise ValueError(f"Failed to open set: {e}") from e
 
-    def open_set_by_name(self, name: str) -> Optional[Set]:
+    def open_set_by_name(self, name: str) -> Set | None:
         """
         Open an existing set by name from the configured sets directory.
 
@@ -120,7 +123,7 @@ class SetManagerService:
             logger.error(f"Error opening set '{name}': {e}")
             return None
 
-    def create_from_directory(self, samples_dir: Path, name: Optional[str] = None) -> Set:
+    def create_from_directory(self, samples_dir: Path, name: str | None = None) -> Set:
         """
         Create a new set from samples in a directory.
 
@@ -144,9 +147,7 @@ class SetManagerService:
 
         try:
             set_obj = Set.from_sample_directory(
-                samples_dir=samples_dir,
-                name=set_name,
-                auto_configure=True
+                samples_dir=samples_dir, name=set_name, auto_configure=True
             )
             logger.info(
                 f"Created set '{set_name}' with {len(set_obj.launchpad.assigned_pads)} "
@@ -205,7 +206,9 @@ class SetManagerService:
                     common_path.relative_to(set_dir)
                     # It is a child, so use None and make paths relative to Set file
                     new_samples_root = None
-                    logger.info(f"Common path {common_path} is under Set directory, using relative paths")
+                    logger.info(
+                        f"Common path {common_path} is under Set directory, using relative paths"
+                    )
                 except ValueError:
                     # Common path is not under set directory, use it as samples_root
                     new_samples_root = common_path
@@ -226,7 +229,7 @@ class SetManagerService:
 
         # Convert all paths to be relative to the new root in the COPY
         for idx, pad in enumerate(set_copy.launchpad.pads):
-            if idx in absolute_paths_map:
+            if idx in absolute_paths_map and pad.sample is not None:
                 sample_path = absolute_paths_map[idx]
 
                 # Convert to relative (where possible)
@@ -251,17 +254,12 @@ class SetManagerService:
             launchpad=set_obj.launchpad,
             samples_root=new_samples_root,
             created_at=set_obj.created_at,
-            modified_at=set_copy.modified_at
+            modified_at=set_copy.modified_at,
         )
 
         return updated_set
 
-    def save_set(
-        self,
-        set_obj: Set,
-        path: Path,
-        new_name: Optional[str] = None
-    ) -> Set:
+    def save_set(self, set_obj: Set, path: Path, new_name: str | None = None) -> Set:
         """
         Save a set to a JSON file.
 
@@ -284,7 +282,7 @@ class SetManagerService:
                     launchpad=set_obj.launchpad,
                     samples_root=set_obj.samples_root,
                     created_at=set_obj.created_at,
-                    modified_at=set_obj.modified_at
+                    modified_at=set_obj.modified_at,
                 )
 
             # Save the set (using internal implementation that creates parent directories)
@@ -296,11 +294,7 @@ class SetManagerService:
             logger.error(f"Error saving set to {path}: {e}")
             raise ValueError(f"Failed to save set: {e}") from e
 
-    def save_set_to_library(
-        self,
-        set_obj: Set,
-        filename: Optional[str] = None
-    ) -> tuple[Set, Path]:
+    def save_set_to_library(self, set_obj: Set, filename: str | None = None) -> tuple[Set, Path]:
         """
         Save a set to the configured sets library directory.
 
@@ -336,9 +330,7 @@ class SetManagerService:
         return set_obj
 
     def load_set(
-        self,
-        set_name: Optional[str] = None,
-        samples_dir: Optional[Path] = None
+        self, set_name: str | None = None, samples_dir: Path | None = None
     ) -> tuple[Set, bool]:
         """
         Load a set with smart fallback logic.
@@ -374,10 +366,10 @@ class SetManagerService:
 
         # Priority 2: Load from saved set file
         if name and name.lower() != "untitled":
-            loaded_set = self.open_set_by_name(name)
-            if loaded_set:
+            loaded_set_from_file = self.open_set_by_name(name)
+            if loaded_set_from_file:
                 logger.info(f"Loaded initial set from saved file: {name}")
-                return loaded_set, False
+                return loaded_set_from_file, False
             else:
                 logger.warning(f"Set '{name}' not found, creating empty set")
                 # Fallback: auto-create empty set

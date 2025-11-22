@@ -6,11 +6,14 @@ This module defines exceptions for configuration errors:
 - ConfigValidationError: Config values fail validation
 """
 
+from typing import Any
+
 from .base import LaunchSamplerError
 
 
 class ConfigurationError(LaunchSamplerError):
     """Configuration is invalid or cannot be loaded."""
+
     pass
 
 
@@ -26,7 +29,7 @@ class ConfigFileInvalidError(ConfigurationError):
             parse_error: The parsing error message
         """
         # Extract helpful info from parse error
-        user_msg = f"Configuration file has invalid syntax"
+        user_msg = "Configuration file has invalid syntax"
         recovery = "Check for common JSON errors:\n"
         recovery += "  - Trailing commas (remove commas after last item)\n"
         recovery += "  - Missing quotes around strings\n"
@@ -47,7 +50,7 @@ class ConfigFileInvalidError(ConfigurationError):
             user_message=user_msg,
             technical_message=f"JSON parse error in {file_path}: {parse_error}",
             recoverable=True,
-            recovery_hint=recovery
+            recovery_hint=recovery,
         )
         self.file_path = file_path
         self.parse_error = parse_error
@@ -56,7 +59,7 @@ class ConfigFileInvalidError(ConfigurationError):
 class ConfigValidationError(ConfigurationError):
     """Configuration values fail validation."""
 
-    def __init__(self, field: str, value: any, error_msg: str, file_path: str = None):
+    def __init__(self, field: str, value: Any, error_msg: str, file_path: str | None = None):
         """
         Initialize config validation error.
 
@@ -84,7 +87,7 @@ class ConfigValidationError(ConfigurationError):
             user_message=user_msg,
             technical_message=f"Config validation failed for {field}={value}: {error_msg}",
             recoverable=True,
-            recovery_hint=recovery
+            recovery_hint=recovery,
         )
         self.field = field
         self.value = value

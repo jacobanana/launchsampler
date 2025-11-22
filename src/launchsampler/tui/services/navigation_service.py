@@ -15,7 +15,7 @@ Design Principles:
 """
 
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
 from launchsampler.models import Launchpad
 
@@ -53,7 +53,7 @@ class NavigationService:
         self.launchpad = launchpad
         self._grid_size = launchpad.GRID_SIZE
 
-    def get_neighbor(self, pad_index: int, direction: Direction) -> Optional[int]:
+    def get_neighbor(self, pad_index: int, direction: Direction) -> int | None:
         """
         Get the neighboring pad index in the given direction.
 

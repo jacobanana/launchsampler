@@ -1,9 +1,9 @@
 """Modal dialog for confirming pad clear operations."""
 
-from textual.screen import ModalScreen
 from textual.app import ComposeResult
-from textual.widgets import Label, Button
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Label
 
 
 class ClearConfirmationModal(ModalScreen[bool]):
@@ -64,14 +64,8 @@ class ClearConfirmationModal(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         """Create the modal content."""
         with Vertical(id="dialog"):
-            yield Label(
-                f"Delete pad {self.pad_index}?",
-                id="question"
-            )
-            yield Label(
-                f'"{self.sample_name}"',
-                id="details"
-            )
+            yield Label(f"Delete pad {self.pad_index}?", id="question")
+            yield Label(f'"{self.sample_name}"', id="details")
             with Horizontal(id="button-container"):
                 yield Button("Delete", variant="error", id="clear-btn")
                 yield Button("Cancel", variant="default", id="cancel-btn")

@@ -6,12 +6,13 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from launchsampler.model_manager.persistence import PydanticPersistence
 from launchsampler.exceptions import ConfigurationError
+from launchsampler.model_manager.persistence import PydanticPersistence
 
 
 class SampleModel(BaseModel):
     """Simple model for testing."""
+
     name: str = "test"
     value: int = 42
 
@@ -86,9 +87,7 @@ class TestPersistenceSafety:
 
         # Load or create with auto_save=True
         result = PydanticPersistence.ensure_valid_or_create(
-            config_path,
-            SampleModel,
-            auto_save=True
+            config_path, SampleModel, auto_save=True
         )
 
         # Verify default values
@@ -107,14 +106,14 @@ class TestPersistenceSafety:
         config_path = tmp_path / "corrupted.json"
 
         # Create corrupted file
-        config_path.write_text("{ invalid json }", encoding='utf-8')
+        config_path.write_text("{ invalid json }", encoding="utf-8")
         original_content = config_path.read_text()
 
         # Try to load or create
         result = PydanticPersistence.ensure_valid_or_create(
             config_path,
             SampleModel,
-            auto_save=True  # This should NOT overwrite corrupted file
+            auto_save=True,  # This should NOT overwrite corrupted file
         )
 
         # Verify we got default values
@@ -130,14 +129,12 @@ class TestPersistenceSafety:
 
         # Create file with wrong schema
         wrong_data = {"wrong_field": "value", "another_field": 123}
-        config_path.write_text(json.dumps(wrong_data), encoding='utf-8')
+        config_path.write_text(json.dumps(wrong_data), encoding="utf-8")
         original_content = config_path.read_text()
 
         # Try to load or create
         result = PydanticPersistence.ensure_valid_or_create(
-            config_path,
-            SampleModel,
-            auto_save=True
+            config_path, SampleModel, auto_save=True
         )
 
         # Verify we got default values
@@ -156,7 +153,7 @@ class TestPersistenceSafety:
             config_path,
             SampleModel,
             default_factory=lambda: SampleModel(name="custom", value=999),
-            auto_save=True
+            auto_save=True,
         )
 
         # Verify custom defaults were used
@@ -174,9 +171,7 @@ class TestPersistenceSafety:
 
         # Load or create with auto_save=False
         result = PydanticPersistence.ensure_valid_or_create(
-            config_path,
-            SampleModel,
-            auto_save=False
+            config_path, SampleModel, auto_save=False
         )
 
         # Verify we got defaults
@@ -186,14 +181,11 @@ class TestPersistenceSafety:
         # Verify file was NOT created
         assert not config_path.exists()
 
-    def test_load_json_or_default_missing_file(self, tmp_path: Path):
-        """Test load_json_or_default with missing file."""
+    def test_load_or_default_missing_file(self, tmp_path: Path):
+        """Test load_or_default with missing file."""
         config_path = tmp_path / "missing.json"
 
-        result = PydanticPersistence.load_json_or_default(
-            config_path,
-            SampleModel
-        )
+        result = PydanticPersistence.load_or_default(config_path, SampleModel)
 
         # Should return default values
         assert result.name == "test"
@@ -202,14 +194,14 @@ class TestPersistenceSafety:
         # Should NOT create file
         assert not config_path.exists()
 
-    def test_load_json_or_default_corrupted_file_raises(self, tmp_path: Path):
-        """Test that load_json_or_default raises on corrupted files."""
+    def test_load_or_default_corrupted_file_raises(self, tmp_path: Path):
+        """Test that load_or_default raises on corrupted files."""
         config_path = tmp_path / "corrupted.json"
-        config_path.write_text("{ invalid }", encoding='utf-8')
+        config_path.write_text("{ invalid }", encoding="utf-8")
 
         # Corrupted files should raise ConfigurationError
         with pytest.raises(ConfigurationError):
-            PydanticPersistence.load_json_or_default(config_path, SampleModel)
+            PydanticPersistence.load_or_default(config_path, SampleModel)
 
     def test_backup_preserves_file_metadata(self, tmp_path: Path):
         """Test that backup preserves file metadata (timestamps, permissions)."""
@@ -221,6 +213,7 @@ class TestPersistenceSafety:
 
         # Get original modification time
         import time
+
         time.sleep(0.01)  # Ensure different timestamp
 
         # Save with backup

@@ -8,13 +8,12 @@ They are NOT Pydantic models because:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
 
 from ..models import PlaybackMode
-from ..utils import format_bytes
+from ..utils import ensure_array, format_bytes
 
 
 @dataclass(slots=True)
@@ -27,18 +26,14 @@ class AudioData:
     """
 
     data: npt.NDArray[np.float32]  # Audio samples as float32
-    sample_rate: int                # Sample rate in Hz
-    num_channels: int               # Number of channels (1=mono, 2=stereo)
-    num_frames: int                 # Number of frames (samples per channel)
-    format: Optional[str] = None    # File format (e.g., 'WAV', 'FLAC')
-    subtype: Optional[str] = None   # File subtype (e.g., 'PCM_16', 'FLOAT')
+    sample_rate: int  # Sample rate in Hz
+    num_channels: int  # Number of channels (1=mono, 2=stereo)
+    num_frames: int  # Number of frames (samples per channel)
+    format: str | None = None  # File format (e.g., 'WAV', 'FLAC')
+    subtype: str | None = None  # File subtype (e.g., 'PCM_16', 'FLOAT')
 
     @classmethod
-    def from_array(
-        cls,
-        data: npt.NDArray[np.float32],
-        sample_rate: int
-    ) -> "AudioData":
+    def from_array(cls, data: npt.NDArray[np.float32], sample_rate: int) -> "AudioData":
         """
         Create AudioData from a NumPy array.
 
@@ -65,10 +60,7 @@ class AudioData:
             data = data.astype(np.float32)
 
         return cls(
-            data=data,
-            sample_rate=sample_rate,
-            num_channels=num_channels,
-            num_frames=num_frames
+            data=data, sample_rate=sample_rate, num_channels=num_channels, num_frames=num_frames
         )
 
     @property
@@ -91,7 +83,7 @@ class AudioData:
         if self.num_channels == 1:
             return self.data
         else:
-            return np.mean(self.data, axis=1, dtype=np.float32)
+            return ensure_array(np.mean(self.data, axis=1, dtype=np.float32))
 
     def normalize(self, target_level: float = 0.95) -> None:
         """
@@ -102,34 +94,34 @@ class AudioData:
         """
         peak = np.abs(self.data).max()
         if peak > 0:
-            self.data *= (target_level / peak)
+            self.data *= target_level / peak
 
     def get_info(self) -> dict:
         """
         Get comprehensive audio file information.
 
         Returns:
-            Dictionary with audio metadata including duration, sample rate, 
+            Dictionary with audio metadata including duration, sample rate,
             channels, format, file size, etc.
         """
         # Calculate file size in bytes (based on loaded data in memory)
         size_bytes = self.data.nbytes
 
         info = {
-            'duration': self.duration,
-            'sample_rate': self.sample_rate,
-            'num_channels': self.num_channels,
-            'num_frames': self.num_frames,
-            'size_bytes': size_bytes,
-            'size_str': format_bytes(size_bytes),
+            "duration": self.duration,
+            "sample_rate": self.sample_rate,
+            "num_channels": self.num_channels,
+            "num_frames": self.num_frames,
+            "size_bytes": size_bytes,
+            "size_str": format_bytes(size_bytes),
         }
-        
+
         # Add format info if available
         if self.format:
-            info['format'] = self.format
+            info["format"] = self.format
         if self.subtype:
-            info['subtype'] = self.subtype
-        
+            info["subtype"] = self.subtype
+
         return info
 
 
@@ -142,14 +134,14 @@ class PlaybackState:
     that changes rapidly during audio playback and should have minimal overhead.
     """
 
-    is_playing: bool = False                    # Currently playing
-    position: float = 0.0                       # Current playback position (in frames)
+    is_playing: bool = False  # Currently playing
+    position: float = 0.0  # Current playback position (in frames)
     mode: PlaybackMode = PlaybackMode.ONE_SHOT  # Playback mode
-    volume: float = 1.0                         # Playback volume (0.0-1.0)
-    audio_data: Optional[AudioData] = None      # Reference to audio data
+    volume: float = 1.0  # Playback volume (0.0-1.0)
+    audio_data: AudioData | None = None  # Reference to audio data
 
     # Internal state
-    _loop_count: int = field(default=0, init=False)        # Number of loops completed
+    _loop_count: int = field(default=0, init=False)  # Number of loops completed
     _loop_toggle_state: bool = field(default=False, init=False)  # Toggle state for LOOP_TOGGLE mode
 
     def start(self) -> None:
@@ -199,7 +191,7 @@ class PlaybackState:
                 # ONE_SHOT or HOLD - stop at end
                 self.stop()
 
-    def get_frames(self, num_frames: int) -> Optional[npt.NDArray[np.float32]]:
+    def get_frames(self, num_frames: int) -> npt.NDArray[np.float32] | None:
         """
         Get next audio frames for playback.
 

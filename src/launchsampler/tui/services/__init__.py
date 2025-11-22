@@ -1,6 +1,6 @@
 """TUI-specific services."""
 
-from .tui_service import TUIService
 from .navigation_service import NavigationService
+from .tui_service import TUIService
 
-__all__ = ["TUIService", "NavigationService"]
+__all__ = ["NavigationService", "TUIService"]

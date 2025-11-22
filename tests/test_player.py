@@ -1,48 +1,44 @@
 """Tests for Player orchestration."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch, call
+from unittest.mock import Mock, patch
+
 import pytest
 
 from launchsampler.audio.data import AudioData
 from launchsampler.core.player import Player
-from launchsampler.models import AppConfig, Set, Launchpad, Pad, Sample, PlaybackMode, Color
-from launchsampler.protocols import PlaybackEvent, MidiEvent
+from launchsampler.models import AppConfig, Color, Launchpad, PlaybackMode, Sample, Set
+from launchsampler.protocols import MidiEvent, PlaybackEvent
 
 
 @pytest.fixture
 def mock_config():
     """Create a test configuration."""
-    return AppConfig(
-        default_audio_device=None,
-        default_buffer_size=256,
-        midi_poll_interval=5.0
-    )
+    return AppConfig(default_audio_device=None, default_buffer_size=256, midi_poll_interval=5.0)
 
 
 @pytest.fixture
 def test_set(sample_audio_file):
     """Create a test set with some loaded pads."""
     launchpad = Launchpad()
-    
+
     # Load a few pads with samples
     sample = Sample.from_file(sample_audio_file)
-    
+
     # Pad 0 - ONE_SHOT
     launchpad.pads[0].sample = sample
     launchpad.pads[0].mode = PlaybackMode.ONE_SHOT
     launchpad.pads[0].color = Color(r=127, g=0, b=0)
-    
+
     # Pad 5 - LOOP
     launchpad.pads[5].sample = sample
     launchpad.pads[5].mode = PlaybackMode.LOOP
     launchpad.pads[5].color = Color(r=0, g=127, b=0)
-    
+
     # Pad 10 - HOLD
     launchpad.pads[10].sample = sample
     launchpad.pads[10].mode = PlaybackMode.HOLD
     launchpad.pads[10].color = Color(r=0, g=0, b=127)
-    
+
     set_obj = Set(name="Test Set", launchpad=launchpad)
     return set_obj
 
@@ -57,12 +53,13 @@ def empty_set():
 # Lifecycle & Configuration Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerLifecycle:
     """Test Player initialization and lifecycle."""
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_player_initialization_with_config(self, mock_engine, mock_audio, mock_config):
         """Test player initializes with configuration (MIDI managed by orchestrator)."""
         player = Player(mock_config)
@@ -72,10 +69,12 @@ class TestPlayerLifecycle:
         assert not player.is_running
         assert player._audio_device is None
         assert player._engine is None
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_player_start_initializes_components(self, mock_engine_cls, mock_audio_cls, mock_config):
+
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_player_start_initializes_components(
+        self, mock_engine_cls, mock_audio_cls, mock_config
+    ):
         """Test starting player initializes audio (MIDI managed by orchestrator)."""
         # Setup mocks
         mock_audio = Mock()
@@ -92,8 +91,7 @@ class TestPlayerLifecycle:
 
         # Verify audio device created with config
         mock_audio_cls.assert_called_once_with(
-            device=mock_config.default_audio_device,
-            buffer_size=mock_config.default_buffer_size
+            device=mock_config.default_audio_device, buffer_size=mock_config.default_buffer_size
         )
 
         # Verify engine created
@@ -104,9 +102,9 @@ class TestPlayerLifecycle:
 
         # Verify engine started
         mock_engine.start.assert_called_once()
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_player_stop_cleans_up_components(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test stopping player cleans up resources."""
         mock_engine = Mock()
@@ -118,8 +116,8 @@ class TestPlayerLifecycle:
 
         assert not player.is_running
         mock_engine.stop.assert_called_once()
-    
-    @patch('launchsampler.core.player.AudioDevice', side_effect=Exception("Audio init failed"))
+
+    @patch("launchsampler.core.player.AudioDevice", side_effect=Exception("Audio init failed"))
     def test_player_handles_audio_device_failure(self, mock_audio, mock_config):
         """Test player handles audio device initialization failure gracefully."""
         player = Player(mock_config)
@@ -131,9 +129,9 @@ class TestPlayerLifecycle:
         assert not player.is_running
         assert player._audio_device is None
         assert player._engine is None
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_player_context_manager(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test player works as context manager."""
         mock_engine = Mock()
@@ -146,9 +144,9 @@ class TestPlayerLifecycle:
 
         assert not player.is_running
         mock_engine.stop.assert_called_once()
-    
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_player_double_start_is_safe(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test calling start() twice doesn't break anything."""
         mock_engine = Mock()
@@ -167,12 +165,13 @@ class TestPlayerLifecycle:
 # Set Management Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerSetManagement:
     """Test Player set loading and management."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_load_set_while_stopped(self, mock_engine_cls, mock_audio, mock_config, test_set):
         """Test loading set before player starts."""
         player = Player(mock_config)
@@ -180,8 +179,8 @@ class TestPlayerSetManagement:
 
         assert player.current_set == test_set
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_load_set_into_engine(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
         """Test loading set into running engine."""
         mock_engine = Mock()
@@ -202,8 +201,8 @@ class TestPlayerSetManagement:
         assert 5 in loaded_indices
         assert 10 in loaded_indices
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_load_empty_set(self, mock_engine_cls, mock_audio_cls, mock_config, empty_set):
         """Test loading empty set doesn't cause errors."""
         mock_engine = Mock()
@@ -218,8 +217,8 @@ class TestPlayerSetManagement:
         # No samples to load
         mock_engine.load_sample.assert_not_called()
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_start_with_initial_set(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
         """Test starting player with initial set loads samples."""
         mock_engine = Mock()
@@ -232,9 +231,11 @@ class TestPlayerSetManagement:
         assert player.current_set == test_set
         assert mock_engine.load_sample.call_count == 3
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_switch_between_sets(self, mock_engine_cls, mock_audio_cls, mock_config, test_set, empty_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_switch_between_sets(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set, empty_set
+    ):
         """Test switching from one set to another."""
         mock_engine = Mock()
         mock_engine.load_sample = Mock(return_value=True)
@@ -259,12 +260,13 @@ class TestPlayerSetManagement:
 # Playback Control Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerPlaybackControl:
     """Test Player playback control methods."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_trigger_pad(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test triggering a pad forwards to engine."""
         mock_engine = Mock()
@@ -276,8 +278,8 @@ class TestPlayerPlaybackControl:
 
         mock_engine.trigger_pad.assert_called_once_with(5)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_release_pad(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test releasing a pad forwards to engine."""
         mock_engine = Mock()
@@ -289,8 +291,8 @@ class TestPlayerPlaybackControl:
 
         mock_engine.release_pad.assert_called_once_with(10)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_stop_pad(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test stopping a pad forwards to engine."""
         mock_engine = Mock()
@@ -302,8 +304,8 @@ class TestPlayerPlaybackControl:
 
         mock_engine.stop_pad.assert_called_once_with(15)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_stop_all(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test stop all forwards to engine."""
         mock_engine = Mock()
@@ -315,8 +317,8 @@ class TestPlayerPlaybackControl:
 
         mock_engine.stop_all.assert_called_once()
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_set_master_volume(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test setting master volume forwards to engine."""
         mock_engine = Mock()
@@ -333,13 +335,16 @@ class TestPlayerPlaybackControl:
 # MIDI Event Handling Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerMIDIHandling:
     """Test Player MIDI event handling."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_midi_pad_press_triggers_audio(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_midi_pad_press_triggers_audio(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test MIDI pad press triggers audio playback."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -354,9 +359,11 @@ class TestPlayerMIDIHandling:
         # Should trigger audio
         mock_engine.trigger_pad.assert_called_once_with(0)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_empty_pad_press_doesnt_trigger_audio(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_empty_pad_press_doesnt_trigger_audio(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test pressing empty pad doesn't trigger audio."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -371,9 +378,11 @@ class TestPlayerMIDIHandling:
         # Should NOT trigger audio
         mock_engine.trigger_pad.assert_not_called()
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_pad_release_stops_audio_in_loop_mode(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_pad_release_stops_audio_in_loop_mode(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test pad release stops audio in LOOP mode."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -388,9 +397,11 @@ class TestPlayerMIDIHandling:
         # Should release audio
         mock_engine.release_pad.assert_called_once_with(5)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_pad_release_stops_audio_in_hold_mode(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_pad_release_stops_audio_in_hold_mode(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test pad release stops audio in HOLD mode."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -405,9 +416,11 @@ class TestPlayerMIDIHandling:
         # Should release audio
         mock_engine.release_pad.assert_called_once_with(10)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_pad_release_ignores_oneshot_mode(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_pad_release_ignores_oneshot_mode(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test pad release doesn't affect ONE_SHOT mode (toggle behavior)."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -421,18 +434,19 @@ class TestPlayerMIDIHandling:
 
         # Should NOT release audio (ONE_SHOT uses toggle behavior like LOOP_TOGGLE)
         mock_engine.release_pad.assert_not_called()
-    
+
 
 # =================================================================
 # State Observer Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerStateObserver:
     """Test Player as StateObserver."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_player_forwards_playback_events(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test player forwards playback events from engine."""
         mock_engine = Mock()
@@ -455,8 +469,8 @@ class TestPlayerStateObserver:
         callback.assert_any_call(PlaybackEvent.PAD_STOPPED, 5)
         callback.assert_any_call(PlaybackEvent.PAD_FINISHED, 5)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_player_registers_as_observer(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test player registers itself as observer on engine."""
         mock_engine = Mock()
@@ -468,9 +482,11 @@ class TestPlayerStateObserver:
         # Should register as observer
         mock_engine.register_observer.assert_called_once_with(player)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_playback_events_without_callback_dont_crash(self, mock_engine_cls, mock_audio_cls, mock_config):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_playback_events_without_callback_dont_crash(
+        self, mock_engine_cls, mock_audio_cls, mock_config
+    ):
         """Test receiving playback events without callback doesn't crash."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -487,12 +503,13 @@ class TestPlayerStateObserver:
 # Query Methods Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerQueryMethods:
     """Test Player query and status methods."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_is_running_property(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test is_running property reflects state."""
         mock_engine = Mock()
@@ -506,8 +523,8 @@ class TestPlayerQueryMethods:
         player.stop()
         assert not player.is_running
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_active_voices_property(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test active_voices property returns engine voice count."""
         mock_engine = Mock()
@@ -520,8 +537,8 @@ class TestPlayerQueryMethods:
         player.start()
         assert player.active_voices == 5
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_audio_device_name(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test audio_device_name property."""
         mock_audio = Mock()
@@ -537,8 +554,8 @@ class TestPlayerQueryMethods:
         player.start()
         assert player.audio_device_name == "Test Audio Device"
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_is_pad_playing(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test is_pad_playing query."""
         mock_engine = Mock()
@@ -552,8 +569,8 @@ class TestPlayerQueryMethods:
         assert player.is_pad_playing(0)
         mock_engine.is_pad_playing.assert_called_with(0)
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_get_playing_pads(self, mock_engine_cls, mock_audio_cls, mock_config):
         """Test get_playing_pads query."""
         mock_engine = Mock()
@@ -566,8 +583,8 @@ class TestPlayerQueryMethods:
         player.start()
         assert player.get_playing_pads() == [0, 5, 10]
 
-    @patch('launchsampler.core.player.SamplerEngine')
-    @patch('launchsampler.core.player.AudioDevice')
+    @patch("launchsampler.core.player.SamplerEngine")
+    @patch("launchsampler.core.player.AudioDevice")
     def test_get_audio_data(self, mock_audio_cls, mock_engine_cls, mock_config):
         """Test get_audio_data delegates to engine."""
         # Create mock audio data
@@ -601,13 +618,16 @@ class TestPlayerQueryMethods:
 # Error Handling Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerErrorHandling:
     """Test Player error handling and recovery."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_player_recovers_from_callback_exception(self, mock_engine_cls, mock_audio_cls, mock_config):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_player_recovers_from_callback_exception(
+        self, mock_engine_cls, mock_audio_cls, mock_config
+    ):
         """Test player continues if callback raises exception."""
         mock_engine = Mock()
         mock_engine_cls.return_value = mock_engine
@@ -630,8 +650,8 @@ class TestPlayerErrorHandling:
         # Player should still be running
         assert player.is_running
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
     def test_operations_safe_when_not_started(self, mock_engine, mock_audio, mock_config):
         """Test operations are safe when player not started."""
         player = Player(mock_config)
@@ -652,13 +672,16 @@ class TestPlayerErrorHandling:
 # Integration-style Tests
 # =================================================================
 
+
 @pytest.mark.unit
 class TestPlayerIntegration:
     """Test Player with more realistic scenarios."""
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_complete_playback_workflow(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_complete_playback_workflow(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test complete workflow: start, load, trigger, observe, stop."""
         mock_engine = Mock()
         mock_engine.load_sample = Mock(return_value=True)
@@ -696,9 +719,11 @@ class TestPlayerIntegration:
         player.stop()
         assert not player.is_running
 
-    @patch('launchsampler.core.player.AudioDevice')
-    @patch('launchsampler.core.player.SamplerEngine')
-    def test_multiple_pads_playing_simultaneously(self, mock_engine_cls, mock_audio_cls, mock_config, test_set):
+    @patch("launchsampler.core.player.AudioDevice")
+    @patch("launchsampler.core.player.SamplerEngine")
+    def test_multiple_pads_playing_simultaneously(
+        self, mock_engine_cls, mock_audio_cls, mock_config, test_set
+    ):
         """Test multiple pads can be triggered and tracked."""
         mock_engine = Mock()
         mock_engine.load_sample = Mock(return_value=True)
@@ -718,4 +743,3 @@ class TestPlayerIntegration:
         mock_engine.trigger_pad.assert_any_call(0)
         mock_engine.trigger_pad.assert_any_call(5)
         mock_engine.trigger_pad.assert_any_call(10)
-

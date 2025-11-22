@@ -7,14 +7,14 @@ markdown files with mkdocstrings directives for each module.
 """
 
 from pathlib import Path
-from typing import Dict, List, Any
+
 import yaml
 
 
 def get_module_path(file_path: Path, src_root: Path) -> str:
     """Convert a file path to a Python module path."""
     relative = file_path.relative_to(src_root)
-    parts = list(relative.parts[:-1]) + [relative.stem]
+    parts = [*list(relative.parts[:-1]), relative.stem]
     return ".".join(parts)
 
 
@@ -28,8 +28,8 @@ def generate_doc_content(module_path: str, title: str, description: str = "") ->
 
 
 def scan_package(
-    package_path: Path, src_root: Path, exclude_patterns: List[str] = None
-) -> Dict[str, str]:
+    package_path: Path, src_root: Path, exclude_patterns: list[str] | None = None
+) -> dict[str, str]:
     """
     Scan a package and return a mapping of doc paths to module paths.
 
@@ -88,7 +88,7 @@ def get_package_title(package_name: str) -> str:
     return package_name.capitalize()
 
 
-def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]) -> str:
+def generate_nav_structure(docs_root: Path, packages_to_document: dict[str, str]) -> str:
     """
     Generate navigation structure for mkdocs.yml using PyYAML.
 
@@ -97,21 +97,17 @@ def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]
     # Build the navigation structure as a Python data structure
     api_reference_items = []
 
-    for package_name in packages_to_document.keys():
+    for package_name in packages_to_document:
         package_dir = docs_root / package_name
         if not package_dir.exists():
             continue
 
         # Add package section
         title = get_package_title(package_name)
-        package_items = [
-            {"Overview": f"api/{package_name}/index.md"}
-        ]
+        package_items = [{"Overview": f"api/{package_name}/index.md"}]
 
         # Find all markdown files except index
-        md_files = sorted(
-            [f for f in package_dir.rglob("*.md") if f.name != "index.md"]
-        )
+        md_files = sorted([f for f in package_dir.rglob("*.md") if f.name != "index.md"])
 
         for md_file in md_files:
             rel_path = md_file.relative_to(docs_root)
@@ -135,14 +131,14 @@ def generate_nav_structure(docs_root: Path, packages_to_document: Dict[str, str]
         default_flow_style=False,
         sort_keys=False,
         allow_unicode=True,
-        width=1000  # Avoid line wrapping
+        width=1000,  # Avoid line wrapping
     )
 
     # Add proper indentation for mkdocs.yml (starts at 2 spaces)
-    lines = yaml_output.strip().split('\n')
-    indented_lines = ['  ' + line for line in lines]
+    lines = yaml_output.strip().split("\n")
+    indented_lines = ["  " + line for line in lines]
 
-    return '\n'.join(indented_lines)
+    return "\n".join(indented_lines)
 
 
 def update_mkdocs_nav(mkdocs_path: Path, new_api_nav: str) -> None:
@@ -170,7 +166,7 @@ def update_mkdocs_nav(mkdocs_path: Path, new_api_nav: str) -> None:
     mkdocs_path.write_text(new_content, encoding="utf-8")
 
 
-def cleanup_old_docs(docs_root: Path, packages_to_document: Dict[str, str]) -> None:
+def cleanup_old_docs(docs_root: Path, packages_to_document: dict[str, str]) -> None:
     """
     Clean up old documentation files for packages being regenerated.
 
@@ -183,7 +179,7 @@ def cleanup_old_docs(docs_root: Path, packages_to_document: Dict[str, str]) -> N
     """
     print("\nCleaning up old documentation files...")
 
-    for package_name in packages_to_document.keys():
+    for package_name in packages_to_document:
         package_dir = docs_root / package_name
         if package_dir.exists():
             # Remove all markdown files except index.md (we'll regenerate it)
@@ -283,7 +279,7 @@ def main():
     print("\nUpdating mkdocs.yml...")
     mkdocs_file = project_root / "mkdocs.yml"
     update_mkdocs_nav(mkdocs_file, nav_structure)
-    print(f"Updated API Reference section in mkdocs.yml")
+    print("Updated API Reference section in mkdocs.yml")
 
     print("\nRun 'uv run mkdocs serve' to preview the documentation.")
 

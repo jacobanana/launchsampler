@@ -15,7 +15,7 @@ from launchsampler.protocols import (
     SelectionObserver,
     StateObserver,
 )
-from launchsampler.tui.widgets import PadGrid, PadDetailsPanel, StatusBar
+from launchsampler.tui.widgets import PadDetailsPanel, PadGrid, StatusBar
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -107,7 +107,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             if self.app.selected_pad_index is not None:
                 self._update_selected_pad_ui(
                     self.app.selected_pad_index,
-                    self.app.launchpad.pads[self.app.selected_pad_index]
+                    self.app.launchpad.pads[self.app.selected_pad_index],
                 )
 
             logger.debug("TUI synchronized with loaded set")
@@ -139,11 +139,8 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         Args:
             **kwargs: Event data (set_name)
         """
-        set_name = kwargs.get('set_name', 'Unknown')
-        self.app.notify(
-            f"Set '{set_name}' not found. Created new empty set.",
-            severity="warning"
-        )
+        set_name = kwargs.get("set_name", "Unknown")
+        self.app.notify(f"Set '{set_name}' not found. Created new empty set.", severity="warning")
 
     def _handle_mode_changed(self, **kwargs) -> None:
         """
@@ -157,7 +154,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         Args:
             **kwargs: Event data (e.g., mode)
         """
-        mode = kwargs.get('mode')
+        mode = kwargs.get("mode")
         if mode:
             # Call TUI app's _set_mode_ui to update UI only (no feedback loop!)
             # _set_mode_ui updates selection/details panel visibility
@@ -170,12 +167,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
     # EditObserver Protocol - Editing events
     # =================================================================
 
-    def on_edit_event(
-        self,
-        event: "EditEvent",
-        pad_indices: list[int],
-        pads: list["Pad"]
-    ) -> None:
+    def on_edit_event(self, event: "EditEvent", pad_indices: list[int], pads: list["Pad"]) -> None:
         """
         Handle editing events and update UI.
 
@@ -191,7 +183,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
 
         try:
             # Update content - refresh grid and details if currently selected
-            for pad_index, pad in zip(pad_indices, pads):
+            for pad_index, pad in zip(pad_indices, pads, strict=False):
                 self._update_pad_ui(pad_index, pad)
 
         except Exception as e:
@@ -201,11 +193,7 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
     # SelectionObserver Protocol - Selection events
     # =================================================================
 
-    def on_selection_event(
-        self,
-        event: "SelectionEvent",
-        pad_index: Optional[int]
-    ) -> None:
+    def on_selection_event(self, event: "SelectionEvent", pad_index: int | None) -> None:
         """
         Handle selection change events.
 
@@ -235,7 +223,9 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
     # MidiObserver Protocol - MIDI controller events
     # =================================================================
 
-    def on_midi_event(self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0) -> None:
+    def on_midi_event(
+        self, event: "MidiEvent", pad_index: int, control: int = 0, value: int = 0
+    ) -> None:
         """
         Handle MIDI events from controller.
 
@@ -305,11 +295,11 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
             midi_device_name = midi_controller.device_name if midi_controller else "No MIDI"
 
             status.update_state(
-                mode=self.app._sampler_mode,
+                mode=self.app._sampler_mode,  # type: ignore[arg-type]
                 connected=is_midi_connected,
                 voices=self.app.player.active_voices,
                 audio_device=self.app.player.audio_device_name,
-                midi_device=midi_device_name
+                midi_device=midi_device_name,
             )
         except Exception:
             # Status bar might not be mounted yet

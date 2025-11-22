@@ -5,4 +5,4 @@ from .input_manager import MidiInputManager
 from .manager import MidiManager
 from .output_manager import MidiOutputManager
 
-__all__ = ["BaseMidiManager", "MidiInputManager", "MidiOutputManager", "MidiManager"]
+__all__ = ["BaseMidiManager", "MidiInputManager", "MidiManager", "MidiOutputManager"]

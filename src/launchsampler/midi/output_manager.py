@@ -1,7 +1,6 @@
 """Generic MIDI output manager with hot-plug support."""
 
 import logging
-from typing import Callable, Optional
 
 import mido
 

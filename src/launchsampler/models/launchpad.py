@@ -2,14 +2,14 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from launchsampler.ui_shared import MODE_COLORS
+
+from .enums import PlaybackMode
 from .pad import Pad
 from .sample import Sample
-from .enums import PlaybackMode
-from launchsampler.ui_shared import MODE_COLORS
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ class Launchpad(BaseModel):
     TOTAL_PADS: int = TOTAL_PADS  # 8 * 8
 
     pads: list[Pad] = Field(
-        default_factory=_create_default_pads,
-        description="8x8 grid of pads (64 total)"
+        default_factory=_create_default_pads, description="8x8 grid of pads (64 total)"
     )
 
     @field_validator("pads")
@@ -40,7 +39,9 @@ class Launchpad(BaseModel):
     def validate_pad_count(cls, v: list[Pad]) -> list[Pad]:
         """Ensure exactly 64 pads."""
         if len(v) != TOTAL_PADS:
-            raise ValueError(f"Launchpad must have exactly {TOTAL_PADS} pads ({GRID_SIZE}x{GRID_SIZE})")
+            raise ValueError(
+                f"Launchpad must have exactly {TOTAL_PADS} pads ({GRID_SIZE}x{GRID_SIZE})"
+            )
         return v
 
     def xy_to_note(self, x: int, y: int) -> int:
@@ -59,7 +60,7 @@ class Launchpad(BaseModel):
             raise ValueError(f"Invalid coordinates: ({x}, {y}). Must be 0-{self.GRID_SIZE - 1}.")
         return self.pads[self.xy_to_note(x, y)]
 
-    def get_pad_by_note(self, note: int) -> Optional[Pad]:
+    def get_pad_by_note(self, note: int) -> Pad | None:
         """Get pad by MIDI note number (0-63)."""
         if not 0 <= note < self.TOTAL_PADS:
             return None
@@ -109,7 +110,7 @@ class Launchpad(BaseModel):
 
         # Discover audio files recursively
         extensions = ["**/*.wav", "**/*.mp3", "**/*.flac", "**/*.ogg", "**/*.aiff"]
-        sample_files = []
+        sample_files: list[Path] = []
         for ext in extensions:
             sample_files.extend(samples_dir.glob(ext))
 

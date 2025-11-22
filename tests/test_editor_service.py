@@ -1,6 +1,5 @@
 """Unit tests for EditorService."""
 
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -240,7 +239,9 @@ class TestEditorServiceDuplicatePad:
         assert result == target_pad
 
     @pytest.mark.unit
-    def test_duplicate_pad_overwrite_false_occupied_target(self, editor, sample_audio_file, temp_dir):
+    def test_duplicate_pad_overwrite_false_occupied_target(
+        self, editor, sample_audio_file, temp_dir
+    ):
         """Test copying with overwrite=False to occupied target raises ValueError."""
         import numpy as np
         import soundfile as sf
@@ -261,10 +262,7 @@ class TestEditorServiceDuplicatePad:
         editor.assign_sample(target_index, second_file)
 
         # Should fail - target already has a sample
-        with pytest.raises(
-            ValueError,
-            match=r"Target pad 1 already has sample 'second'"
-        ):
+        with pytest.raises(ValueError, match=r"Target pad 1 already has sample 'second'"):
             editor.duplicate_pad(source_index, target_index, overwrite=False)
 
         # Verify target was not modified
@@ -272,7 +270,9 @@ class TestEditorServiceDuplicatePad:
         assert target_pad.sample.name == "second"
 
     @pytest.mark.unit
-    def test_duplicate_pad_overwrite_true_occupied_target(self, editor, sample_audio_file, temp_dir):
+    def test_duplicate_pad_overwrite_true_occupied_target(
+        self, editor, sample_audio_file, temp_dir
+    ):
         """Test copying with overwrite=True to occupied target succeeds."""
         import numpy as np
         import soundfile as sf
@@ -323,10 +323,7 @@ class TestEditorServiceDuplicatePad:
         editor.assign_sample(target_index, second_file)
 
         # Should fail with default parameters (overwrite=False by default)
-        with pytest.raises(
-            ValueError,
-            match=r"Target pad 1 already has sample 'second'"
-        ):
+        with pytest.raises(ValueError, match=r"Target pad 1 already has sample 'second'"):
             editor.duplicate_pad(source_index, target_index)
 
         # Verify target was NOT modified
@@ -429,10 +426,7 @@ class TestEditorServiceCopyPaste:
         editor.assign_sample(5, second_file)
 
         # Should fail - target occupied
-        with pytest.raises(
-            ValueError,
-            match=r"Target pad 5 already has sample 'second'"
-        ):
+        with pytest.raises(ValueError, match=r"Target pad 5 already has sample 'second'"):
             editor.paste_pad(5, overwrite=False)
 
     @pytest.mark.unit
@@ -800,9 +794,9 @@ class TestEditorServiceEvents:
     def test_assign_sample_fires_event(self, editor, observer, sample_audio_file):
         """Test that assign_sample fires PAD_ASSIGNED event."""
         editor.register_observer(observer)
-        
-        pad = editor.assign_sample(5, sample_audio_file)
-        
+
+        editor.assign_sample(5, sample_audio_file)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_ASSIGNED
@@ -815,9 +809,9 @@ class TestEditorServiceEvents:
         """Test that clear_pad fires PAD_CLEARED event."""
         editor.assign_sample(3, sample_audio_file)
         editor.register_observer(observer)
-        
-        pad = editor.clear_pad(3)
-        
+
+        editor.clear_pad(3)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_CLEARED
@@ -830,9 +824,9 @@ class TestEditorServiceEvents:
         """Test that set_pad_mode fires PAD_MODE_CHANGED event."""
         editor.assign_sample(7, sample_audio_file)
         editor.register_observer(observer)
-        
-        pad = editor.set_pad_mode(7, PlaybackMode.LOOP)
-        
+
+        editor.set_pad_mode(7, PlaybackMode.LOOP)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_MODE_CHANGED
@@ -844,9 +838,9 @@ class TestEditorServiceEvents:
         """Test that set_pad_volume fires PAD_VOLUME_CHANGED event."""
         editor.assign_sample(2, sample_audio_file)
         editor.register_observer(observer)
-        
-        pad = editor.set_pad_volume(2, 0.5)
-        
+
+        editor.set_pad_volume(2, 0.5)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_VOLUME_CHANGED
@@ -858,9 +852,9 @@ class TestEditorServiceEvents:
         """Test that set_sample_name fires PAD_NAME_CHANGED event."""
         editor.assign_sample(8, sample_audio_file)
         editor.register_observer(observer)
-        
-        pad = editor.set_sample_name(8, "New Name")
-        
+
+        editor.set_sample_name(8, "New Name")
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_NAME_CHANGED
@@ -872,25 +866,25 @@ class TestEditorServiceEvents:
         """Test that move_pad fires PAD_MOVED event with both pads."""
         editor.assign_sample(4, sample_audio_file)
         editor.register_observer(observer)
-        
-        source_pad, target_pad = editor.move_pad(4, 9, swap=False)
-        
+
+        _source_pad, _target_pad = editor.move_pad(4, 9, swap=False)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_MOVED
         assert indices == [4, 9]
         assert len(pads) == 2
         assert not pads[0].is_assigned  # Source cleared
-        assert pads[1].is_assigned      # Target has sample
+        assert pads[1].is_assigned  # Target has sample
 
     @pytest.mark.unit
     def test_duplicate_pad_fires_event(self, editor, observer, sample_audio_file):
         """Test that duplicate_pad fires PAD_DUPLICATED event."""
         editor.assign_sample(1, sample_audio_file)
         editor.register_observer(observer)
-        
-        pad = editor.duplicate_pad(1, 6, overwrite=False)
-        
+
+        editor.duplicate_pad(1, 6, overwrite=False)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_DUPLICATED
@@ -903,9 +897,9 @@ class TestEditorServiceEvents:
         editor.assign_sample(0, sample_audio_file)
         editor.copy_pad(0)
         editor.register_observer(observer)
-        
-        pad = editor.paste_pad(10, overwrite=False)
-        
+
+        editor.paste_pad(10, overwrite=False)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_ASSIGNED
@@ -917,9 +911,9 @@ class TestEditorServiceEvents:
         """Test that cut_pad fires PAD_CLEARED event for source."""
         editor.assign_sample(15, sample_audio_file)
         editor.register_observer(observer)
-        
-        clipboard_pad = editor.cut_pad(15)
-        
+
+        editor.cut_pad(15)
+
         observer.on_edit_event.assert_called_once()
         event, indices, pads = observer.on_edit_event.call_args[0]
         assert event == EditEvent.PAD_CLEARED
@@ -934,15 +928,15 @@ class TestEditorServiceEvents:
         """Test that exception in one observer doesn't break others."""
         bad_observer = Mock(spec=EditObserver)
         bad_observer.on_edit_event.side_effect = RuntimeError("Bad observer")
-        
+
         good_observer = Mock(spec=EditObserver)
-        
+
         editor.register_observer(bad_observer)
         editor.register_observer(good_observer)
-        
+
         # Should not raise despite bad_observer failing
         editor.assign_sample(0, sample_audio_file)
-        
+
         # Both observers should have been called
         bad_observer.on_edit_event.assert_called_once()
         good_observer.on_edit_event.assert_called_once()
@@ -953,14 +947,13 @@ class TestEditorServiceEvents:
         observer1 = Mock(spec=EditObserver)
         observer2 = Mock(spec=EditObserver)
         observer3 = Mock(spec=EditObserver)
-        
+
         editor.register_observer(observer1)
         editor.register_observer(observer2)
         editor.register_observer(observer3)
-        
+
         editor.assign_sample(12, sample_audio_file)
-        
+
         observer1.on_edit_event.assert_called_once()
         observer2.on_edit_event.assert_called_once()
         observer3.on_edit_event.assert_called_once()
-

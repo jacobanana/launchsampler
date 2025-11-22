@@ -4,8 +4,8 @@ This module defines DeviceConfig, which is the flattened runtime representation
 created by merging family defaults with device-specific overrides.
 """
 
-from typing import Optional
 from pydantic import BaseModel, Field, computed_field
+
 from .schema import DeviceCapabilities, OSPortSelection, PortSelectionRules
 
 
@@ -25,45 +25,39 @@ class DeviceConfig(BaseModel):
 
     # Detection
     detection_patterns: list[str] = Field(
-        default_factory=list,
-        description="Patterns for detecting this device in port names"
+        default_factory=list, description="Patterns for detecting this device in port names"
     )
 
     # Capabilities
-    capabilities: DeviceCapabilities = Field(
-        description="Device hardware capabilities"
-    )
+    capabilities: DeviceCapabilities = Field(description="Device hardware capabilities")
 
     # Port selection (merged family + device rules)
     input_port_selection: OSPortSelection = Field(
-        default_factory=OSPortSelection,
-        description="Input port selection rules"
+        default_factory=OSPortSelection, description="Input port selection rules"
     )
     output_port_selection: OSPortSelection = Field(
-        default_factory=OSPortSelection,
-        description="Output port selection rules"
+        default_factory=OSPortSelection, description="Output port selection rules"
     )
 
     # Device-specific metadata
-    sysex_header: Optional[list[int]] = Field(
-        None,
-        description="SysEx header bytes for device control"
+    sysex_header: list[int] | None = Field(
+        None, description="SysEx header bytes for device control"
     )
 
     # Computed properties for backward compatibility
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def display_name(self) -> str:
         """Human-readable device name."""
         return self.model
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def num_pads(self) -> int:
         """Number of pads on device."""
         return self.capabilities.num_pads
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def grid_size(self) -> int:
         """Grid size."""
@@ -74,7 +68,7 @@ class DeviceConfig(BaseModel):
         """Check if port name matches this device's detection patterns."""
         return any(pattern in port_name for pattern in self.detection_patterns)
 
-    def select_input_port(self, matching_ports: list[str]) -> Optional[str]:
+    def select_input_port(self, matching_ports: list[str]) -> str | None:
         """
         Select best input port from matching ports using OS-specific rules.
 
@@ -90,7 +84,7 @@ class DeviceConfig(BaseModel):
         rules = self.input_port_selection.get_for_current_os()
         return self._apply_port_rules(matching_ports, rules)
 
-    def select_output_port(self, matching_ports: list[str]) -> Optional[str]:
+    def select_output_port(self, matching_ports: list[str]) -> str | None:
         """
         Select best output port from matching ports using OS-specific rules.
 
@@ -106,11 +100,7 @@ class DeviceConfig(BaseModel):
         rules = self.output_port_selection.get_for_current_os()
         return self._apply_port_rules(matching_ports, rules)
 
-    def _apply_port_rules(
-        self,
-        ports: list[str],
-        rules: PortSelectionRules
-    ) -> Optional[str]:
+    def _apply_port_rules(self, ports: list[str], rules: PortSelectionRules) -> str | None:
         """
         Apply port selection rules to find best matching port.
 
@@ -152,11 +142,8 @@ class DeviceConfig(BaseModel):
         return ports[0]
 
     def _first_matching(
-        self,
-        ports: list[str],
-        patterns: list[str],
-        exclude: list[str]
-    ) -> Optional[str]:
+        self, ports: list[str], patterns: list[str], exclude: list[str]
+    ) -> str | None:
         """Find first port matching any pattern and not matching exclusions."""
         for port in ports:
             # Check if port matches any exclude pattern
@@ -170,11 +157,8 @@ class DeviceConfig(BaseModel):
         return None
 
     def _first_matching_all(
-        self,
-        ports: list[str],
-        patterns: list[str],
-        exclude: list[str]
-    ) -> Optional[str]:
+        self, ports: list[str], patterns: list[str], exclude: list[str]
+    ) -> str | None:
         """Find first port matching ALL patterns and not matching exclusions."""
         for port in ports:
             # Check if port matches any exclude pattern

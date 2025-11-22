@@ -72,18 +72,20 @@ Usage Example
 """
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import mido
 
+from launchsampler.devices.protocols import ControlChangeEvent, PadPressEvent, PadReleaseEvent
+from launchsampler.devices.registry import DeviceRegistry
 from launchsampler.midi import MidiManager
+from launchsampler.model_manager import ObserverManager
 from launchsampler.models import Color
 from launchsampler.protocols import MidiEvent, MidiObserver
-from launchsampler.devices.protocols import PadPressEvent, PadReleaseEvent, ControlChangeEvent
-from launchsampler.devices.registry import DeviceRegistry
-from launchsampler.devices.device import GenericDevice
-from launchsampler.devices.config import DeviceConfig
-from launchsampler.model_manager import ObserverManager
+
+if TYPE_CHECKING:
+    from launchsampler.devices.config import DeviceConfig
+    from launchsampler.devices.device import GenericDevice
 
 logger = logging.getLogger(__name__)
 
@@ -116,14 +118,14 @@ class DeviceController:
         self._registry = DeviceRegistry()
 
         # Detected device config (set when device is detected)
-        self._detected_config: Optional[DeviceConfig] = None
+        self._detected_config: DeviceConfig | None = None
 
         # Use generic MidiManager with config-driven device filter and port selectors
         self._midi = MidiManager(
             device_filter=self._device_filter,
             poll_interval=poll_interval,
             input_port_selector=self._select_input_port,
-            output_port_selector=self._select_output_port
+            output_port_selector=self._select_output_port,
         )
         self._midi.on_message(self._handle_message)
         self._midi.on_connection_changed(self._handle_connection_changed)
@@ -132,7 +134,7 @@ class DeviceController:
         self._observers = ObserverManager[MidiObserver](observer_type_name="MIDI")
 
         # Device instance (created when connected)
-        self._device: Optional[GenericDevice] = None
+        self._device: GenericDevice | None = None
 
     # ================================================================
     # LIFECYCLE MANAGEMENT
@@ -179,13 +181,13 @@ class DeviceController:
             return True
         return False
 
-    def _select_input_port(self, matching_ports: list[str]) -> Optional[str]:
+    def _select_input_port(self, matching_ports: list[str]) -> str | None:
         """Select best input port using detected config."""
         if self._detected_config is None:
             return matching_ports[0] if matching_ports else None
         return self._detected_config.select_input_port(matching_ports)
 
-    def _select_output_port(self, matching_ports: list[str]) -> Optional[str]:
+    def _select_output_port(self, matching_ports: list[str]) -> str | None:
         """Select best output port using detected config."""
         if self._detected_config is None:
             return matching_ports[0] if matching_ports else None
@@ -203,7 +205,9 @@ class DeviceController:
         """Unregister observer."""
         self._observers.unregister(observer)
 
-    def _notify_observers(self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0) -> None:
+    def _notify_observers(
+        self, event: MidiEvent, pad_index: int, control: int = 0, value: int = 0
+    ) -> None:
         """
         Notify all observers of a MIDI event.
 
@@ -213,7 +217,7 @@ class DeviceController:
             control: MIDI CC control number (for CONTROL_CHANGE events)
             value: MIDI CC value (for CONTROL_CHANGE events)
         """
-        self._observers.notify('on_midi_event', event, pad_index, control, value)
+        self._observers.notify("on_midi_event", event, pad_index, control, value)
 
     # ================================================================
     # LED CONTROL - RGB MODE
@@ -241,9 +245,9 @@ class DeviceController:
             logger.error(f"Error setting pad color: {e}")
             return False
 
-    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> bool:
+    def set_pads(self, updates: list[tuple[int, Color]]) -> bool:
         """
-        Bulk update multiple LED colors (more efficient than individual updates).
+        Set multiple LED colors efficiently.
 
         Args:
             updates: List of (pad_index, color) tuples
@@ -252,49 +256,27 @@ class DeviceController:
             True if sent successfully, False if not connected
         """
         if not self._device:
-            logger.warning("Cannot set LEDs bulk: No device connected")
+            logger.warning("Cannot set LEDs: No device connected")
             return False
 
         try:
-            self._device.output.set_leds_bulk(updates)
+            self._device.output.set_leds(updates)
             return True
         except Exception as e:
-            logger.error(f"Error setting LEDs bulk: {e}")
+            logger.error(f"Error setting LEDs: {e}")
             return False
 
     # ================================================================
-    # LED CONTROL - PALETTE MODE
+    # LED CONTROL - ANIMATIONS
     # ================================================================
 
-    def set_pad_static(self, pad_index: int, color: int) -> bool:
+    def set_pad_flashing(self, pad_index: int, color: Color) -> bool:
         """
-        Set LED to static palette color.
+        Set LED to flash/blink animation.
 
         Args:
             pad_index: Pad 0-63
-            color: Palette color index (0-127)
-
-        Returns:
-            True if sent successfully, False if not connected
-        """
-        if not self._device:
-            logger.warning("Cannot set pad static: No device connected")
-            return False
-
-        try:
-            self._device.output.set_led_static(pad_index, color)
-            return True
-        except Exception as e:
-            logger.error(f"Error setting pad static: {e}")
-            return False
-
-    def set_pad_flashing(self, pad_index: int, color: int) -> bool:
-        """
-        Set LED to flash using palette color.
-
-        Args:
-            pad_index: Pad 0-63
-            color: Palette color index (0-127)
+            color: RGB color object (device converts to palette internally)
 
         Returns:
             True if sent successfully, False if not connected
@@ -310,13 +292,13 @@ class DeviceController:
             logger.error(f"Error setting pad flashing: {e}")
             return False
 
-    def set_pad_pulsing(self, pad_index: int, color: int) -> bool:
+    def set_pad_pulsing(self, pad_index: int, color: Color) -> bool:
         """
-        Set LED to pulse using palette color.
+        Set LED to pulse/breathe animation.
 
         Args:
             pad_index: Pad 0-63
-            color: Palette color index (0-127)
+            color: RGB color object (device converts to palette internally)
 
         Returns:
             True if sent successfully, False if not connected
@@ -366,7 +348,7 @@ class DeviceController:
         except Exception as e:
             logger.error(f"Error handling MIDI message: {e}")
 
-    def _handle_connection_changed(self, is_connected: bool, port_name: Optional[str]) -> None:
+    def _handle_connection_changed(self, is_connected: bool, port_name: str | None) -> None:
         """Handle MIDI connection state changes."""
         if is_connected and port_name:
             try:
@@ -391,9 +373,13 @@ class DeviceController:
                     logger.error(f"Error shutting down device: {e}")
                 self._device = None
 
-        event = MidiEvent.CONTROLLER_CONNECTED if is_connected else MidiEvent.CONTROLLER_DISCONNECTED
+        event = (
+            MidiEvent.CONTROLLER_CONNECTED if is_connected else MidiEvent.CONTROLLER_DISCONNECTED
+        )
         self._notify_observers(event, -1)  # -1 indicates no specific pad
-        logger.info(f"MIDI controller {'connected' if is_connected else 'disconnected'}: {port_name}")
+        logger.info(
+            f"MIDI controller {'connected' if is_connected else 'disconnected'}: {port_name}"
+        )
 
     # ================================================================
     # PROPERTIES

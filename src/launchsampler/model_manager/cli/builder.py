@@ -36,27 +36,36 @@ Example Usage:
 """
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar, get_origin, get_args, Union
+from types import UnionType
+from typing import (
+    Any,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
 
 import click
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-from launchsampler.model_manager.service import ModelManagerService
 from launchsampler.exceptions import ConfigurationError
+from launchsampler.model_manager.persistence import PydanticPersistence
+from launchsampler.model_manager.service import ModelManagerService
 
 logger = logging.getLogger(__name__)
 
 # Type variable for any Pydantic model
-ModelType = TypeVar('ModelType', bound=BaseModel)
+ModelType = TypeVar("ModelType", bound=BaseModel)
 
 
 class TypeMapper:
     """Maps Pydantic field types to Click parameter types."""
 
     # Basic type mappings
-    MAPPINGS: Dict[Type, click.ParamType] = {
+    MAPPINGS: dict[type, click.ParamType] = {
         int: click.INT,
         str: click.STRING,
         float: click.FLOAT,
@@ -65,7 +74,7 @@ class TypeMapper:
     }
 
     @classmethod
-    def to_click_type(cls, python_type: Type) -> click.ParamType:
+    def to_click_type(cls, python_type: type) -> click.ParamType:
         """
         Convert a Python type annotation to a Click parameter type.
 
@@ -84,9 +93,10 @@ class TypeMapper:
             # Path → click.Path(path_type=Path)
             ```
         """
-        # Handle Optional[T] (which is Union[T, None])
+        # Handle Optional[T] and Union types
+        # This handles both Union[T, None] and the T | None syntax (UnionType)
         origin = get_origin(python_type)
-        if origin is Union:
+        if origin is Union or isinstance(python_type, UnionType):
             args = get_args(python_type)
             # Filter out NoneType to get the actual type
             non_none_types = [t for t in args if t is not type(None)]
@@ -123,7 +133,7 @@ class ValidatorRegistry:
         ```
     """
 
-    _validators: Dict[str, Callable[[Any], tuple[bool, Optional[str]]]] = {}
+    _validators: dict[str, Callable[[Any], tuple[bool, str | None]]] = {}
 
     @classmethod
     def register(cls, field_name: str):
@@ -136,13 +146,15 @@ class ValidatorRegistry:
         Returns:
             Decorator function
         """
-        def decorator(func: Callable[[Any], tuple[bool, Optional[str]]]):
+
+        def decorator(func: Callable[[Any], tuple[bool, str | None]]):
             cls._validators[field_name] = func
             return func
+
         return decorator
 
     @classmethod
-    def validate(cls, field_name: str, value: Any) -> tuple[bool, Optional[str]]:
+    def validate(cls, field_name: str, value: Any) -> tuple[bool, str | None]:
         """
         Run validation for a field if a validator is registered.
 
@@ -162,7 +174,7 @@ class ValidatorRegistry:
         return True, None
 
 
-class ModelCLIBuilder(Generic[ModelType]):
+class ModelCLIBuilder[ModelType: BaseModel]:
     """
     Generic CLI builder for Pydantic models.
 
@@ -197,10 +209,10 @@ class ModelCLIBuilder(Generic[ModelType]):
 
     def __init__(
         self,
-        model_type: Type[ModelType],
+        model_type: type[ModelType],
         config_path: Path,
-        field_overrides: Optional[Dict[str, Dict[str, Any]]] = None,
-        expose_all: bool = True
+        field_overrides: dict[str, dict[str, Any]] | None = None,
+        expose_all: bool = True,
     ):
         """
         Initialize the CLI builder.
@@ -271,18 +283,21 @@ class ModelCLIBuilder(Generic[ModelType]):
         overrides = self.field_overrides.get(field_name, {})
 
         # Build option name
-        option_name = f'--{field_name.replace("_", "-")}'
+        option_name = f"--{field_name.replace('_', '-')}"
         flags = [option_name]
 
         # Add short flag if specified
         if "short" in overrides:
-            flags.append(f'-{overrides["short"]}')
+            flags.append(f"-{overrides['short']}")
 
         # Get Click type
         if "type" in overrides:
             click_type = overrides["type"]
         else:
-            click_type = TypeMapper.to_click_type(field_info.annotation)
+            if field_info.annotation is None:
+                click_type = click.STRING  # Default to STRING if no annotation
+            else:
+                click_type = TypeMapper.to_click_type(field_info.annotation)
 
         # Get help text
         help_text = self._get_field_help(field_name, field_info)
@@ -295,7 +310,7 @@ class ModelCLIBuilder(Generic[ModelType]):
             flags,
             type=click_type,
             default=None,  # None means "not provided by user"
-            help=help_text
+            help=help_text,
         )
 
     def build_set_command(self) -> click.Command:
@@ -310,27 +325,29 @@ class ModelCLIBuilder(Generic[ModelType]):
             config set --field-name value [--other-field value ...]
             ```
         """
+
         # Dynamically create options from model fields
         def make_set_command():
-            @click.command(name='set')
+            @click.command(name="set")
             def set_cmd(**kwargs):
                 """Set one or more model field values."""
                 # Filter out None values (fields not provided)
                 updates = {k: v for k, v in kwargs.items() if v is not None}
 
                 if not updates:
-                    click.echo("Error: No fields specified. Use --help to see available options.", err=True)
+                    click.echo(
+                        "Error: No fields specified. Use --help to see available options.", err=True
+                    )
                     return
 
                 try:
                     # Load current model
-                    model = self.model_type.load_or_default(self.config_path)
+                    model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
 
                     # Create service
-                    service = ModelManagerService[self.model_type](
-                        self.model_type,
-                        model,
-                        default_path=self.config_path
+                    # Note: Generic class instantiation with runtime type variable confuses mypy
+                    service = ModelManagerService[self.model_type](  # type: ignore[name-defined]
+                        self.model_type, model, default_path=self.config_path
                     )
 
                     # Apply updates with validation
@@ -385,8 +402,9 @@ class ModelCLIBuilder(Generic[ModelType]):
             config validate field1 field2          # Validate specific fields
             ```
         """
-        @click.command(name='validate')
-        @click.argument('fields', nargs=-1, type=str)
+
+        @click.command(name="validate")
+        @click.argument("fields", nargs=-1, type=str)
         def validate(fields: tuple[str, ...]):
             """Validate the model configuration file.
 
@@ -398,7 +416,7 @@ class ModelCLIBuilder(Generic[ModelType]):
 
             try:
                 # Try to load - this will validate
-                model = self.model_type.load_or_default(self.config_path)
+                model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
 
                 if fields:
                     # Validate specific fields
@@ -413,13 +431,15 @@ class ModelCLIBuilder(Generic[ModelType]):
 
                         value = getattr(model, field)
                         field_info = model.model_fields.get(field)
-                        field_type = field_info.annotation if field_info else "unknown"
+                        field_type = field_info.annotation if field_info else None
 
                         # Format the type name nicely
-                        if hasattr(field_type, '__name__'):
+                        if field_type and hasattr(field_type, "__name__"):
                             type_name = field_type.__name__
+                        elif field_type:
+                            type_name = str(field_type).replace("typing.", "")
                         else:
-                            type_name = str(field_type).replace('typing.', '')
+                            type_name = "unknown"
 
                         click.echo(f"{CHECK} {field:28s} {type_name:15s} = {value}")
 
@@ -433,7 +453,7 @@ class ModelCLIBuilder(Generic[ModelType]):
                 else:
                     # Validate all fields
                     model_dict = model.model_dump()
-                    exposed_fields = [k for k in model_dict.keys() if self._should_expose(k)]
+                    exposed_fields = [k for k in model_dict if self._should_expose(k)]
 
                     click.echo(f"\n{CHECK} Configuration is valid")
                     click.echo(f"  File: {self.config_path}")
@@ -446,13 +466,15 @@ class ModelCLIBuilder(Generic[ModelType]):
                     for key in exposed_fields:
                         value = model_dict[key]
                         field_info = model.model_fields.get(key)
-                        field_type = field_info.annotation if field_info else "unknown"
+                        field_type = field_info.annotation if field_info else None
 
                         # Format the type name nicely
-                        if hasattr(field_type, '__name__'):
+                        if field_type and hasattr(field_type, "__name__"):
                             type_name = field_type.__name__
+                        elif field_type:
+                            type_name = str(field_type).replace("typing.", "")
                         else:
-                            type_name = str(field_type).replace('typing.', '')
+                            type_name = "unknown"
 
                         click.echo(f"  {CHECK} {key:28s} {type_name:15s} = {value}")
                     click.echo("")
@@ -483,11 +505,10 @@ class ModelCLIBuilder(Generic[ModelType]):
             config reset field1 field2    # Reset specific fields
             ```
         """
-        @click.command(name='reset')
-        @click.argument('fields', nargs=-1, type=str)
-        @click.confirmation_option(
-            prompt='Are you sure you want to reset configuration?'
-        )
+
+        @click.command(name="reset")
+        @click.argument("fields", nargs=-1, type=str)
+        @click.confirmation_option(prompt="Are you sure you want to reset configuration?")
         def reset(fields: tuple[str, ...]):
             """Reset configuration to defaults.
 
@@ -496,11 +517,10 @@ class ModelCLIBuilder(Generic[ModelType]):
             try:
                 if fields:
                     # Reset specific fields
-                    model = self.model_type.load_or_default(self.config_path)
-                    service = ModelManagerService[self.model_type](
-                        self.model_type,
-                        model,
-                        default_path=self.config_path
+                    model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
+                    # Note: Generic class instantiation with runtime type variable confuses mypy
+                    service = ModelManagerService[self.model_type](  # type: ignore[name-defined]
+                        self.model_type, model, default_path=self.config_path
                     )
 
                     # Get default model
@@ -523,15 +543,14 @@ class ModelCLIBuilder(Generic[ModelType]):
                 else:
                     # Reset all fields
                     default_model = self.model_type()
-                    service = ModelManagerService[self.model_type](
-                        self.model_type,
-                        default_model,
-                        default_path=self.config_path
+                    # Note: Generic class instantiation with runtime type variable confuses mypy
+                    service = ModelManagerService[self.model_type](  # type: ignore[name-defined]
+                        self.model_type, default_model, default_path=self.config_path
                     )
                     service.save()
 
                     click.echo("")
-                    click.echo(f"[OK] Reset all fields to defaults")
+                    click.echo("[OK] Reset all fields to defaults")
                     click.echo(f"Configuration saved to {self.config_path}")
                     click.echo("")
 
@@ -542,7 +561,7 @@ class ModelCLIBuilder(Generic[ModelType]):
 
         return reset
 
-    def build_group(self, name: str = "config", help: Optional[str] = None) -> click.Group:
+    def build_group(self, name: str = "config", help: str | None = None) -> click.Group:
         """
         Build a complete Click group with all commands.
 
@@ -575,10 +594,10 @@ class ModelCLIBuilder(Generic[ModelType]):
         # Create the show logic for the group callback
         def show_config(**kwargs):
             """Display current configuration when no subcommand is provided."""
-            field = kwargs.get('field')
+            field = kwargs.get("field")
             try:
                 # Load model
-                model = self.model_type.load_or_default(self.config_path)
+                model = PydanticPersistence.load_or_default(self.config_path, self.model_type)
 
                 if field:
                     # Show specific field
@@ -621,12 +640,12 @@ class ModelCLIBuilder(Generic[ModelType]):
             invoke_without_command=True,
             params=[
                 click.Option(
-                    ['--field', '-f'],
+                    ["--field", "-f"],
                     type=str,
                     default=None,
-                    help='Show specific field instead of all fields'
+                    help="Show specific field instead of all fields",
                 )
-            ]
+            ],
         )
 
         # Add subcommands (no 'show' - that's the default behavior)

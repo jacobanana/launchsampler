@@ -1,11 +1,11 @@
 """LED rendering logic for Launchpad hardware."""
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from launchsampler.devices import DeviceController
 from launchsampler.models import Color
-from launchsampler.ui_shared import get_pad_led_color, get_pad_led_palette_index, PANIC_BUTTON_COLOR
+from launchsampler.ui_shared import PANIC_BUTTON_COLOR, get_pad_led_color
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -28,7 +28,7 @@ class LEDRenderer:
     - Set panic button LED
     """
 
-    def __init__(self, controller: Optional[DeviceController]):
+    def __init__(self, controller: DeviceController | None):
         """
         Initialize the LED renderer.
 
@@ -69,14 +69,14 @@ class LEDRenderer:
 
         # Send bulk update for non-playing pads
         if updates:
-            self.controller.set_leds_bulk(updates)
+            self.controller.set_pads(updates)
             logger.info(f"Updated {len(updates)} non-playing LEDs")
 
         # Set playing pads with animation
         for pad_index in playing_pads:
             pad = all_pads[pad_index]
-            palette_color = get_pad_led_palette_index(pad, is_playing=True)
-            self.controller.set_pad_pulsing(pad_index, palette_color)
+            color = get_pad_led_color(pad, is_playing=True)
+            self.controller.set_pad_pulsing(pad_index, color)
             logger.debug(f"Set playing animation for pad {pad_index}")
 
     def update_pad(self, pad_index: int, pad: "Pad", is_playing: bool) -> None:
@@ -115,8 +115,8 @@ class LEDRenderer:
 
         if is_playing:
             # Pulse with playing color (centralized from ui_colors)
-            palette_color = get_pad_led_palette_index(pad, is_playing=True)
-            self.controller.set_pad_pulsing(pad_index, palette_color)
+            color = get_pad_led_color(pad, is_playing=True)
+            self.controller.set_pad_pulsing(pad_index, color)
         else:
             # Restore normal color
             if pad.is_assigned:
