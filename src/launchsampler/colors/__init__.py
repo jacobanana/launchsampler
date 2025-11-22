@@ -217,76 +217,76 @@ class COLORS:
     # PRIMARY COLORS (Full saturation)
     # ============================================================================
 
-    RED = Color(r=255, g=0, b=0)
+    RED: Color = Color(r=255, g=0, b=0)
     """Pure red - Used for ONE_SHOT mode"""
 
-    GREEN = Color(r=0, g=255, b=0)
+    GREEN: Color = Color(r=0, g=255, b=0)
     """Pure green - Used for LOOP mode"""
 
-    BLUE = Color(r=0, g=0, b=255)
+    BLUE: Color = Color(r=0, g=0, b=255)
     """Pure blue - Used for HOLD mode"""
 
-    YELLOW = Color(r=255, g=255, b=0)
+    YELLOW: Color = Color(r=255, g=255, b=0)
     """Pure yellow - Used for playing state"""
 
-    MAGENTA = Color(r=255, g=0, b=255)
+    MAGENTA: Color = Color(r=255, g=0, b=255)
     """Pure magenta - Used for LOOP_TOGGLE mode"""
 
-    CYAN = Color(r=0, g=255, b=255)
+    CYAN: Color = Color(r=0, g=255, b=255)
     """Pure cyan"""
 
-    WHITE = Color(r=255, g=255, b=255)
+    WHITE: Color = Color(r=255, g=255, b=255)
     """Pure white - Maximum brightness"""
 
-    BLACK = Color(r=0, g=0, b=0)
+    BLACK: Color = Color(r=0, g=0, b=0)
     """Black (off) - Used for empty pads"""
 
     # ============================================================================
     # SECONDARY COLORS
     # ============================================================================
 
-    ORANGE = Color(r=255, g=128, b=0)
+    ORANGE: Color = Color(r=255, g=128, b=0)
     """Orange - Used for TOGGLE mode"""
 
-    PURPLE = Color(r=128, g=0, b=255)
+    PURPLE: Color = Color(r=128, g=0, b=255)
     """Purple"""
 
-    PINK = Color(r=255, g=0, b=128)
+    PINK: Color = Color(r=255, g=0, b=128)
     """Pink"""
 
-    LIME = Color(r=128, g=255, b=0)
+    LIME: Color = Color(r=128, g=255, b=0)
     """Lime green"""
 
-    TEAL = Color(r=0, g=255, b=128)
+    TEAL: Color = Color(r=0, g=255, b=128)
     """Teal"""
 
-    INDIGO = Color(r=0, g=128, b=255)
+    INDIGO: Color = Color(r=0, g=128, b=255)
     """Indigo"""
 
     # ============================================================================
     # GREYS
     # ============================================================================
 
-    GREY_DARKEST = Color(r=32, g=32, b=32)
+    GREY_DARKEST: Color = Color(r=32, g=32, b=32)
     """Darkest grey - 12.5% brightness"""
 
-    GREY_DARK = Color(r=64, g=64, b=64)
+    GREY_DARK: Color = Color(r=64, g=64, b=64)
     """Dark grey - 25% brightness"""
 
-    GREY = Color(r=128, g=128, b=128)
+    GREY: Color = Color(r=128, g=128, b=128)
     """Mid grey - 50% brightness"""
 
-    GREY_LIGHT = Color(r=192, g=192, b=192)
+    GREY_LIGHT: Color = Color(r=192, g=192, b=192)
     """Light grey - 75% brightness"""
 
-    GREY_LIGHTEST = Color(r=224, g=224, b=224)
+    GREY_LIGHTEST: Color = Color(r=224, g=224, b=224)
     """Lightest grey - 88% brightness"""
 
     # ============================================================================
     # SHADES & VARIANTS
     # ============================================================================
 
-    RED_DARK = Color(r=90, g=0, b=0)
+    RED_DARK: Color = Color(r=90, g=0, b=0)
     """Dark red - Used for panic button indicator"""
 
 
