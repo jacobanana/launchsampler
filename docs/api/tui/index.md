@@ -1,4 +1,4 @@
-# Tui
+# TUI
 
 Terminal user interface
 

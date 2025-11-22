@@ -1,0 +1,60 @@
+# Configuration for API documentation generation
+#
+# Packages are documented in the order listed here.
+# You can optionally override the title for any package.
+
+packages:
+  - name: orchestration
+    description: "Application orchestration and lifecycle management"
+
+  - name: core
+    description: "Audio playback engine and state management"
+
+  - name: audio
+    description: "Low-level audio primitives and sample loading"
+
+  - name: midi
+    description: "MIDI input/output management"
+
+  - name: devices
+    description: "MIDI device interface and hardware adapters"
+
+  - name: services
+    description: "Business logic services"
+
+  - name: model_manager
+    title: "Model Manager"  # Override default capitalization
+    description: "Generic model management framework for Pydantic models"
+
+  - name: models
+    description: "Pydantic data models for configuration and state"
+
+  - name: colors
+    description: "Device-agnostic color definitions and constants"
+
+  - name: exceptions
+    description: "Exception hierarchy and error handling utilities"
+
+  - name: protocols
+    description: "Observer protocols and domain events"
+
+  - name: utils
+    description: "Generic utility functions (paths, formatting)"
+
+  - name: ui_shared
+    title: "UI Shared"
+    description: "Shared UI infrastructure (colors, adapters)"
+
+  - name: tui
+    title: "TUI"
+    description: "Terminal user interface"
+
+  - name: led_ui
+    title: "LED UI"
+    description: "Hardware LED grid user interface support"
+
+# Patterns to exclude from documentation
+exclude_patterns:
+  - "__pycache__"
+  - "*.pyc"
+  - "__main__.py"

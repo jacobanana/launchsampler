@@ -206,6 +206,8 @@ nav:
       - Pad: api/models/pad.md
       - Sample: api/models/sample.md
       - Set: api/models/set.md
+    - Colors:
+      - Overview: api/colors/index.md
     - Exceptions:
       - Overview: api/exceptions/index.md
       - Audio: api/exceptions/audio.md
@@ -216,15 +218,15 @@ nav:
       - Overview: api/protocols/index.md
       - Events: api/protocols/events.md
       - Observers: api/protocols/observers.md
-    - UI Shared:
-      - Overview: api/ui_shared/index.md
-      - Adapter: api/ui_shared/adapter.md
-      - Colors: api/ui_shared/colors.md
     - Utils:
       - Overview: api/utils/index.md
       - Audio: api/utils/audio.md
       - Paths: api/utils/paths.md
-    - Tui:
+    - UI Shared:
+      - Overview: api/ui_shared/index.md
+      - Adapter: api/ui_shared/adapter.md
+      - Colors: api/ui_shared/colors.md
+    - TUI:
       - Overview: api/tui/index.md
       - App: api/tui/app.md
       - Decorators: api/tui/decorators.md
