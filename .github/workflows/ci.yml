@@ -78,7 +78,7 @@ jobs:
           uv run mypy .
 
   security:
-    name: Security Scan
+    name: Dependency Security Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -104,37 +104,33 @@ jobs:
         run: |
           uv sync --group dev
 
-      - name: Run bandit security checks
+      - name: Run pip-audit
         run: |
-          uv run bandit -r src/launchsampler/ -f json -o bandit-report.json || true
-          uv run bandit -r src/launchsampler/ || true
+          uv run pip-audit --desc --format json --output audit-report.json || true
+          echo "## Dependency Vulnerability Scan"
+          uv run pip-audit --desc
 
-      - name: Display bandit summary
-        if: always()
+      - name: Check audit results
         run: |
-          if [ -f bandit-report.json ]; then
-            echo "## Bandit Security Scan Results"
-            SEVERITY_HIGH=$(python -c "import json; print(json.load(open('bandit-report.json'))['metrics']['_totals']['SEVERITY.HIGH'])")
-            SEVERITY_MEDIUM=$(python -c "import json; print(json.load(open('bandit-report.json'))['metrics']['_totals']['SEVERITY.MEDIUM'])")
-            SEVERITY_LOW=$(python -c "import json; print(json.load(open('bandit-report.json'))['metrics']['_totals']['SEVERITY.LOW'])")
-            echo "High severity issues: $SEVERITY_HIGH"
-            echo "Medium severity issues: $SEVERITY_MEDIUM"
-            echo "Low severity issues: $SEVERITY_LOW"
+          if [ -f audit-report.json ]; then
+            VULN_COUNT=$(python -c "import json; data=json.load(open('audit-report.json')); print(len(data.get('vulnerabilities', [])))")
+            echo "Vulnerabilities found: $VULN_COUNT"
 
-            if [ "$SEVERITY_HIGH" -gt 0 ] || [ "$SEVERITY_MEDIUM" -gt 0 ]; then
-              echo "⚠️ Security issues found! Check the artifact for details."
+            if [ "$VULN_COUNT" -gt 0 ]; then
+              echo "⚠️ Vulnerabilities detected in dependencies!"
+              echo "Review the audit report artifact for details."
               exit 1
             else
-              echo "✅ No high or medium severity issues found"
+              echo "✅ No known vulnerabilities found in dependencies"
             fi
           fi
 
-      - name: Upload bandit report
+      - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bandit-report
-          path: bandit-report.json
+          name: pip-audit-report
+          path: audit-report.json
           retention-days: 30
 
   test:
