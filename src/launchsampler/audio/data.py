@@ -13,7 +13,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..models import PlaybackMode
-from ..utils import format_bytes
+from ..utils import ensure_array, format_bytes
 
 
 @dataclass(slots=True)
@@ -83,7 +83,7 @@ class AudioData:
         if self.num_channels == 1:
             return self.data
         else:
-            return np.mean(self.data, axis=1, dtype=np.float32)
+            return ensure_array(np.mean(self.data, axis=1, dtype=np.float32))
 
     def normalize(self, target_level: float = 0.95) -> None:
         """

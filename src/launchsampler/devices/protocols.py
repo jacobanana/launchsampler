@@ -63,23 +63,68 @@ class DeviceOutput(Protocol):
 
     def set_led(self, index: int, color: Color) -> None:
         """
-        Set single LED by logical index.
+        Set single LED color.
 
         Args:
             index: Logical pad index (0-63)
-            color: RGB color
+            color: RGB color object (each channel 0-127)
+
+        Note:
+            Device implementation chooses whether to use RGB or convert to palette.
         """
         ...
 
-    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> None:
+    def set_leds(self, updates: list[tuple[int, Color]]) -> None:
         """
         Set multiple LEDs efficiently.
 
         Args:
             updates: List of (logical_index, color) tuples
+
+        Note:
+            Device implementation chooses whether to use RGB or convert to palette.
         """
         ...
 
     def clear_all(self) -> None:
-        """Clear all LEDs."""
+        """Clear all LEDs (turn off)."""
+        ...
+
+    def set_led_flashing(self, index: int, color: Color) -> None:
+        """
+        Set LED to flash/blink animation.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: RGB color object (device converts to palette internally)
+
+        Note:
+            Device implementation converts RGB to nearest palette color.
+        """
+        ...
+
+    def set_led_pulsing(self, index: int, color: Color) -> None:
+        """
+        Set LED to pulse/breathe animation.
+
+        Args:
+            index: Logical pad index (0-63)
+            color: RGB color object (device converts to palette internally)
+
+        Note:
+            Device implementation converts RGB to nearest palette color.
+        """
+        ...
+
+    def set_control_led(self, control: int, color: Color) -> None:
+        """
+        Set control button LED (non-pad buttons).
+
+        Args:
+            control: Control button identifier (device-specific, e.g., CC number)
+            color: RGB color object (each channel 0-127)
+
+        Note:
+            Device implementation chooses whether to use RGB or convert to palette.
+        """
         ...

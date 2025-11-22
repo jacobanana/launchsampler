@@ -229,7 +229,7 @@ class SetManagerService:
 
         # Convert all paths to be relative to the new root in the COPY
         for idx, pad in enumerate(set_copy.launchpad.pads):
-            if idx in absolute_paths_map:
+            if idx in absolute_paths_map and pad.sample is not None:
                 sample_path = absolute_paths_map[idx]
 
                 # Convert to relative (where possible)
@@ -366,10 +366,10 @@ class SetManagerService:
 
         # Priority 2: Load from saved set file
         if name and name.lower() != "untitled":
-            loaded_set = self.open_set_by_name(name)
-            if loaded_set:
+            loaded_set_from_file = self.open_set_by_name(name)
+            if loaded_set_from_file:
                 logger.info(f"Loaded initial set from saved file: {name}")
-                return loaded_set, False
+                return loaded_set_from_file, False
             else:
                 logger.warning(f"Set '{name}' not found, creating empty set")
                 # Fallback: auto-create empty set

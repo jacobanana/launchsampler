@@ -10,6 +10,11 @@ import sounddevice as sd
 
 logger = logging.getLogger(__name__)
 
+# Type aliases for better readability
+DeviceInfo = dict[str, Any]
+DeviceTuple = tuple[int, str, DeviceInfo]
+DevicesByAPI = dict[str, list[DeviceTuple]]
+
 
 class AudioDevice:
     """
@@ -34,6 +39,7 @@ class AudioDevice:
         """
         self.buffer_size = buffer_size
         self.num_channels = num_channels
+        self.device: int | None
 
         # Validate device if specified, fall back to default if invalid
         if device is not None:
@@ -381,7 +387,7 @@ class AudioDevice:
         return available_devices, api_names
 
     @staticmethod
-    def get_devices_by_host_api(all_devices: bool = False) -> dict[str, list[tuple[int, str, Any]]]:
+    def get_devices_by_host_api(all_devices: bool = False) -> DevicesByAPI:
         """
         Get audio output devices grouped by host API.
 
@@ -399,7 +405,7 @@ class AudioDevice:
         """
         devices, _ = AudioDevice.list_output_devices(all_devices=all_devices)
 
-        devices_by_api = {}
+        devices_by_api: DevicesByAPI = {}
         for device_id, name, host_api, info in devices:
             if host_api not in devices_by_api:
                 devices_by_api[host_api] = []

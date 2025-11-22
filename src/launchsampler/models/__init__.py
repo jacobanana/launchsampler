@@ -2,7 +2,7 @@
 
 from .color import Color
 from .config import AppConfig
-from .enums import LaunchpadColor, PlaybackMode
+from .enums import PlaybackMode
 from .launchpad import Launchpad
 from .pad import Pad
 from .sample import Sample
@@ -13,9 +13,8 @@ __all__ = [
     # Models
     "Color",
     "Launchpad",
-    # Enums
-    "LaunchpadColor",
     "Pad",
+    # Enums
     "PlaybackMode",
     "Sample",
     "Set",

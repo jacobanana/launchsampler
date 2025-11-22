@@ -83,10 +83,9 @@ def test(verbose):
         click.echo("Setting pads 8-10 (second row) to flashing...")
 
         # Flashing colors - second row (pads 8-10)
-        # Palette colors: 5=red, 13=yellow, 21=green, 37=blue, 45=pink, 53=cyan
-        controller.set_pad_flashing(8, 21)  # Green flash
-        controller.set_pad_flashing(9, 45)  # Pink flash
-        controller.set_pad_flashing(10, 53)  # Cyan flash
+        controller.set_pad_flashing(8, Color(r=0, g=127, b=0))  # Green flash
+        controller.set_pad_flashing(9, Color(r=127, g=0, b=127))  # Pink flash
+        controller.set_pad_flashing(10, Color(r=0, g=127, b=127))  # Cyan flash
 
         click.echo("  [OK] Flashing mode - 3 pads set")
         time.sleep(2)
@@ -95,23 +94,23 @@ def test(verbose):
         click.echo("Setting pads 16-18 (third row) to pulsing...")
 
         # Pulsing colors - third row (pads 16-18)
-        controller.set_pad_pulsing(16, 37)  # Blue pulse
-        controller.set_pad_pulsing(17, 45)  # Pink pulse
-        controller.set_pad_pulsing(18, 13)  # Yellow pulse
+        controller.set_pad_pulsing(16, Color(r=0, g=0, b=127))  # Blue pulse
+        controller.set_pad_pulsing(17, Color(r=127, g=0, b=127))  # Pink pulse
+        controller.set_pad_pulsing(18, Color(r=127, g=127, b=0))  # Yellow pulse
 
         click.echo("  [OK] Pulsing mode - 3 pads set")
         time.sleep(2)
 
-        click.echo("\n=== Testing Static Palette Mode ===")
-        click.echo("Setting pads 24-27 (fourth row) to static palette colors...")
+        click.echo("\n=== Testing Static Colors (Fourth Row) ===")
+        click.echo("Setting pads 24-27 (fourth row) to static colors...")
 
-        # Static palette colors - fourth row (pads 24-27)
-        controller.set_pad_static(24, 5)  # Red
-        controller.set_pad_static(25, 13)  # Yellow
-        controller.set_pad_static(26, 21)  # Green
-        controller.set_pad_static(27, 37)  # Blue
+        # Static colors - fourth row (pads 24-27)
+        controller.set_pad_color(24, Color(r=127, g=0, b=0))  # Red
+        controller.set_pad_color(25, Color(r=127, g=127, b=0))  # Yellow
+        controller.set_pad_color(26, Color(r=0, g=127, b=0))  # Green
+        controller.set_pad_color(27, Color(r=0, g=0, b=127))  # Blue
 
-        click.echo("  [OK] Static palette mode - 4 pads set")
+        click.echo("  [OK] Static colors - 4 pads set")
 
         click.echo("\n[OK] Lighting test complete!")
         click.echo("\nThe Launchpad should now display:")

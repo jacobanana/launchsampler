@@ -3,6 +3,7 @@
 import contextlib
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime
 
 import click
@@ -77,8 +78,11 @@ def monitor_midi(filter_clock: bool):
     try:
         for port_name in ports:
             # Create manager that accepts any port matching this exact name
+            def make_filter(name: str) -> Callable[[str], bool]:
+                return lambda p: p == name
+
             manager = MidiInputManager(
-                device_filter=lambda p, name=port_name: p == name,
+                device_filter=make_filter(port_name),
                 poll_interval=10.0,  # Don't need frequent polling for monitoring
             )
 

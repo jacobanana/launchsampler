@@ -245,9 +245,9 @@ class DeviceController:
             logger.error(f"Error setting pad color: {e}")
             return False
 
-    def set_leds_bulk(self, updates: list[tuple[int, Color]]) -> bool:
+    def set_pads(self, updates: list[tuple[int, Color]]) -> bool:
         """
-        Bulk update multiple LED colors (more efficient than individual updates).
+        Set multiple LED colors efficiently.
 
         Args:
             updates: List of (pad_index, color) tuples
@@ -256,49 +256,27 @@ class DeviceController:
             True if sent successfully, False if not connected
         """
         if not self._device:
-            logger.warning("Cannot set LEDs bulk: No device connected")
+            logger.warning("Cannot set LEDs: No device connected")
             return False
 
         try:
-            self._device.output.set_leds_bulk(updates)
+            self._device.output.set_leds(updates)
             return True
         except Exception as e:
-            logger.error(f"Error setting LEDs bulk: {e}")
+            logger.error(f"Error setting LEDs: {e}")
             return False
 
     # ================================================================
-    # LED CONTROL - PALETTE MODE
+    # LED CONTROL - ANIMATIONS
     # ================================================================
 
-    def set_pad_static(self, pad_index: int, color: int) -> bool:
+    def set_pad_flashing(self, pad_index: int, color: Color) -> bool:
         """
-        Set LED to static palette color.
+        Set LED to flash/blink animation.
 
         Args:
             pad_index: Pad 0-63
-            color: Palette color index (0-127)
-
-        Returns:
-            True if sent successfully, False if not connected
-        """
-        if not self._device:
-            logger.warning("Cannot set pad static: No device connected")
-            return False
-
-        try:
-            self._device.output.set_led_static(pad_index, color)
-            return True
-        except Exception as e:
-            logger.error(f"Error setting pad static: {e}")
-            return False
-
-    def set_pad_flashing(self, pad_index: int, color: int) -> bool:
-        """
-        Set LED to flash using palette color.
-
-        Args:
-            pad_index: Pad 0-63
-            color: Palette color index (0-127)
+            color: RGB color object (device converts to palette internally)
 
         Returns:
             True if sent successfully, False if not connected
@@ -314,13 +292,13 @@ class DeviceController:
             logger.error(f"Error setting pad flashing: {e}")
             return False
 
-    def set_pad_pulsing(self, pad_index: int, color: int) -> bool:
+    def set_pad_pulsing(self, pad_index: int, color: Color) -> bool:
         """
-        Set LED to pulse using palette color.
+        Set LED to pulse/breathe animation.
 
         Args:
             pad_index: Pad 0-63
-            color: Palette color index (0-127)
+            color: RGB color object (device converts to palette internally)
 
         Returns:
             True if sent successfully, False if not connected

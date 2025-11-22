@@ -6,6 +6,8 @@ This module defines exceptions for configuration errors:
 - ConfigValidationError: Config values fail validation
 """
 
+from typing import Any
+
 from .base import LaunchSamplerError
 
 
@@ -57,7 +59,7 @@ class ConfigFileInvalidError(ConfigurationError):
 class ConfigValidationError(ConfigurationError):
     """Configuration values fail validation."""
 
-    def __init__(self, field: str, value: any, error_msg: str, file_path: str | None = None):
+    def __init__(self, field: str, value: Any, error_msg: str, file_path: str | None = None):
         """
         Initialize config validation error.
 

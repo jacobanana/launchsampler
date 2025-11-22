@@ -240,9 +240,9 @@ def handle_errors[T](
         Decorated function
     """
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[..., T]) -> Callable[..., T | None]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args, **kwargs) -> T | None:
             try:
                 return func(*args, **kwargs)
 

@@ -164,7 +164,7 @@ class LaunchpadSysEx:
             specs: List of (lighting_type, led_note, *data_bytes)
                    NOTE: led_note is hardware MIDI note, not logical index
         """
-        data = [*self.header, 3]
+        data = [*self.header, LightingMode.RGB.value]
         for spec in specs:
             data.extend(spec)
         return mido.Message("sysex", data=data)

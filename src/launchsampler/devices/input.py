@@ -90,6 +90,8 @@ class GenericInput(DeviceInput):
     and delegates hardware-specific note mapping to a device mapper.
     """
 
+    mapper: NoteMapper
+
     def __init__(self, mapper: NoteMapper):
         """
         Initialize generic input parser.

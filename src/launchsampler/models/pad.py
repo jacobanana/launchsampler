@@ -22,6 +22,25 @@ class Pad(BaseModel):
         """Check if pad has a sample assigned."""
         return self.sample is not None
 
+    def get_sample(self) -> Sample:
+        """
+        Get the assigned sample, raising an error if not assigned.
+
+        Returns:
+            The assigned Sample
+
+        Raises:
+            ValueError: If pad has no sample assigned
+
+        Example:
+            >>> if pad.is_assigned:
+            ...     sample = pad.get_sample()  # mypy knows this returns Sample, not None
+            ...     print(sample.name)
+        """
+        if self.sample is None:
+            raise ValueError("Pad has no sample assigned")
+        return self.sample
+
     @property
     def position(self) -> tuple[int, int]:
         """Get (x, y) position as tuple."""

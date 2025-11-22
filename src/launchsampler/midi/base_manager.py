@@ -156,7 +156,7 @@ class BaseMidiManager[PortType: mido.ports.BaseIOPort](ABC):
         log_level = self._get_log_level_for_port_changes()
 
         logger.debug(f"Starting MIDI {port_type} device monitoring")
-        last_available_ports = set()
+        last_available_ports: set[str] = set()
 
         while self._running:
             try:
@@ -186,20 +186,22 @@ class BaseMidiManager[PortType: mido.ports.BaseIOPort](ABC):
                         # Fire callback in a separate thread to avoid blocking/deadlock
                         if self._on_connection_changed:
 
-                            def fire_callback():
-                                try:
-                                    self._on_connection_changed(False, None)
-                                except Exception as e:
-                                    logger.error(f"Error in connection callback: {e}")
+                            def fire_callback() -> None:
+                                callback = self._on_connection_changed
+                                if callback:
+                                    try:
+                                        callback(False, None)
+                                    except Exception as e:
+                                        logger.error(f"Error in connection callback: {e}")
 
                             threading.Thread(target=fire_callback, daemon=True).start()
 
                     # If we don't have a port, try to find one
                     if not self._port:
-                        port = self._find_matching_port()
-                        if port:
-                            logger.info(f"MIDI {port_type} detected: {port}")
-                            self._connect_to_port(port)
+                        matched_port: str | None = self._find_matching_port()
+                        if matched_port:
+                            logger.info(f"MIDI {port_type} detected: {matched_port}")
+                            self._connect_to_port(matched_port)
                         else:
                             if not self._no_device_warned:
                                 warning_log_level = (
@@ -229,11 +231,13 @@ class BaseMidiManager[PortType: mido.ports.BaseIOPort](ABC):
             # Fire callback in a separate thread to avoid blocking/deadlock
             if self._on_connection_changed:
 
-                def fire_callback():
-                    try:
-                        self._on_connection_changed(True, port_name)
-                    except Exception as e:
-                        logger.error(f"Error in connection callback: {e}")
+                def fire_callback() -> None:
+                    callback = self._on_connection_changed
+                    if callback:
+                        try:
+                            callback(True, port_name)
+                        except Exception as e:
+                            logger.error(f"Error in connection callback: {e}")
 
                 threading.Thread(target=fire_callback, daemon=True).start()
         except Exception as e:

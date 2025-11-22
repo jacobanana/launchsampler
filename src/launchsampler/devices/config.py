@@ -45,19 +45,19 @@ class DeviceConfig(BaseModel):
     )
 
     # Computed properties for backward compatibility
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def display_name(self) -> str:
         """Human-readable device name."""
         return self.model
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def num_pads(self) -> int:
         """Number of pads on device."""
         return self.capabilities.num_pads
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def grid_size(self) -> int:
         """Grid size."""

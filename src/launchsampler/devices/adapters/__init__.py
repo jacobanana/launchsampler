@@ -5,11 +5,13 @@ Adapters translate between generic device protocols and hardware-specific
 MIDI messages, note mappings, and LED control.
 """
 
-from ..input import NoteMapper
-from ..protocols import DeviceOutput
+from typing import Any
 
-# Type for adapter tuple (Mapper, Output)
-Adapter = tuple[type[NoteMapper], type[DeviceOutput]]
+# Type for adapter tuple (MapperClass, OutputClass)
+# We use Any because mypy can't properly type-check class constructors
+# passed through a registry. The actual type checking happens at instantiation
+# time in registry.py where the concrete classes are called.
+Adapter = tuple[Any, Any]
 
 
 # Registry of adapters
@@ -17,16 +19,14 @@ Adapter = tuple[type[NoteMapper], type[DeviceOutput]]
 ADAPTERS: dict[str, Adapter] = {}
 
 
-def register_adapter(
-    name: str, mapper_class: type[NoteMapper], output_class: type[DeviceOutput]
-) -> None:
+def register_adapter(name: str, mapper_class: Any, output_class: Any) -> None:
     """
     Register a device adapter.
 
     Args:
         name: Adapter name (matches "implements" field in config)
-        mapper_class: Note mapper class
-        output_class: Output controller class
+        mapper_class: Note mapper class (must have __init__(config: DeviceConfig))
+        output_class: Output controller class (must have __init__(midi_manager, config))
     """
     ADAPTERS[name] = (mapper_class, output_class)
 
@@ -53,3 +53,9 @@ def _register_builtin_adapters() -> None:
 
 # Register built-in adapters on module import
 _register_builtin_adapters()
+
+__all__ = [
+    "Adapter",
+    "get_adapter",
+    "register_adapter",
+]

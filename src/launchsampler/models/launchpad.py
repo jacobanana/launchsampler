@@ -110,7 +110,7 @@ class Launchpad(BaseModel):
 
         # Discover audio files recursively
         extensions = ["**/*.wav", "**/*.mp3", "**/*.flac", "**/*.ogg", "**/*.aiff"]
-        sample_files = []
+        sample_files: list[Path] = []
         for ext in extensions:
             sample_files.extend(samples_dir.glob(ext))
 

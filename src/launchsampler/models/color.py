@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class Color(BaseModel):
-    """RGB color for Launchpad LED."""
+    """RGB color"""
 
     r: int = Field(ge=0, le=127, description="Red (0-127)")
     g: int = Field(ge=0, le=127, description="Green (0-127)")

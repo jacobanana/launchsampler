@@ -16,6 +16,10 @@ class GenericDevice:
     output control and note mapping, configured via DeviceConfig.
     """
 
+    config: DeviceConfig
+    _input: DeviceInput
+    _output: DeviceOutput
+
     def __init__(
         self, config: DeviceConfig, input_handler: DeviceInput, output_handler: DeviceOutput
     ):

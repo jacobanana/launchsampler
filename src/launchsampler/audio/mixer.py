@@ -3,6 +3,7 @@
 import numpy as np
 import numpy.typing as npt
 
+from ..utils import ensure_array
 from .data import PlaybackState
 
 
@@ -87,11 +88,11 @@ class AudioMixer:
 
         # Stereo to mono
         if source_channels == 2 and self.num_channels == 1:
-            return np.mean(frames, axis=1, dtype=np.float32)
+            return ensure_array(np.mean(frames, axis=1, dtype=np.float32))
 
         # Multi-channel to mono
         if source_channels > 1 and self.num_channels == 1:
-            return np.mean(frames, axis=1, dtype=np.float32)
+            return ensure_array(np.mean(frames, axis=1, dtype=np.float32))
 
         # Multi-channel to stereo (take first 2 channels)
         if source_channels > 2 and self.num_channels == 2:

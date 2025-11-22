@@ -58,17 +58,17 @@ class TestDeviceController:
         assert not controller._midi._input_manager._running
         assert not controller._midi._output_manager._running
 
-    def test_set_leds_bulk_without_device(self):
-        """Test set_leds_bulk returns False when no device connected."""
+    def test_set_pads_without_device(self):
+        """Test set_pads returns False when no device connected."""
         controller = DeviceController()
         updates = [(0, Color(r=127, g=0, b=0)), (5, Color(r=0, g=127, b=0))]
 
         # Should return False when no device
-        result = controller.set_leds_bulk(updates)
+        result = controller.set_pads(updates)
         assert result is False
 
-    def test_set_leds_bulk_with_device(self):
-        """Test set_leds_bulk delegates to device output."""
+    def test_set_pads_with_device(self):
+        """Test set_pads delegates to device output."""
         controller = DeviceController()
 
         # Mock device and output
@@ -84,23 +84,23 @@ class TestDeviceController:
         ]
 
         # Should delegate to device output
-        result = controller.set_leds_bulk(updates)
+        result = controller.set_pads(updates)
         assert result is True
-        mock_output.set_leds_bulk.assert_called_once_with(updates)
+        mock_output.set_leds.assert_called_once_with(updates)
 
-    def test_set_leds_bulk_handles_errors(self):
-        """Test set_leds_bulk returns False on error."""
+    def test_set_pads_handles_errors(self):
+        """Test set_pads returns False on error."""
         controller = DeviceController()
 
         # Mock device that raises exception
         mock_device = Mock()
         mock_output = Mock()
-        mock_output.set_leds_bulk.side_effect = Exception("Test error")
+        mock_output.set_leds.side_effect = Exception("Test error")
         mock_device.output = mock_output
         controller._device = mock_device
 
         updates = [(0, Color(r=127, g=0, b=0))]
 
         # Should catch exception and return False
-        result = controller.set_leds_bulk(updates)
+        result = controller.set_pads(updates)
         assert result is False
