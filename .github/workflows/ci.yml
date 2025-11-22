@@ -238,6 +238,13 @@ jobs:
         run: |
           uv run mkdocs build
 
+      - name: Download coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-badge
+          path: ./site/badges/
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

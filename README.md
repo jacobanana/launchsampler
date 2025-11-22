@@ -1,6 +1,10 @@
 # Launchpad Sampler
 
 [![CI](https://github.com/jacobanana/launchsampler/actions/workflows/ci.yml/badge.svg)](https://github.com/jacobanana/launchsampler/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://jacobanana.github.io/launchsampler/badges/coverage.json)](https://github.com/jacobanana/launchsampler/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.12%20|%203.13-blue.svg)](https://www.python.org/downloads/)
+[![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://jacobanana.github.io/launchsampler/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 A lean, type-safe audio sampler for the Novation Launchpad built with Python.
 
