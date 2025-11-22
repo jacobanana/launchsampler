@@ -32,11 +32,22 @@ class TestColor:
     @pytest.mark.unit
     def test_rgb_range_validation(self):
         """Test that RGB values must be 0-255."""
+        # Pydantic catches Field constraints before custom validators
         with pytest.raises(ValueError):
             Color(r=256, g=0, b=0)
 
         with pytest.raises(ValueError):
             Color(r=0, g=-1, b=0)
+
+    @pytest.mark.unit
+    def test_rgb_boundary_values(self):
+        """Test RGB validation at boundaries."""
+        # Should succeed at boundaries
+        color_min = Color(r=0, g=0, b=0)
+        assert color_min.r == 0
+
+        color_max = Color(r=255, g=255, b=255)
+        assert color_max.r == 255
 
     @pytest.mark.unit
     def test_preset_color_off(self):
@@ -100,6 +111,14 @@ class TestSample:
         nonexistent = Sample(name="fake", path=Path("nonexistent.wav"))
         assert nonexistent.exists() is False
 
+    @pytest.mark.unit
+    def test_path_validator_converts_string_to_path(self):
+        """Test path validation converts string to Path object."""
+        # Pass a string instead of Path - validator should convert it
+        sample = Sample(name="test", path="test.wav")
+        assert isinstance(sample.path, Path)
+        assert sample.path == Path("test.wav")
+
 
 class TestPad:
     """Test Pad model."""
@@ -142,6 +161,21 @@ class TestPad:
         pad_with_sample.clear()
         assert pad_with_sample.is_assigned is False
         assert pad_with_sample.color == Color.off()
+
+    @pytest.mark.unit
+    def test_get_sample_when_no_sample_assigned(self):
+        """Test get_sample raises error when pad has no sample."""
+        pad = Pad.empty(x=0, y=0)
+        with pytest.raises(ValueError, match="no sample assigned"):
+            pad.get_sample()
+
+    @pytest.mark.unit
+    def test_get_sample_with_assigned_sample(self, sample_model):
+        """Test get_sample returns the assigned sample."""
+        pad = Pad(x=0, y=0, sample=sample_model)
+
+        retrieved = pad.get_sample()
+        assert retrieved is sample_model
 
 
 class TestLaunchpad:
@@ -333,3 +367,32 @@ class TestAppConfig:
         # Load and verify
         loaded = AppConfig.load_or_default(save_path)
         assert loaded.default_buffer_size == 256
+
+    @pytest.mark.unit
+    def test_load_or_default_with_none_path(self, monkeypatch, temp_dir):
+        """Test load_or_default uses default path when None is provided."""
+        # Temporarily change home directory for this test
+        monkeypatch.setenv("HOME", str(temp_dir))
+        monkeypatch.setenv("USERPROFILE", str(temp_dir))  # Windows
+
+        config = AppConfig.load_or_default(None)
+        assert config is not None
+        assert isinstance(config, AppConfig)
+
+    @pytest.mark.unit
+    def test_save_with_none_path(self, monkeypatch, temp_dir):
+        """Test save uses default path when None is provided."""
+        # Temporarily change home directory for this test
+        monkeypatch.setenv("HOME", str(temp_dir))
+        monkeypatch.setenv("USERPROFILE", str(temp_dir))  # Windows
+
+        config = AppConfig(default_buffer_size=1024)
+        config.save(None)
+
+        # Verify file was created in default location
+        expected_path = temp_dir / ".launchsampler" / "config.json"
+        assert expected_path.exists()
+
+        # Verify content
+        loaded = AppConfig.load_or_default(expected_path)
+        assert loaded.default_buffer_size == 1024
