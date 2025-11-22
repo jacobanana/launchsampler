@@ -68,7 +68,15 @@ Usage Example
 
     controller = DeviceController()
     controller.start()
-    controller.set_pad_color(21, Color(255, 0, 0))  # Works with ANY device!
+
+    # Set pad LED colors
+    controller.set_pad_color(21, Color(255, 0, 0))  # RGB mode
+    controller.set_pad_flashing(8, Color(0, 255, 0))  # Flash animation
+    controller.set_pad_pulsing(16, Color(0, 0, 255))  # Pulse animation
+
+    # Set control button LED colors
+    controller.set_control_button(19, Color(255, 0, 0))  # RGB mode
+    controller.set_control_button_static(19, 5)  # Palette index
 """
 
 import logging
@@ -264,6 +272,54 @@ class DeviceController:
             return True
         except Exception as e:
             logger.error(f"Error setting LEDs: {e}")
+            return False
+
+    # ================================================================
+    # LED CONTROL - CONTROL BUTTONS
+    # ================================================================
+
+    def set_control_button(self, cc_number: int, color: Color) -> bool:
+        """
+        Set LED color for a control button (RGB mode).
+
+        Args:
+            cc_number: MIDI CC number for the control button
+            color: RGB color
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set control button color: No device connected")
+            return False
+
+        try:
+            self._device.output.set_control_led(cc_number, color)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting control button color: {e}")
+            return False
+
+    def set_control_button_static(self, cc_number: int, palette_index: int) -> bool:
+        """
+        Set LED color for a control button using palette index (static mode).
+
+        Args:
+            cc_number: MIDI CC number for the control button
+            palette_index: Palette color index (0-127)
+
+        Returns:
+            True if sent successfully, False if not connected
+        """
+        if not self._device:
+            logger.warning("Cannot set control button static color: No device connected")
+            return False
+
+        try:
+            self._device.output.set_control_led_static(cc_number, palette_index)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting control button static color: {e}")
             return False
 
     # ================================================================

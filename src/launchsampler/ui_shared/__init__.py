@@ -13,8 +13,7 @@ from .colors import (
     PANIC_BUTTON_COLOR,
     PLAYING_COLOR,
     SELECTED_TUI_CLASS,
-    get_pad_led_color,
-    get_pad_led_palette_index,
+    get_pad_color,
 )
 
 __all__ = [
@@ -27,6 +26,5 @@ __all__ = [
     "SELECTED_TUI_CLASS",
     # Adapter
     "UIAdapter",
-    "get_pad_led_color",
-    "get_pad_led_palette_index",
+    "get_pad_color",
 ]

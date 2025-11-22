@@ -71,24 +71,21 @@ def create_title_from_filename(filename: str) -> str:
     return " ".join(word.capitalize() for word in name.split("_"))
 
 
-def get_package_title(package_name: str) -> str:
-    """Convert package name to human-readable title."""
-    # Special case mappings for better readability
-    title_map = {
-        "model_manager": "Model Manager",
-        "led_ui": "LED UI",
-        "ui_shared": "UI Shared",
-        "set_manager_service": "Set Manager Service",
-    }
+def get_package_title(package_name: str, custom_title: str | None = None) -> str:
+    """Convert package name to human-readable title.
 
-    if package_name in title_map:
-        return title_map[package_name]
+    Args:
+        package_name: Name of the package
+        custom_title: Optional custom title override
+    """
+    if custom_title:
+        return custom_title
 
     # Default: capitalize first letter
     return package_name.capitalize()
 
 
-def generate_nav_structure(docs_root: Path, packages_to_document: dict[str, str]) -> str:
+def generate_nav_structure(docs_root: Path, packages_config: list[dict]) -> str:
     """
     Generate navigation structure for mkdocs.yml using PyYAML.
 
@@ -97,13 +94,14 @@ def generate_nav_structure(docs_root: Path, packages_to_document: dict[str, str]
     # Build the navigation structure as a Python data structure
     api_reference_items = []
 
-    for package_name in packages_to_document:
+    for pkg in packages_config:
+        package_name = pkg["name"]
         package_dir = docs_root / package_name
         if not package_dir.exists():
             continue
 
         # Add package section
-        title = get_package_title(package_name)
+        title = get_package_title(package_name, pkg.get("title"))
         package_items = [{"Overview": f"api/{package_name}/index.md"}]
 
         # Find all markdown files except index
@@ -166,7 +164,7 @@ def update_mkdocs_nav(mkdocs_path: Path, new_api_nav: str) -> None:
     mkdocs_path.write_text(new_content, encoding="utf-8")
 
 
-def cleanup_old_docs(docs_root: Path, packages_to_document: dict[str, str]) -> None:
+def cleanup_old_docs(docs_root: Path, packages_config: list[dict]) -> None:
     """
     Clean up old documentation files for packages being regenerated.
 
@@ -175,11 +173,12 @@ def cleanup_old_docs(docs_root: Path, packages_to_document: dict[str, str]) -> N
 
     Args:
         docs_root: Root directory for API documentation
-        packages_to_document: Dictionary of packages to clean
+        packages_config: List of package configurations
     """
     print("\nCleaning up old documentation files...")
 
-    for package_name in packages_to_document:
+    for pkg in packages_config:
+        package_name = pkg["name"]
         package_dir = docs_root / package_name
         if package_dir.exists():
             # Remove all markdown files except index.md (we'll regenerate it)
@@ -195,6 +194,12 @@ def cleanup_old_docs(docs_root: Path, packages_to_document: dict[str, str]) -> N
                     print(f"  Removed empty dir: {subdir.relative_to(docs_root.parent.parent)}")
 
 
+def load_config(config_path: Path) -> dict:
+    """Load configuration from YAML file."""
+    with open(config_path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
 def main():
     """Generate all API documentation files."""
     # Paths
@@ -202,31 +207,21 @@ def main():
     src_root = project_root / "src"
     package_root = src_root / "launchsampler"
     docs_root = project_root / "docs" / "api"
+    config_path = Path(__file__).parent / "api_docs_config.yml"
 
-    # Configuration: which packages to document
-    packages_to_document = {
-        "orchestration": "Application orchestration and lifecycle management",
-        "core": "Audio playback engine and state management",
-        "audio": "Low-level audio primitives and sample loading",
-        "midi": "MIDI input/output management",
-        "devices": "MIDI device interface and hardware adapters",
-        "services": "Business logic services",
-        "model_manager": "Generic model management framework for Pydantic models",
-        "models": "Pydantic data models for configuration and state",
-        "exceptions": "Exception hierarchy and error handling utilities",
-        "protocols": "Observer protocols and domain events",
-        "ui_shared": "Shared UI infrastructure (colors, adapters)",
-        "utils": "Generic utility functions (paths, formatting)",
-        "tui": "Terminal user interface",
-        "led_ui": "Hardware LED grid user interface support",
-    }
+    # Load configuration from YAML file
+    config = load_config(config_path)
+    packages_config = config.get("packages", [])
+    exclude_patterns = config.get("exclude_patterns", ["__pycache__", "*.pyc", "__main__.py"])
 
     print("Generating API documentation...")
 
     # Clean up old documentation files first
-    cleanup_old_docs(docs_root, packages_to_document)
+    cleanup_old_docs(docs_root, packages_config)
 
-    for package_name, description in packages_to_document.items():
+    for pkg in packages_config:
+        package_name = pkg["name"]
+        description = pkg["description"]
         package_path = package_root / package_name
         if not package_path.exists():
             print(f"Warning: Package {package_name} not found at {package_path}")
@@ -235,7 +230,7 @@ def main():
         print(f"\nProcessing package: {package_name}")
 
         # Scan package
-        docs = scan_package(package_path, src_root)
+        docs = scan_package(package_path, src_root, exclude_patterns)
 
         # Create documentation files
         for doc_path, module_path in docs.items():
@@ -250,12 +245,14 @@ def main():
 
     # Generate index files for each package
     print("\nGenerating package index files...")
-    for package_name, description in packages_to_document.items():
+    for pkg in packages_config:
+        package_name = pkg["name"]
+        description = pkg["description"]
         index_path = docs_root / package_name / "index.md"
         index_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Use the same title function for consistency
-        title = get_package_title(package_name)
+        title = get_package_title(package_name, pkg.get("title"))
         content = f"# {title}\n\n{description}\n\n"
         # Disable root heading since we provide a nice title already
         content += f"::: launchsampler.{package_name}\n"
@@ -270,7 +267,7 @@ def main():
 
     # Generate navigation structure
     print("\nGenerating navigation structure...")
-    nav_structure = generate_nav_structure(docs_root, packages_to_document)
+    nav_structure = generate_nav_structure(docs_root, packages_config)
     nav_file = project_root / "docs" / "api_nav.yml"
     nav_file.write_text(nav_structure, encoding="utf-8")
     print(f"Navigation structure saved to: {nav_file.relative_to(project_root)}")

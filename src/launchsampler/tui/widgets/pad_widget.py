@@ -4,14 +4,14 @@ from textual.message import Message
 from textual.widgets import Static
 
 from launchsampler.models import Pad
-from launchsampler.ui_shared import MODE_COLORS, PLAYING_COLOR
+from launchsampler.ui_shared.colors import MODE_COLORS, PLAYING_COLOR
 
 
 def _generate_pad_css() -> str:
     """Generate CSS dynamically from centralized color scheme.
 
     CSS class names are automatically derived from PlaybackMode enum values.
-    Colors come from the LaunchpadColor enum.
+    Colors are standard 8-bit RGB converted to hex for CSS.
     """
     css_lines = [
         "PadWidget {",
@@ -25,9 +25,9 @@ def _generate_pad_css() -> str:
 
     # Generate mode-specific CSS from centralized colors
     # CSS class names are derived from mode.value (e.g., "one_shot", "loop")
-    for mode, launchpad_color in MODE_COLORS.items():
+    for mode, color in MODE_COLORS.items():
         css_class = mode.value  # e.g., "one_shot", "loop", "hold", "loop_toggle"
-        hex_color = launchpad_color.rgb.to_hex()
+        hex_color = color.to_hex()
         css_lines.extend(
             [
                 f"PadWidget.{css_class} {{",
@@ -70,7 +70,7 @@ def _generate_pad_css() -> str:
     )
 
     # Playing/active state from centralized color
-    playing_hex = PLAYING_COLOR.rgb.to_hex()
+    playing_hex = PLAYING_COLOR.to_hex()
     css_lines.extend(
         [
             "PadWidget.active {",

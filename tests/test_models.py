@@ -15,7 +15,7 @@ from launchsampler.models import (
     Sample,
     Set,
 )
-from launchsampler.ui_shared import MODE_COLORS
+from launchsampler.ui_shared.colors import MODE_COLORS
 
 
 class TestColor:
@@ -31,9 +31,9 @@ class TestColor:
 
     @pytest.mark.unit
     def test_rgb_range_validation(self):
-        """Test that RGB values must be 0-127."""
+        """Test that RGB values must be 0-255."""
         with pytest.raises(ValueError):
-            Color(r=128, g=0, b=0)
+            Color(r=256, g=0, b=0)
 
         with pytest.raises(ValueError):
             Color(r=0, g=-1, b=0)
@@ -48,6 +48,37 @@ class TestColor:
         """Test RGB tuple conversion."""
         color = Color(r=10, g=20, b=30)
         assert color.to_rgb_tuple() == (10, 20, 30)
+
+    @pytest.mark.unit
+    def test_to_7bit(self):
+        """Test 8-bit to 7-bit conversion for MIDI."""
+        color = Color(r=255, g=128, b=0)
+        r7, g7, b7 = color.to_7bit()
+        assert r7 == 127  # 255 >> 1 = 127
+        assert g7 == 64  # 128 >> 1 = 64
+        assert b7 == 0  # 0 >> 1 = 0
+
+    @pytest.mark.unit
+    def test_to_hex(self):
+        """Test conversion to CSS hex color."""
+        color = Color(r=255, g=0, b=0)
+        assert color.to_hex() == "#FF0000"
+
+        color = Color(r=0, g=255, b=128)
+        assert color.to_hex() == "#00FF80"
+
+    @pytest.mark.unit
+    def test_color_is_hashable(self):
+        """Test that Color is hashable (required for LRU cache)."""
+        color1 = Color(r=255, g=0, b=0)
+        color2 = Color(r=255, g=0, b=0)
+
+        # Should be able to hash
+        assert hash(color1) == hash(color2)
+
+        # Should be able to use as dict key
+        color_dict = {color1: "red"}
+        assert color_dict[color2] == "red"
 
 
 class TestSample:
@@ -198,20 +229,20 @@ class TestLaunchpad:
         pad0 = launchpad.pads[0]  # bass_loop (alphabetically first)
         assert pad0.is_assigned
         assert pad0.mode == PlaybackMode.LOOP
-        assert pad0.color == MODE_COLORS[PlaybackMode.LOOP].rgb  # Green
+        assert pad0.color == MODE_COLORS[PlaybackMode.LOOP]  # Green
         assert pad0.volume == 0.5
 
         pad1 = launchpad.pads[1]  # kick_oneshot
         assert pad1.mode == PlaybackMode.ONE_SHOT
-        assert pad1.color == MODE_COLORS[PlaybackMode.ONE_SHOT].rgb  # Red
+        assert pad1.color == MODE_COLORS[PlaybackMode.ONE_SHOT]  # Red
 
         pad2 = launchpad.pads[2]  # pad_tone
         assert pad2.mode == PlaybackMode.LOOP
-        assert pad2.color == MODE_COLORS[PlaybackMode.LOOP].rgb  # Green
+        assert pad2.color == MODE_COLORS[PlaybackMode.LOOP]  # Green
 
         pad3 = launchpad.pads[3]  # vocal_hold
         assert pad3.mode == PlaybackMode.HOLD
-        assert pad3.color == MODE_COLORS[PlaybackMode.HOLD].rgb  # Blue
+        assert pad3.color == MODE_COLORS[PlaybackMode.HOLD]  # Blue
 
     @pytest.mark.unit
     def test_from_sample_directory_no_auto_configure(self, temp_dir):
@@ -230,7 +261,7 @@ class TestLaunchpad:
         # Should still use ONE_SHOT as default even with "loop" in name
         pad0 = launchpad.pads[0]
         assert pad0.mode == PlaybackMode.ONE_SHOT
-        assert pad0.color == MODE_COLORS[PlaybackMode.ONE_SHOT].rgb  # Red (ONE_SHOT default)
+        assert pad0.color == MODE_COLORS[PlaybackMode.ONE_SHOT]  # Red (ONE_SHOT default)
         assert pad0.volume == 0.8
 
     @pytest.mark.unit
@@ -258,11 +289,10 @@ class TestPlaybackMode:
         assert PlaybackMode.HOLD in MODE_COLORS
         assert PlaybackMode.LOOP_TOGGLE in MODE_COLORS
 
-        # Verify all modes have LaunchpadColor values with RGB
+        # Verify all modes have Color values
         for mode in PlaybackMode:
             assert mode in MODE_COLORS
-            assert hasattr(MODE_COLORS[mode], "rgb")
-            assert isinstance(MODE_COLORS[mode].rgb, Color)
+            assert isinstance(MODE_COLORS[mode], Color)
 
 
 class TestSet:

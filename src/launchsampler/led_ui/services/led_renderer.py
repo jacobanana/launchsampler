@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from launchsampler.devices import DeviceController
 from launchsampler.models import Color
-from launchsampler.ui_shared import PANIC_BUTTON_COLOR, get_pad_led_color
+from launchsampler.ui_shared.colors import PANIC_BUTTON_COLOR, get_pad_color
 
 if TYPE_CHECKING:
     from launchsampler.models import Pad
@@ -61,7 +61,7 @@ class LEDRenderer:
             pad = all_pads[i]
             if pad.is_assigned:
                 # Get color from centralized color scheme
-                color = get_pad_led_color(pad, is_playing=False)
+                color = get_pad_color(pad, is_playing=False)
                 updates.append((i, color))
             else:
                 # Pad is empty, turn off
@@ -75,7 +75,7 @@ class LEDRenderer:
         # Set playing pads with animation
         for pad_index in playing_pads:
             pad = all_pads[pad_index]
-            color = get_pad_led_color(pad, is_playing=True)
+            color = get_pad_color(pad, is_playing=True)
             self.controller.set_pad_pulsing(pad_index, color)
             logger.debug(f"Set playing animation for pad {pad_index}")
 
@@ -97,7 +97,7 @@ class LEDRenderer:
             return
 
         # Set color from centralized color scheme
-        color = get_pad_led_color(pad, is_playing=False)
+        color = get_pad_color(pad, is_playing=False)
         self.controller.set_pad_color(pad_index, color)
 
     def set_playing_animation(self, pad_index: int, pad: "Pad", is_playing: bool) -> None:
@@ -115,7 +115,7 @@ class LEDRenderer:
 
         if is_playing:
             # Pulse with playing color (centralized from ui_colors)
-            color = get_pad_led_color(pad, is_playing=True)
+            color = get_pad_color(pad, is_playing=True)
             self.controller.set_pad_pulsing(pad_index, color)
         else:
             # Restore normal color
@@ -135,10 +135,6 @@ class LEDRenderer:
             logger.debug("Cannot set panic button LED: Controller not available or not connected")
             return
 
-        if not self.controller._device:
-            logger.debug("Cannot set panic button LED: Device not initialized")
-            return
-
-        # Set the LED to dark red using the RGB color
-        self.controller._device.output.set_control_led(panic_button_cc, PANIC_BUTTON_COLOR.rgb)
+        # Set the LED to dark red using the public API
+        self.controller.set_control_button(panic_button_cc, PANIC_BUTTON_COLOR)
         logger.info(f"Panic button LED set for CC {panic_button_cc}")

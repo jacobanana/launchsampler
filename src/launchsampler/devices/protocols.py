@@ -118,13 +118,23 @@ class DeviceOutput(Protocol):
 
     def set_control_led(self, control: int, color: Color) -> None:
         """
-        Set control button LED (non-pad buttons).
+        Set control button LED (non-pad buttons) using RGB mode.
 
         Args:
             control: Control button identifier (device-specific, e.g., CC number)
-            color: RGB color object (each channel 0-127)
+            color: RGB color object (each channel 0-255)
 
         Note:
-            Device implementation chooses whether to use RGB or convert to palette.
+            Device implementation converts 8-bit RGB to 7-bit for MIDI.
+        """
+        ...
+
+    def set_control_led_static(self, control: int, palette_index: int) -> None:
+        """
+        Set control button LED using palette index (static mode).
+
+        Args:
+            control: Control button identifier (device-specific, e.g., CC number)
+            palette_index: Palette color index (0-127)
         """
         ...

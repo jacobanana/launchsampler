@@ -135,11 +135,11 @@ class Launchpad(BaseModel):
             # Auto-configure mode and color if requested
             if auto_configure:
                 pad.mode = cls._infer_playback_mode(sample)
-                pad.color = MODE_COLORS[pad.mode].rgb
+                pad.color = MODE_COLORS[pad.mode]
             else:
                 # Use defaults from Pad model
                 pad.mode = PlaybackMode.ONE_SHOT
-                pad.color = MODE_COLORS[pad.mode].rgb
+                pad.color = MODE_COLORS[pad.mode]
 
             logger.debug(
                 f"Pad {i}: {sample.name} ({pad.mode.value}, "

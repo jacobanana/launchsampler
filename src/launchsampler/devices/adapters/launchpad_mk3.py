@@ -82,7 +82,7 @@ If Novation releases an MK4 with different layout, create a new mapper class.
 import logging
 
 from launchsampler.devices.config import DeviceConfig
-from launchsampler.devices.launchpad import LaunchpadPalette
+from launchsampler.devices.launchpad.palette_mk3 import rgb_to_palette_index
 from launchsampler.devices.launchpad.sysex import LaunchpadSysEx, LightingMode
 from launchsampler.devices.protocols import DeviceOutput
 from launchsampler.midi import MidiManager
@@ -247,14 +247,16 @@ class LaunchpadMK3Output(DeviceOutput):
 
         Args:
             index: Logical pad index (0-63)
-            color: RGB color object (each channel 0-127)
+            color: RGB color object (8-bit: 0-255 per channel)
         """
         note = self.mapper.index_to_note(index)
         if note is None:
             logger.error(f"Invalid pad index: {index}")
             return
 
-        spec = (LightingMode.RGB.value, note, color.r, color.g, color.b)
+        # Convert 8-bit RGB to 7-bit for MIDI SysEx
+        r7, g7, b7 = color.to_7bit()
+        spec = (LightingMode.RGB.value, note, r7, g7, b7)
         msg = self.sysex.led_lighting([spec])
 
         if not self.midi.send(msg):
@@ -276,7 +278,9 @@ class LaunchpadMK3Output(DeviceOutput):
             if note is None:
                 logger.warning(f"Skipping invalid pad index: {index}")
                 continue
-            specs.append((LightingMode.RGB.value, note, color.r, color.g, color.b))
+            # Convert 8-bit RGB to 7-bit for MIDI SysEx
+            r7, g7, b7 = color.to_7bit()
+            specs.append((LightingMode.RGB.value, note, r7, g7, b7))
 
         if not specs:
             return
@@ -301,8 +305,9 @@ class LaunchpadMK3Output(DeviceOutput):
             logger.error(f"Invalid pad index: {index}")
             return
 
-        palette_color = LaunchpadPalette.from_color(color)
-        spec = (LightingMode.FLASHING.value, note, 0, palette_color)
+        # Convert RGB to nearest palette index (required for hardware animations)
+        palette_index = rgb_to_palette_index(color)
+        spec = (LightingMode.FLASHING.value, note, 0, palette_index)
         msg = self.sysex.led_lighting([spec])
 
         if not self.midi.send(msg):
@@ -321,8 +326,9 @@ class LaunchpadMK3Output(DeviceOutput):
             logger.error(f"Invalid pad index: {index}")
             return
 
-        palette_color = LaunchpadPalette.from_color(color)
-        spec = (LightingMode.PULSING.value, note, palette_color)
+        # Convert RGB to nearest palette index (required for hardware animations)
+        palette_index = rgb_to_palette_index(color)
+        spec = (LightingMode.PULSING.value, note, palette_index)
         msg = self.sysex.led_lighting([spec])
 
         if not self.midi.send(msg):
@@ -334,9 +340,11 @@ class LaunchpadMK3Output(DeviceOutput):
 
         Args:
             cc_number: MIDI CC control number
-            color: RGB color (0-127 per channel)
+            color: RGB color (8-bit: 0-255 per channel)
         """
-        spec = (LightingMode.RGB.value, cc_number, color.r, color.g, color.b)
+        # Convert 8-bit RGB to 7-bit for MIDI SysEx
+        r7, g7, b7 = color.to_7bit()
+        spec = (LightingMode.RGB.value, cc_number, r7, g7, b7)
         msg = self.sysex.led_lighting([spec])
 
         if not self.midi.send(msg):

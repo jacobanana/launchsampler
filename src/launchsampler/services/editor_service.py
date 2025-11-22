@@ -181,7 +181,7 @@ class EditorService:
 
         # Set default color if pad was previously empty
         if was_empty:
-            pad.color = MODE_COLORS[pad.mode].rgb
+            pad.color = MODE_COLORS[pad.mode]
 
         # Notify observers
         self._notify_observers(EditEvent.PAD_ASSIGNED, [pad_index], [pad])
@@ -238,7 +238,7 @@ class EditorService:
             raise ValueError(f"Cannot set mode on empty pad {pad_index}")
 
         pad.mode = mode
-        pad.color = MODE_COLORS[mode].rgb
+        pad.color = MODE_COLORS[mode]
 
         # Notify observers
         self._notify_observers(EditEvent.PAD_MODE_CHANGED, [pad_index], [pad])
