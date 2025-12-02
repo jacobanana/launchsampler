@@ -221,6 +221,22 @@ class SpotifyService:
                 return
             raise SpotifyPlaybackError(f"Failed to pause: {e}") from e
 
+    def stop(self) -> None:
+        """Stop playback and reset to beginning (pause + seek to 0)."""
+        sp = self._ensure_client()
+
+        try:
+            sp.pause_playback()
+            # Seek to beginning so next play starts fresh
+            sp.seek_track(0)
+            logger.info("Playback stopped (reset to beginning)")
+        except spotipy.SpotifyException as e:
+            # 403 can mean already paused or no active device
+            if e.http_status == 403:
+                logger.debug("Playback already stopped or no active device")
+                return
+            raise SpotifyPlaybackError(f"Failed to stop: {e}") from e
+
     def resume(self) -> None:
         """Resume current playback."""
         sp = self._ensure_client()
@@ -235,14 +251,14 @@ class SpotifyService:
         """
         Toggle playback for a track.
 
-        If the track is currently playing, pause it.
-        If not playing or different track, start playing it.
+        If the track is currently playing, stop it (resets to beginning).
+        If not playing, start playing from the beginning.
 
         Args:
             spotify_uri: Spotify URI of the track
 
         Returns:
-            True if now playing, False if paused
+            True if now playing, False if stopped
 
         Raises:
             SpotifyPlaybackError: If playback control fails
@@ -254,15 +270,11 @@ class SpotifyService:
             is_playing = state.get("is_playing", False)
 
             if current_uri == spotify_uri and is_playing:
-                # Same track playing - pause it
-                self.pause()
+                # Same track playing - stop it (resets to beginning)
+                self.stop()
                 return False
-            elif current_uri == spotify_uri and not is_playing:
-                # Same track paused - resume it
-                self.resume()
-                return True
 
-        # Different track or nothing playing - start playing
+        # Not playing or different track - always start from beginning
         self.play_track(spotify_uri)
         return True
 

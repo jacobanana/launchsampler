@@ -319,8 +319,23 @@ class TUIService(AppObserver, EditObserver, SelectionObserver, MidiObserver, Sta
         if pad.is_assigned:
             audio_data = self.app.player.get_audio_data(pad_index)
 
+        # Check Spotify authentication status
+        spotify_authenticated = self._is_spotify_authenticated()
+
         details = self.app.query_one(PadDetailsPanel)
-        details.update_for_pad(pad_index, pad, audio_data=audio_data)
+        details.update_for_pad(
+            pad_index, pad, audio_data=audio_data, spotify_authenticated=spotify_authenticated
+        )
+
+    def _is_spotify_authenticated(self) -> bool:
+        """Check if Spotify service is authenticated."""
+        try:
+            spotify_service = getattr(self.app.orchestrator, "spotify_service", None)
+            if spotify_service is not None:
+                return spotify_service.is_authenticated
+        except Exception:
+            pass
+        return False
 
     def _update_selected_pad_ui(self, pad_index: int, pad: Optional["Pad"] = None) -> None:
         """

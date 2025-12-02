@@ -616,6 +616,27 @@ class LaunchpadSampler(App):
             self.notify(f"Error updating name: {e}", severity="error")
 
     @edit_only
+    def on_pad_details_panel_spotify_url_submitted(
+        self, event: PadDetailsPanel.SpotifyUrlSubmitted
+    ) -> None:
+        """Handle Spotify URL submission from details panel."""
+        try:
+            # Assign Spotify sample using editor service
+            pad = self.editor.assign_spotify_sample(
+                event.pad_index,
+                event.url,
+                name=event.name if event.name else None,
+            )
+
+            # Notify user
+            if pad.sample:
+                self.notify(f"Assigned Spotify track: {pad.sample.name}")
+
+        except Exception as e:
+            logger.error(f"Error assigning Spotify sample: {e}")
+            self.notify(f"Error: {e}", severity="error")
+
+    @edit_only
     def on_pad_details_panel_move_pad_requested(
         self, event: PadDetailsPanel.MovePadRequested
     ) -> None:

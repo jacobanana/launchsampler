@@ -16,6 +16,7 @@ from launchsampler.model_manager import ObserverManager
 from launchsampler.models import AppConfig, Launchpad, Set
 from launchsampler.protocols import AppEvent, AppObserver
 from launchsampler.services import EditorService, ModelManagerService, SetManagerService
+from launchsampler.services.spotify_service import SpotifyService
 from launchsampler.ui_shared import UIAdapter
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,7 @@ class Orchestrator:
         self.set_manager: SetManagerService | None = None
         self.player: Player | None = None
         self.editor: EditorService | None = None
+        self.spotify_service: SpotifyService | None = None
 
         # UI repository
         self._uis: list[UIAdapter] = []
@@ -133,8 +135,15 @@ class Orchestrator:
         # Create MIDI controller (shared resource)
         self._start_midi()
 
-        # Inject shared state machine into Player
-        self.player = Player(self.config, state_machine=self.state_machine)
+        # Create Spotify service if configured
+        self._start_spotify()
+
+        # Inject shared state machine and Spotify service into Player
+        self.player = Player(
+            self.config,
+            state_machine=self.state_machine,
+            spotify_service=self.spotify_service,
+        )
 
         # Setup Editor and register player as edit observer (for audio sync)
         self.editor = EditorService(self.config)
@@ -224,6 +233,9 @@ class Orchestrator:
         if self.player:
             self.player.stop()
 
+        # Shutdown Spotify service
+        self._stop_spotify()
+
         # Shutdown MIDI controller
         self._stop_midi()
 
@@ -245,6 +257,28 @@ class Orchestrator:
             self.midi_controller.stop()
             self.midi_controller = None
             logger.info("MIDI controller stopped")
+
+    def _start_spotify(self) -> bool:
+        """Start Spotify service if configured."""
+        if not self.config.spotify.is_configured:
+            logger.info("Spotify not configured (no client_id)")
+            return False
+
+        try:
+            self.spotify_service = SpotifyService(self.config.spotify)
+            logger.info("Spotify service initialized")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to initialize Spotify service: {e}")
+            self.spotify_service = None
+            return False
+
+    def _stop_spotify(self) -> None:
+        """Stop Spotify service."""
+        if self.spotify_service:
+            self.spotify_service.close()
+            self.spotify_service = None
+            logger.info("Spotify service stopped")
 
     def register_observer(self, observer: AppObserver) -> None:
         """

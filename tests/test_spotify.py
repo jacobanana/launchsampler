@@ -241,8 +241,8 @@ class TestSpotifyService:
         assert result is True
 
     @pytest.mark.unit
-    def test_toggle_playback_pauses_when_same_track_playing(self, service_with_mocked_auth):
-        """Test toggle_playback pauses when same track is playing."""
+    def test_toggle_playback_stops_when_same_track_playing(self, service_with_mocked_auth):
+        """Test toggle_playback stops (with seek to 0) when same track is playing."""
         service = service_with_mocked_auth
         service._sp.current_playback.return_value = {
             "item": {"uri": "spotify:track:test123test123test12"},
@@ -251,12 +251,14 @@ class TestSpotifyService:
 
         result = service.toggle_playback("spotify:track:test123test123test12")
 
+        # stop() calls pause_playback and seek_track(0)
         service._sp.pause_playback.assert_called_once()
+        service._sp.seek_track.assert_called_once_with(0)
         assert result is False
 
     @pytest.mark.unit
-    def test_toggle_playback_resumes_when_same_track_paused(self, service_with_mocked_auth):
-        """Test toggle_playback resumes when same track is paused."""
+    def test_toggle_playback_starts_fresh_when_same_track_paused(self, service_with_mocked_auth):
+        """Test toggle_playback starts from beginning when same track is paused."""
         service = service_with_mocked_auth
         service._sp.current_playback.return_value = {
             "item": {"uri": "spotify:track:test123test123test12"},
@@ -265,8 +267,10 @@ class TestSpotifyService:
 
         result = service.toggle_playback("spotify:track:test123test123test12")
 
-        # resume() calls start_playback without arguments
-        service._sp.start_playback.assert_called_once()
+        # Should start fresh from beginning, not resume
+        service._sp.start_playback.assert_called_once_with(
+            uris=["spotify:track:test123test123test12"], device_id=None
+        )
         assert result is True
 
     @pytest.mark.unit
@@ -360,6 +364,16 @@ class TestSpotifyService:
         service.pause()
 
         service._sp.pause_playback.assert_called_once()
+
+    @pytest.mark.unit
+    def test_stop(self, service_with_mocked_auth):
+        """Test stop pauses and seeks to beginning."""
+        service = service_with_mocked_auth
+
+        service.stop()
+
+        service._sp.pause_playback.assert_called_once()
+        service._sp.seek_track.assert_called_once_with(0)
 
     @pytest.mark.unit
     def test_resume(self, service_with_mocked_auth):

@@ -3,10 +3,11 @@
 from textual.app import ComposeResult
 from textual.containers import Grid, Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import Button, Input, Label, RadioButton, RadioSet, Rule
+from textual.widgets import Button, Input, Label, RadioButton, RadioSet, Rule, Select
 
 from launchsampler.audio.data import AudioData
 from launchsampler.models import Pad
+from launchsampler.models.sample import AudioSample, SpotifySample
 
 
 class NoTabInput(Input):
@@ -207,6 +208,53 @@ class PadDetailsPanel(Vertical, can_focus=True):
         width: 100%;
         content-align: center middle;
     }
+
+    PadDetailsPanel .sample-type-container {
+        height: 3;
+        margin: 0 0 1 0;
+        layout: horizontal;
+    }
+
+    PadDetailsPanel .sample-type-container > Label {
+        width: 30%;
+        height: 1;
+        margin-top: 1;
+    }
+
+    PadDetailsPanel .sample-type-container > Select {
+        width: 70%;
+    }
+
+    PadDetailsPanel .spotify-url-container {
+        height: 1;
+        margin: 1 0;
+        layout: horizontal;
+    }
+
+    PadDetailsPanel .spotify-url-container > Label {
+        width: 30%;
+    }
+
+    PadDetailsPanel .spotify-url-container > NoTabInput {
+        width: 70%;
+    }
+
+    PadDetailsPanel #spotify-url-input {
+        height: 1;
+        padding: 0 1;
+        margin: 0;
+    }
+
+    PadDetailsPanel #spotify-error {
+        color: $error;
+        height: auto;
+        margin: 0;
+        padding: 0;
+    }
+
+    PadDetailsPanel .spotify-fields {
+        height: auto;
+    }
     """
 
     class VolumeChanged(Message):
@@ -254,10 +302,34 @@ class PadDetailsPanel(Vertical, can_focus=True):
             self.source_index = source_index
             self.target_index = target_index
 
+    class SpotifyUrlSubmitted(Message):
+        """Message sent when Spotify URL is submitted."""
+
+        def __init__(self, pad_index: int, url: str, name: str) -> None:
+            """
+            Initialize message.
+
+            Args:
+                pad_index: Index of pad (0-63)
+                url: Spotify URL or URI
+                name: Sample name
+            """
+            super().__init__()
+            self.pad_index = pad_index
+            self.url = url
+            self.name = name
+
+    # Sample type options for the Select widget
+    SAMPLE_TYPES = [
+        ("Audio File", "audio"),
+        ("Spotify Track", "spotify"),
+    ]
+
     def __init__(self) -> None:
         """Initialize details panel."""
         super().__init__()
         self.selected_pad_index: int | None = None
+        self._current_sample_type: str = "audio"  # Track selected sample type
 
     def compose(self) -> ComposeResult:
         """Create the details panel widgets."""
@@ -271,9 +343,26 @@ class PadDetailsPanel(Vertical, can_focus=True):
 
         yield Rule()
 
+        # Sample type selector (Audio File / Spotify Track)
+        with Horizontal(classes="sample-type-container"):
+            yield Label("Type:", shrink=True)
+            yield Select(self.SAMPLE_TYPES, id="sample-type-select", value="audio")
+
         with Horizontal(classes="name-container"):
             yield Label("Name:", shrink=True)
             yield NoTabInput(placeholder="Sample name", id="name-input", disabled=True)
+
+        # Audio file browse button (shown when audio type selected)
+        with Grid(classes="button-grid", id="audio-fields"):
+            yield Button("[▪] Browse", id="browse-btn", variant="primary", disabled=True)
+
+        # Spotify URL input (shown when spotify type selected)
+        with Vertical(classes="spotify-fields", id="spotify-fields"):
+            with Horizontal(classes="spotify-url-container"):
+                yield Label("URL:", shrink=True)
+                yield NoTabInput(placeholder="Paste Spotify link", id="spotify-url-input", disabled=True)
+            yield Label("", id="spotify-error")
+            yield Button("Assign Spotify Track", id="spotify-assign-btn", variant="primary", disabled=True)
 
         with Horizontal(classes="volume-container"):
             yield Label("Volume [%]:", shrink=True)
@@ -288,7 +377,6 @@ class PadDetailsPanel(Vertical, can_focus=True):
 
         yield Rule()
         with Grid(classes="button-grid"):
-            yield Button("[▪] Browse", id="browse-btn", variant="primary", disabled=True)
             yield Button("\\[X] Delete", id="clear-btn", variant="default", disabled=True)
 
         yield Rule()
@@ -298,7 +386,41 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield Button("▶", id="test-btn", variant="success", disabled=True)
             yield Button("■", id="stop-btn", variant="error", disabled=True)
 
-    def update_for_pad(self, pad_index: int, pad: Pad, audio_data: AudioData | None = None) -> None:
+    def on_mount(self) -> None:
+        """Initialize visibility of sample type fields."""
+        # Default to audio type - hide Spotify fields
+        self._show_sample_type_fields("audio")
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle sample type selection change."""
+        if event.select.id != "sample-type-select":
+            return
+
+        sample_type = str(event.value)
+        self._current_sample_type = sample_type
+        self._show_sample_type_fields(sample_type)
+
+    def _show_sample_type_fields(self, sample_type: str) -> None:
+        """Show/hide fields based on selected sample type."""
+        audio_fields = self.query_one("#audio-fields")
+        spotify_fields = self.query_one("#spotify-fields")
+
+        if sample_type == "audio":
+            audio_fields.display = True
+            spotify_fields.display = False
+        else:  # spotify
+            audio_fields.display = False
+            spotify_fields.display = True
+            # Clear any previous error
+            self.query_one("#spotify-error", Label).update("")
+
+    def update_for_pad(
+        self,
+        pad_index: int,
+        pad: Pad,
+        audio_data: AudioData | None = None,
+        spotify_authenticated: bool = False,
+    ) -> None:
         """
         Update the panel to show info for selected pad.
 
@@ -306,6 +428,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
             pad_index: Index of selected pad (0-63)
             pad: Pad model instance
             audio_data: Optional AudioData object for the loaded sample
+            spotify_authenticated: Whether Spotify is authenticated (for coloring)
         """
         self.selected_pad_index = pad_index
 
@@ -316,29 +439,52 @@ class PadDetailsPanel(Vertical, can_focus=True):
         pad_location = self.query_one("#pad-location", Label)
         pad_location.update(f"[{pad_index % 8}, {pad_index // 8}]")
 
+        # Detect sample type and update UI accordingly
+        sample_type = "audio"  # default
+        if pad.is_assigned and pad.sample:
+            if isinstance(pad.sample, SpotifySample):
+                sample_type = "spotify"
+            else:
+                sample_type = "audio"
+
+        # Update sample type selector to match current sample
+        sample_type_select = self.query_one("#sample-type-select", Select)
+        if pad.is_assigned:
+            sample_type_select.value = sample_type
+            self._current_sample_type = sample_type
+            self._show_sample_type_fields(sample_type)
+
         # Update sample info
         sample_info = self.query_one("#sample-info", Label)
         if pad.is_assigned and pad.sample:
-            # Build audio info string if audio data available
-            audio_info_str = ""
-            if audio_data is not None:
-                audio_info_str = f"\nDuration: {audio_data.duration:.2f}s"
-                audio_info_str += f"\nSample Rate: {audio_data.sample_rate} Hz"
-                audio_info_str += f"\nChannels: {audio_data.num_channels}"
-
-                # Add format info if available
-                if audio_data.format:
-                    audio_info_str += f"\nFormat: {audio_data.format}"
-                    if audio_data.subtype:
-                        audio_info_str += f" ({audio_data.subtype})"
-
-                # Add file size
-                info = audio_data.get_info()
-                audio_info_str += f"\nSize: {info['size_str']}"
+            if isinstance(pad.sample, SpotifySample):
+                # Spotify sample info - color based on auth status
+                color = "green" if spotify_authenticated else "gray"
+                sample_info.update(
+                    f"[{color}]Spotify Track[/{color}]\n"
+                    f"URI: {pad.sample.spotify_uri}"
+                )
             else:
-                audio_info_str = "\n[b]⚠️ File not found[/b]"
+                # Audio sample info
+                audio_info_str = ""
+                if audio_data is not None:
+                    audio_info_str = f"\nDuration: {audio_data.duration:.2f}s"
+                    audio_info_str += f"\nSample Rate: {audio_data.sample_rate} Hz"
+                    audio_info_str += f"\nChannels: {audio_data.num_channels}"
 
-            sample_info.update(f"Path: {pad.sample.path}{audio_info_str}")
+                    # Add format info if available
+                    if audio_data.format:
+                        audio_info_str += f"\nFormat: {audio_data.format}"
+                        if audio_data.subtype:
+                            audio_info_str += f" ({audio_data.subtype})"
+
+                    # Add file size
+                    info = audio_data.get_info()
+                    audio_info_str += f"\nSize: {info['size_str']}"
+                else:
+                    audio_info_str = "\n[b]⚠️ File not found[/b]"
+
+                sample_info.update(f"Path: {pad.sample.path}{audio_info_str}")
         else:
             sample_info.update("[dim]No sample assigned[/dim]")
 
@@ -378,9 +524,17 @@ class PadDetailsPanel(Vertical, can_focus=True):
         # Browse button - always enabled (can assign to empty pads)
         self.query_one("#browse-btn", Button).disabled = False
 
+        # Spotify URL input and assign button - always enabled (can assign to empty pads)
+        self.query_one("#spotify-url-input", Input).disabled = False
+        self.query_one("#spotify-assign-btn", Button).disabled = False
+
         # Clear button and mode radio - only enabled if pad has sample
         self.query_one("#clear-btn", Button).disabled = not pad.is_assigned
         self.query_one("#mode-radio", RadioSet).disabled = not pad.is_assigned
+
+        # For Spotify samples, disable mode radio (always toggle mode)
+        if pad.is_assigned and pad.sample and isinstance(pad.sample, SpotifySample):
+            self.query_one("#mode-radio", RadioSet).disabled = True
 
         # Test/stop controls - only enabled if pad has sample
         self.query_one("#test-btn", Button).disabled = not pad.is_assigned
@@ -445,3 +599,50 @@ class PadDetailsPanel(Vertical, can_focus=True):
             except ValueError:
                 # Invalid input, clear it
                 event.input.value = ""
+
+        elif event.input.id == "spotify-url-input":
+            # Submit Spotify URL when Enter pressed in URL input
+            self._submit_spotify_url()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses within the panel."""
+        if event.button.id == "spotify-assign-btn":
+            self._submit_spotify_url()
+            event.stop()  # Prevent event from bubbling to app
+
+    def _submit_spotify_url(self) -> None:
+        """Validate and submit the Spotify URL."""
+        if self.selected_pad_index is None:
+            return
+
+        url_input = self.query_one("#spotify-url-input", Input)
+        name_input = self.query_one("#name-input", Input)
+        error_label = self.query_one("#spotify-error", Label)
+
+        url = url_input.value.strip()
+        name = name_input.value.strip()
+
+        if not url:
+            error_label.update("[red]Please enter a Spotify URL[/red]")
+            return
+
+        # Try to validate the URL by creating a SpotifySample
+        try:
+            # This will validate the URL format
+            SpotifySample.from_link(url, name=name if name else None)
+
+            # Clear error and inputs on success
+            error_label.update("")
+            url_input.value = ""
+
+            # Post message with URL and name
+            self.post_message(
+                self.SpotifyUrlSubmitted(
+                    self.selected_pad_index,
+                    url,
+                    name if name else "",
+                )
+            )
+        except ValueError as e:
+            # Show validation error
+            error_label.update(f"[red]{e}[/red]")
