@@ -8,6 +8,10 @@ from textual.widgets import Button, Input, Label, RadioButton, RadioSet, Rule, S
 from launchsampler.audio.data import AudioData
 from launchsampler.models import Pad
 from launchsampler.models.sample import AudioSample, SpotifySample
+from launchsampler.ui_shared.colors import (
+    SPOTIFY_AUTHENTICATED_COLOR,
+    SPOTIFY_NOT_AUTHENTICATED_COLOR,
+)
 
 
 class NoTabInput(Input):
@@ -459,7 +463,11 @@ class PadDetailsPanel(Vertical, can_focus=True):
         if pad.is_assigned and pad.sample:
             if isinstance(pad.sample, SpotifySample):
                 # Spotify sample info - color based on auth status
-                color = "green" if spotify_authenticated else "gray"
+                color = (
+                    SPOTIFY_AUTHENTICATED_COLOR
+                    if spotify_authenticated
+                    else SPOTIFY_NOT_AUTHENTICATED_COLOR
+                )
                 sample_info.update(
                     f"[{color}]Spotify Track[/{color}]\n"
                     f"URI: {pad.sample.spotify_uri}"

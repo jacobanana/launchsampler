@@ -48,6 +48,10 @@ SELECTED_TUI_CLASS = "selected"  # Uses $warning theme color in TUI
 # MIDI triggered pad (TUI only - MIDI note is currently held down)
 MIDI_ON_TUI_CLASS = "midi_on"  # Uses $primary theme color in TUI
 
+# Spotify sample text colors (Rich markup for TUI labels)
+SPOTIFY_AUTHENTICATED_COLOR = "green"  # When Spotify is authenticated
+SPOTIFY_NOT_AUTHENTICATED_COLOR = "gray"  # When Spotify is not authenticated
+
 
 def get_pad_color(pad, is_playing: bool = False) -> Color:
     """Get the color for a pad based on its state.
