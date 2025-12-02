@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from launchsampler.model_manager import ObserverManager
-from launchsampler.models import AppConfig, AudioSample, Launchpad, Pad, PlaybackMode
+from launchsampler.models import AppConfig, AudioSample, Launchpad, Pad, PlaybackMode, SpotifySample
 from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.ui_shared import MODE_COLORS
 
@@ -187,6 +187,48 @@ class EditorService:
         self._notify_observers(EditEvent.PAD_ASSIGNED, [pad_index], [pad])
 
         logger.info(f"Assigned sample '{sample.name}' to pad {pad_index}")
+        return pad
+
+    def assign_spotify_sample(self, pad_index: int, spotify_link: str, name: str | None = None) -> Pad:
+        """
+        Assign a Spotify track to a pad.
+
+        Args:
+            pad_index: Index of pad to assign sample to (0-63)
+            spotify_link: Spotify share link or URI
+                (e.g., https://open.spotify.com/track/... or spotify:track:...)
+            name: Optional name for the sample. If not provided, auto-generates from track ID.
+
+        Returns:
+            The modified Pad
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If spotify_link is not a valid Spotify link/URI
+        """
+        self._validate_pad_index(pad_index)
+
+        # Create Spotify sample from link (validates the link format)
+        try:
+            sample = SpotifySample.from_link(spotify_link, name=name)
+        except ValueError as e:
+            raise ValueError(f"Invalid Spotify link: {e}") from e
+
+        # Get pad and assign sample
+        pad = self.launchpad.pads[pad_index]
+        was_empty = not pad.is_assigned
+        pad.sample = sample
+        pad.volume = 1.0  # Spotify controls its own volume
+        pad.mode = PlaybackMode.TOGGLE  # Spotify samples always toggle
+
+        # Set a distinct color for Spotify samples (green - Spotify's brand color)
+        if was_empty:
+            pad.color = MODE_COLORS.get(PlaybackMode.TOGGLE, pad.color)
+
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_ASSIGNED, [pad_index], [pad])
+
+        logger.info(f"Assigned Spotify sample '{sample.name}' to pad {pad_index}")
         return pad
 
     def clear_pad(self, pad_index: int) -> Pad:
