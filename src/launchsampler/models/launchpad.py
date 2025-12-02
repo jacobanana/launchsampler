@@ -9,7 +9,7 @@ from launchsampler.ui_shared import MODE_COLORS
 
 from .enums import PlaybackMode
 from .pad import Pad
-from .sample import Sample
+from .sample import AudioSample
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ class Launchpad(BaseModel):
 
         # Assign samples to pads (max 64)
         for i, sample_file in enumerate(sample_files[:TOTAL_PADS]):
-            sample = Sample.from_file(sample_file)
+            sample = AudioSample.from_file(sample_file)
             pad = launchpad.pads[i]
 
             # Assign sample

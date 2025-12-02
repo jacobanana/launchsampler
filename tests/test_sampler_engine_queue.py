@@ -8,7 +8,7 @@ import pytest
 from launchsampler.audio import AudioDevice
 from launchsampler.audio.data import AudioData
 from launchsampler.core.sampler_engine import SamplerEngine
-from launchsampler.models import Pad, PlaybackMode, Sample
+from launchsampler.models import AudioSample, Pad, PlaybackMode
 from launchsampler.protocols import PlaybackEvent
 
 
@@ -31,7 +31,7 @@ def engine(mock_audio_device):
 @pytest.fixture
 def loaded_engine(engine, sample_audio_file):
     """Create an engine with a few samples loaded."""
-    sample = Sample.from_file(sample_audio_file)
+    sample = AudioSample.from_file(sample_audio_file)
 
     # Load pad 0 - ONE_SHOT
     pad0 = Pad(x=0, y=0)
@@ -814,7 +814,7 @@ class TestSamplerEngineSampleManagement:
 
     def test_load_sample_caches_audio_data(self, engine, sample_audio_file):
         """Test loading sample caches audio data."""
-        sample = Sample.from_file(sample_audio_file)
+        sample = AudioSample.from_file(sample_audio_file)
         pad = Pad(x=0, y=0)
         pad.sample = sample
         pad.mode = PlaybackMode.ONE_SHOT
@@ -828,7 +828,7 @@ class TestSamplerEngineSampleManagement:
 
     def test_load_same_sample_multiple_pads_uses_cache(self, engine, sample_audio_file):
         """Test loading same sample on multiple pads uses cache."""
-        sample = Sample.from_file(sample_audio_file)
+        sample = AudioSample.from_file(sample_audio_file)
 
         pad0 = Pad(x=0, y=0)
         pad0.sample = sample
@@ -857,7 +857,7 @@ class TestSamplerEngineSampleManagement:
 
     def test_load_invalid_pad_index_fails(self, engine, sample_audio_file):
         """Test loading with invalid pad index fails gracefully."""
-        sample = Sample.from_file(sample_audio_file)
+        sample = AudioSample.from_file(sample_audio_file)
         pad = Pad(x=0, y=0)
         pad.sample = sample
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from launchsampler.models import AppConfig, Launchpad, PlaybackMode, Sample, Set
+from launchsampler.models import AppConfig, AudioSample, Launchpad, PlaybackMode, Set
 from launchsampler.services import SetManagerService
 
 
@@ -24,7 +24,7 @@ class TestSetManagerServiceLoad:
         """Test successfully opening a set from file."""
         # Create a test set
         launchpad = Launchpad.create_empty()
-        launchpad.pads[0].sample = Sample.from_file(sample_audio_file)
+        launchpad.pads[0].sample = AudioSample.from_file(sample_audio_file)
         launchpad.pads[0].mode = PlaybackMode.ONE_SHOT
         test_set = Set(name="test", launchpad=launchpad)
 
@@ -50,7 +50,7 @@ class TestSetManagerServiceLoad:
         """Test opening by name from sets directory."""
         # Create a test set in sets_dir
         launchpad = Launchpad.create_empty()
-        launchpad.pads[0].sample = Sample.from_file(sample_audio_file)
+        launchpad.pads[0].sample = AudioSample.from_file(sample_audio_file)
         test_set = Set(name="myset", launchpad=launchpad)
 
         set_path = temp_dir / "myset.json"
@@ -127,7 +127,7 @@ class TestSetManagerServiceSave:
         """Test successfully saving a set to file."""
         # Create a set
         launchpad = Launchpad.create_empty()
-        launchpad.pads[0].sample = Sample.from_file(sample_audio_file)
+        launchpad.pads[0].sample = AudioSample.from_file(sample_audio_file)
         launchpad.pads[0].mode = PlaybackMode.LOOP
         test_set = Set(name="myset", launchpad=launchpad)
 
@@ -159,7 +159,7 @@ class TestSetManagerServiceSave:
     def test_save_set_to_library_success(self, service, temp_dir, sample_audio_file):
         """Test saving to sets library."""
         launchpad = Launchpad.create_empty()
-        launchpad.pads[0].sample = Sample.from_file(sample_audio_file)
+        launchpad.pads[0].sample = AudioSample.from_file(sample_audio_file)
         test_set = Set(name="myset", launchpad=launchpad)
 
         # Save to sets library

@@ -4,7 +4,7 @@ from unittest.mock import Mock, call
 
 import pytest
 
-from launchsampler.models import Launchpad, Sample
+from launchsampler.models import AudioSample, Launchpad
 from launchsampler.protocols import AppEvent
 from launchsampler.tui.services import TUIService
 
@@ -62,7 +62,7 @@ class TestTUIServiceObserver:
     def test_on_app_event_set_mounted_with_selection(self, service, mock_app, sample_audio_file):
         """Test SET_MOUNTED updates details panel when pad is selected."""
         # Setup: assign sample to pad 5 and select it
-        mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[5].sample = AudioSample.from_file(sample_audio_file)
         mock_app.selected_pad_index = 5  # Selection now on app, not editor
 
         # Setup mocks
@@ -164,7 +164,7 @@ class TestTUIServiceObserver:
     def test_update_selected_pad_ui_with_audio_data(self, service, mock_app, sample_audio_file):
         """Test updating selected pad UI includes audio data when available."""
         # Setup: player with audio data
-        mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[3].sample = AudioSample.from_file(sample_audio_file)
         mock_audio_data = Mock()
         mock_app.player.get_audio_data = Mock(return_value=mock_audio_data)
 
@@ -187,7 +187,7 @@ class TestTUIServiceObserver:
     def test_update_selected_pad_ui_without_engine(self, service, mock_app, sample_audio_file):
         """Test updating selected pad UI when engine is not available."""
         # Setup: player returns None (simulating no engine)
-        mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[3].sample = AudioSample.from_file(sample_audio_file)
         mock_app.player.get_audio_data = Mock(return_value=None)
 
         # Setup details panel mock
@@ -229,7 +229,7 @@ class TestTUIServiceObserver:
     ):
         """Test that pad is marked as unavailable when audio data is None."""
         # Setup: assign sample to pad but audio data unavailable
-        mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[5].sample = AudioSample.from_file(sample_audio_file)
         mock_app.player.get_audio_data = Mock(return_value=None)
 
         # Setup grid mock
@@ -251,7 +251,7 @@ class TestTUIServiceObserver:
     ):
         """Test that pad is marked as available when audio data exists."""
         # Setup: assign sample to pad with audio data available
-        mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[5].sample = AudioSample.from_file(sample_audio_file)
         mock_audio_data = Mock()
         mock_app.player.get_audio_data = Mock(return_value=mock_audio_data)
 
@@ -293,9 +293,9 @@ class TestTUIServiceObserver:
     ):
         """Test that SET_MOUNTED checks availability for all assigned pads."""
         # Setup: assign samples to some pads, some with audio data, some without
-        mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
-        mock_app.launchpad.pads[5].sample = Sample.from_file(sample_audio_file)
-        mock_app.launchpad.pads[7].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[3].sample = AudioSample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[5].sample = AudioSample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[7].sample = AudioSample.from_file(sample_audio_file)
 
         # Mock audio data: pad 3 has audio, pad 5 doesn't, pad 7 has audio
         def get_audio_data_side_effect(pad_index):

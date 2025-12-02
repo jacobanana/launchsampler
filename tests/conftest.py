@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from launchsampler.models import Color, Pad, PlaybackMode, Sample
+from launchsampler.models import AudioSample, Color, Pad, PlaybackMode
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ def sample_audio_array():
 @pytest.fixture
 def sample_model(sample_audio_file):
     """Create a Sample model instance."""
-    return Sample.from_file(sample_audio_file)
+    return AudioSample.from_file(sample_audio_file)
 
 
 @pytest.fixture

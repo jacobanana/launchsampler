@@ -6,7 +6,7 @@ import pytest
 
 from launchsampler.audio import AudioDevice
 from launchsampler.core import SamplerEngine
-from launchsampler.models import Pad, Sample
+from launchsampler.models import AudioSample, Pad
 
 
 @pytest.mark.unit
@@ -39,7 +39,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
 
                 success = manager.load_sample(0, pad)
                 assert success is True
@@ -69,7 +69,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 manager.trigger_pad(0)
@@ -87,7 +87,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 manager.trigger_pad(0)
@@ -116,7 +116,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 manager.update_pad_volume(0, 0.5)
@@ -150,7 +150,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 info = manager.get_playback_info(0)
@@ -174,7 +174,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 # Not playing yet
@@ -201,11 +201,11 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad1 = Pad(x=0, y=0)
-                pad1.sample = Sample.from_file(sample_path)
+                pad1.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad1)
 
                 pad2 = Pad(x=1, y=0)
-                pad2.sample = Sample.from_file(sample_path)
+                pad2.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(5, pad2)
 
                 # Still not playing
@@ -233,7 +233,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 manager.unload_sample(0)
@@ -254,7 +254,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 audio_data = manager.get_audio_data(0)
@@ -286,7 +286,7 @@ class TestSamplerEngine:
             sample_path = Path("test_samples/kick.wav")
             if sample_path.exists():
                 pad = Pad(x=0, y=0)
-                pad.sample = Sample.from_file(sample_path)
+                pad.sample = AudioSample.from_file(sample_path)
                 manager.load_sample(0, pad)
 
                 info = manager.get_audio_info(0)

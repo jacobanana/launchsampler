@@ -7,6 +7,41 @@ from pydantic import BaseModel, Field, field_serializer
 from launchsampler.model_manager.persistence import PydanticPersistence
 
 
+class SpotifyConfig(BaseModel):
+    """Spotify integration configuration."""
+
+    client_id: str | None = Field(
+        default=None,
+        description="Spotify OAuth client ID from developer dashboard",
+    )
+    redirect_uri: str = Field(
+        default="http://localhost:8888/callback",
+        description="OAuth redirect URI (must match Spotify app settings)",
+    )
+    access_token: str | None = Field(
+        default=None,
+        description="Spotify OAuth access token",
+    )
+    refresh_token: str | None = Field(
+        default=None,
+        description="Spotify OAuth refresh token for automatic token refresh",
+    )
+    token_expires_at: float | None = Field(
+        default=None,
+        description="Unix timestamp when access token expires",
+    )
+
+    @property
+    def is_configured(self) -> bool:
+        """Check if Spotify credentials are configured."""
+        return self.client_id is not None
+
+    @property
+    def is_authenticated(self) -> bool:
+        """Check if we have valid authentication tokens."""
+        return self.access_token is not None
+
+
 class AppConfig(BaseModel):
     """Application configuration and settings."""
 
@@ -43,6 +78,12 @@ class AppConfig(BaseModel):
     # Session settings
     last_set: str | None = Field(default=None, description="Last loaded set name")
     auto_save: bool = Field(default=True, description="Auto-save on changes")
+
+    # Spotify integration
+    spotify: SpotifyConfig = Field(
+        default_factory=SpotifyConfig,
+        description="Spotify integration configuration",
+    )
 
     @field_serializer("sets_dir")
     def serialize_path(self, path: Path) -> str:

@@ -6,7 +6,7 @@ import pytest
 
 from launchsampler.audio.data import AudioData
 from launchsampler.core.player import Player
-from launchsampler.models import AppConfig, Color, Launchpad, PlaybackMode, Sample, Set
+from launchsampler.models import AppConfig, AudioSample, Color, Launchpad, PlaybackMode, Set
 from launchsampler.protocols import MidiEvent, PlaybackEvent
 
 
@@ -22,7 +22,7 @@ def test_set(sample_audio_file):
     launchpad = Launchpad()
 
     # Load a few pads with samples
-    sample = Sample.from_file(sample_audio_file)
+    sample = AudioSample.from_file(sample_audio_file)
 
     # Pad 0 - ONE_SHOT
     launchpad.pads[0].sample = sample

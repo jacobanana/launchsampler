@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from launchsampler.models import Launchpad, Sample
+from launchsampler.models import AudioSample, Launchpad
 from launchsampler.protocols import EditEvent, MidiEvent, PlaybackEvent
 from launchsampler.tui.services import TUIService
 
@@ -44,7 +44,7 @@ class TestTUIServiceEditObserver:
     def test_on_edit_event_pad_assigned(self, service, mock_app, sample_audio_file):
         """Test handling PAD_ASSIGNED event."""
         # Setup
-        mock_app.launchpad.pads[7].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[7].sample = AudioSample.from_file(sample_audio_file)
         mock_app.selected_pad_index = 7
         mock_grid = Mock()
         mock_details = Mock()
@@ -316,7 +316,7 @@ class TestTUIServiceUIHelpers:
     def test_update_pad_ui_not_selected(self, service, mock_app, sample_audio_file):
         """Test updating pad UI when pad is NOT selected."""
         # Setup
-        mock_app.launchpad.pads[10].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[10].sample = AudioSample.from_file(sample_audio_file)
         mock_app.selected_pad_index = 5  # Different pad selected
         mock_grid = Mock()
         mock_details = Mock()
@@ -344,7 +344,7 @@ class TestTUIServiceUIHelpers:
     def test_update_selected_pad_ui_with_grid(self, service, mock_app, sample_audio_file):
         """Test _update_selected_pad_ui updates both grid and details."""
         # Setup
-        mock_app.launchpad.pads[3].sample = Sample.from_file(sample_audio_file)
+        mock_app.launchpad.pads[3].sample = AudioSample.from_file(sample_audio_file)
         mock_grid = Mock()
         mock_details = Mock()
 

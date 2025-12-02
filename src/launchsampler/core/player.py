@@ -11,7 +11,7 @@ This can be used in:
 
 import logging
 from collections.abc import Callable
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from launchsampler.audio import AudioDevice
 from launchsampler.audio.data import AudioData
@@ -19,6 +19,7 @@ from launchsampler.core.sampler_engine import SamplerEngine
 from launchsampler.core.state_machine import SamplerStateMachine
 from launchsampler.model_manager import ObserverManager
 from launchsampler.models import AppConfig, PlaybackMode, Set
+from launchsampler.models.sample import AudioSample, SpotifySample
 from launchsampler.protocols import (
     EditEvent,
     EditObserver,
@@ -27,6 +28,9 @@ from launchsampler.protocols import (
     PlaybackEvent,
     StateObserver,
 )
+
+if TYPE_CHECKING:
+    from launchsampler.services.spotify_service import SpotifyService
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +62,12 @@ class Player(StateObserver, EditObserver, MidiObserver):
     - File browsing
     """
 
-    def __init__(self, config: AppConfig, state_machine: SamplerStateMachine | None = None):
+    def __init__(
+        self,
+        config: AppConfig,
+        state_machine: SamplerStateMachine | None = None,
+        spotify_service: Optional["SpotifyService"] = None,
+    ):
         """
         Initialize player.
 
@@ -66,6 +75,8 @@ class Player(StateObserver, EditObserver, MidiObserver):
             config: Application configuration
             state_machine: Optional shared state machine for dependency injection.
                           If None, creates a new instance (for backward compatibility).
+            spotify_service: Optional Spotify service for controlling Spotify playback.
+                            If None, Spotify samples will not be playable.
         """
         self.config = config
         self.current_set: Set | None = None
@@ -76,6 +87,12 @@ class Player(StateObserver, EditObserver, MidiObserver):
         # Audio components
         self._audio_device: AudioDevice | None = None
         self._engine: SamplerEngine | None = None
+
+        # Spotify service for streaming samples
+        self._spotify_service = spotify_service
+
+        # Track which Spotify samples are currently playing (pad_index -> spotify_uri)
+        self._spotify_playing: dict[int, str] = {}
 
         # Callbacks for external notification (deprecated - use register_state_observer)
         self._on_playback_change: Callable[[PlaybackEvent, int], None] | None = None
@@ -201,16 +218,25 @@ class Player(StateObserver, EditObserver, MidiObserver):
         )
 
     def _load_set_into_engine(self, set_obj: Set) -> None:
-        """Load all pads from set into audio engine."""
+        """Load all pads from set into audio engine (audio samples only)."""
         if not self._engine:
             return
 
         loaded_count = 0
+        spotify_count = 0
         for pad_index, pad in enumerate(set_obj.launchpad.pads):
-            if pad.is_assigned and self._engine.load_sample(pad_index, pad):
-                loaded_count += 1
+            if pad.is_assigned:
+                # Only load AudioSamples into the audio engine
+                # SpotifySamples are handled directly via the Spotify API
+                if isinstance(pad.sample, AudioSample):
+                    if self._engine.load_sample(pad_index, pad):
+                        loaded_count += 1
+                elif isinstance(pad.sample, SpotifySample):
+                    spotify_count += 1
 
-        logger.info(f"Loaded {loaded_count} samples into engine")
+        logger.info(f"Loaded {loaded_count} audio samples into engine")
+        if spotify_count > 0:
+            logger.info(f"Found {spotify_count} Spotify samples (handled via Spotify API)")
 
     # =================================================================
     # Playback Control
@@ -223,8 +249,59 @@ class Player(StateObserver, EditObserver, MidiObserver):
         Args:
             pad_index: Index of pad to trigger (0-63)
         """
+        # Check if this is a Spotify sample
+        if self.current_set and 0 <= pad_index < len(self.current_set.launchpad.pads):
+            pad = self.current_set.launchpad.pads[pad_index]
+            if pad.is_assigned and isinstance(pad.sample, SpotifySample):
+                self._trigger_spotify_pad(pad_index, pad.sample)
+                return
+
+        # Regular audio sample - trigger via engine
         if self._engine:
             self._engine.trigger_pad(pad_index)
+
+    def _trigger_spotify_pad(self, pad_index: int, sample: SpotifySample) -> None:
+        """
+        Trigger a Spotify sample (toggle play/pause).
+
+        Args:
+            pad_index: Index of pad
+            sample: SpotifySample to play
+        """
+        if not self._spotify_service:
+            logger.warning(
+                f"Cannot play Spotify sample '{sample.name}': Spotify service not configured"
+            )
+            return
+
+        if not self._spotify_service.is_authenticated:
+            logger.warning(
+                f"Cannot play Spotify sample '{sample.name}': Not authenticated with Spotify"
+            )
+            return
+
+        try:
+            # Toggle playback
+            is_now_playing = self._spotify_service.toggle_playback(sample.spotify_uri)
+
+            if is_now_playing:
+                # Track that this pad is playing
+                self._spotify_playing[pad_index] = sample.spotify_uri
+                # Notify observers
+                self._state_machine.notify_pad_triggered(pad_index)
+                self._state_machine.notify_pad_playing(pad_index)
+                logger.info(f"Started Spotify playback: {sample.name}")
+            else:
+                # Remove from playing set
+                self._spotify_playing.pop(pad_index, None)
+                # Notify observers
+                self._state_machine.notify_pad_stopped(pad_index)
+                logger.info(f"Stopped Spotify playback: {sample.name}")
+
+        except Exception as e:
+            logger.error(f"Failed to control Spotify playback: {e}")
+            # Remove from playing set on error
+            self._spotify_playing.pop(pad_index, None)
 
     def release_pad(self, pad_index: int) -> None:
         """
@@ -340,6 +417,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
         the codebase. When any editing operation occurs (assign, clear, move,
         etc.), this observer automatically syncs the audio engine.
 
+        Note: Spotify samples are not loaded into the audio engine - they are
+        handled directly via the Spotify API when triggered.
+
         Threading:
             Called from the UI thread (Textual's main loop).
             Delegates to SamplerEngine methods which use locks for thread safety.
@@ -349,9 +429,6 @@ class Player(StateObserver, EditObserver, MidiObserver):
             pad_indices: List of affected pad indices
             pads: List of affected pad states (post-edit)
         """
-        if not self._engine:
-            return
-
         logger.debug(f"Player received edit event: {event.value} for pads {pad_indices}")
 
         for pad_index, pad in zip(pad_indices, pads, strict=False):
@@ -360,40 +437,71 @@ class Player(StateObserver, EditObserver, MidiObserver):
                 EditEvent.PAD_DUPLICATED,
                 EditEvent.PAD_MODE_CHANGED,
             ):
-                # Reload sample into engine
+                # Handle sample assignment/change
                 if pad.is_assigned:
-                    logger.info(
-                        f"Loading sample '{pad.sample.name}' into pad {pad_index} (event: {event.value})"
-                    )
-                    self._engine.load_sample(pad_index, pad)
+                    if isinstance(pad.sample, AudioSample):
+                        # Load audio sample into engine
+                        if self._engine:
+                            logger.info(
+                                f"Loading audio sample '{pad.sample.name}' into pad {pad_index} "
+                                f"(event: {event.value})"
+                            )
+                            self._engine.load_sample(pad_index, pad)
+                    elif isinstance(pad.sample, SpotifySample):
+                        # Spotify samples don't need to be loaded into audio engine
+                        logger.info(
+                            f"Spotify sample '{pad.sample.name}' assigned to pad {pad_index} "
+                            f"(event: {event.value})"
+                        )
+                        # Stop any playing Spotify track for this pad
+                        self._spotify_playing.pop(pad_index, None)
                 else:
-                    logger.info(f"Unloading pad {pad_index} (event: {event.value})")
-                    self._engine.unload_sample(pad_index)
+                    if self._engine:
+                        logger.info(f"Unloading pad {pad_index} (event: {event.value})")
+                        self._engine.unload_sample(pad_index)
+                    # Also clean up Spotify state
+                    self._spotify_playing.pop(pad_index, None)
 
             elif event == EditEvent.PAD_MOVED:
                 # For moves, reload both pads (source and target)
                 if pad.is_assigned:
-                    logger.info(f"Loading sample '{pad.sample.name}' into pad {pad_index} (moved)")
-                    self._engine.load_sample(pad_index, pad)
+                    if isinstance(pad.sample, AudioSample):
+                        if self._engine:
+                            logger.info(
+                                f"Loading audio sample '{pad.sample.name}' into pad {pad_index} (moved)"
+                            )
+                            self._engine.load_sample(pad_index, pad)
+                    elif isinstance(pad.sample, SpotifySample):
+                        logger.info(
+                            f"Spotify sample '{pad.sample.name}' moved to pad {pad_index}"
+                        )
                 else:
-                    logger.info(f"Unloading pad {pad_index} (moved)")
-                    self._engine.unload_sample(pad_index)
+                    if self._engine:
+                        logger.info(f"Unloading pad {pad_index} (moved)")
+                        self._engine.unload_sample(pad_index)
+                    self._spotify_playing.pop(pad_index, None)
 
             elif event == EditEvent.PAD_CLEARED:
                 # Unload sample
-                logger.info(f"Unloading pad {pad_index} (cleared)")
-                self._engine.unload_sample(pad_index)
+                if self._engine:
+                    logger.info(f"Unloading pad {pad_index} (cleared)")
+                    self._engine.unload_sample(pad_index)
+                self._spotify_playing.pop(pad_index, None)
 
             elif event == EditEvent.PAD_VOLUME_CHANGED:
                 # Update volume without reloading (more efficient)
-                logger.debug(f"Updating volume for pad {pad_index} to {pad.volume}")
-                self._engine.update_pad_volume(pad_index, pad.volume)
+                # Note: Spotify volume is controlled via the Spotify API, not here
+                if self._engine and pad.is_assigned and isinstance(pad.sample, AudioSample):
+                    logger.debug(f"Updating volume for pad {pad_index} to {pad.volume}")
+                    self._engine.update_pad_volume(pad_index, pad.volume)
 
             elif event == EditEvent.PADS_CLEARED:
                 # Multiple pads cleared - reload each
                 logger.info(f"Unloading multiple pads: {pad_indices}")
                 for idx, _p in zip(pad_indices, pads, strict=False):
-                    self._engine.unload_sample(idx)
+                    if self._engine:
+                        self._engine.unload_sample(idx)
+                    self._spotify_playing.pop(idx, None)
 
             # Note: PAD_NAME_CHANGED doesn't affect audio, no action needed
 
@@ -464,6 +572,11 @@ class Player(StateObserver, EditObserver, MidiObserver):
         Returns:
             True if pad is playing
         """
+        # Check if it's a Spotify sample that's playing
+        if pad_index in self._spotify_playing:
+            return True
+
+        # Check audio engine
         return self._engine.is_pad_playing(pad_index) if self._engine else False
 
     def get_playing_pads(self) -> list[int]:
@@ -473,7 +586,9 @@ class Player(StateObserver, EditObserver, MidiObserver):
         Returns:
             List of pad indices
         """
-        return self._engine.get_playing_pads() if self._engine else []
+        audio_pads = self._engine.get_playing_pads() if self._engine else []
+        spotify_pads = list(self._spotify_playing.keys())
+        return list(set(audio_pads + spotify_pads))
 
     def get_audio_data(self, pad_index: int) -> AudioData | None:
         """

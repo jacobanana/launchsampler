@@ -8,11 +8,11 @@ import soundfile as sf
 
 from launchsampler.models import (
     AppConfig,
+    AudioSample,
     Color,
     Launchpad,
     Pad,
     PlaybackMode,
-    Sample,
     Set,
 )
 from launchsampler.ui_shared.colors import MODE_COLORS
@@ -92,30 +92,31 @@ class TestColor:
         assert color_dict[color2] == "red"
 
 
-class TestSample:
-    """Test Sample model."""
+class TestAudioSample:
+    """Test AudioSample model."""
 
     @pytest.mark.unit
     def test_from_file(self, sample_audio_file):
-        """Test creating Sample from file path."""
-        sample = Sample.from_file(sample_audio_file)
+        """Test creating AudioSample from file path."""
+        sample = AudioSample.from_file(sample_audio_file)
         assert sample.name == "test"
         assert sample.path == sample_audio_file
+        assert sample.type == "audio"
 
     @pytest.mark.unit
     def test_exists(self, sample_audio_file):
         """Test checking if sample file exists."""
-        sample = Sample.from_file(sample_audio_file)
+        sample = AudioSample.from_file(sample_audio_file)
         assert sample.exists() is True
 
-        nonexistent = Sample(name="fake", path=Path("nonexistent.wav"))
+        nonexistent = AudioSample(name="fake", path=Path("nonexistent.wav"))
         assert nonexistent.exists() is False
 
     @pytest.mark.unit
     def test_path_validator_converts_string_to_path(self):
         """Test path validation converts string to Path object."""
         # Pass a string instead of Path - validator should convert it
-        sample = Sample(name="test", path="test.wav")
+        sample = AudioSample(name="test", path="test.wav")
         assert isinstance(sample.path, Path)
         assert sample.path == Path("test.wav")
 

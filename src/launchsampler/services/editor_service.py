@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from launchsampler.model_manager import ObserverManager
-from launchsampler.models import AppConfig, Launchpad, Pad, PlaybackMode, Sample
+from launchsampler.models import AppConfig, AudioSample, Launchpad, Pad, PlaybackMode
 from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.ui_shared import MODE_COLORS
 
@@ -171,7 +171,7 @@ class EditorService:
             raise ValueError(f"Sample file not found: {sample_path}")
 
         # Create sample from file
-        sample = Sample.from_file(sample_path)
+        sample = AudioSample.from_file(sample_path)
 
         # Get pad and assign sample
         pad = self.launchpad.pads[pad_index]

@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from launchsampler.models import AppConfig, PlaybackMode, Sample, Set
+from launchsampler.models import AppConfig, AudioSample, PlaybackMode, Set
 from launchsampler.orchestration import Orchestrator
 from launchsampler.protocols import AppEvent, AppObserver
 from launchsampler.ui_shared import UIAdapter
@@ -232,7 +232,7 @@ class TestAppSetLoading:
 
         # Create a set with samples
         test_set = Set.create_empty("Test Set")
-        sample = Sample.from_file(sample_audio_file)
+        sample = AudioSample.from_file(sample_audio_file)
         test_set.launchpad.pads[0].sample = sample
         test_set.launchpad.pads[0].mode = PlaybackMode.ONE_SHOT
 
