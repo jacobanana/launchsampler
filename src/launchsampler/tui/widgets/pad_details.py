@@ -477,7 +477,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
         if event.select.id == "color-select":
             # Get the color from the palette
             color_idx = event.value
-            if color_idx is not None and 0 <= color_idx < len(SAMPLE_COLORS):
+            if isinstance(color_idx, int) and 0 <= color_idx < len(SAMPLE_COLORS):
                 _, color = SAMPLE_COLORS[color_idx]
                 self.post_message(self.ColorChanged(self.selected_pad_index, color))
 

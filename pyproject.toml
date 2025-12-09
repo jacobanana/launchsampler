@@ -89,6 +89,7 @@ follow_imports = "normal"
 disallow_untyped_defs = false
 disallow_any_generics = false
 ignore_missing_imports = true
+exclude = ["tests/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
