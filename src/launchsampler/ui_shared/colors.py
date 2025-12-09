@@ -28,6 +28,24 @@ MODE_COLORS: dict[PlaybackMode, Color] = {
     PlaybackMode.LOOP_TOGGLE: COLORS.MAGENTA,
 }
 
+# Sample Color Palette
+# User-selectable colors for custom sample color overrides.
+# Index 0 is reserved for "Default" (uses playback mode color).
+# Indices 1-9 are selectable via Shift+1 through Shift+9.
+# Shift+0 resets to default (None).
+SAMPLE_COLORS: list[tuple[str, Color | None]] = [
+    ("Default", None),  # 0 - Uses playback mode color
+    ("Red", COLORS.RED),  # 1
+    ("Orange", COLORS.ORANGE),  # 2
+    ("Yellow", COLORS.YELLOW),  # 3
+    ("Green", COLORS.GREEN),  # 4
+    ("Cyan", COLORS.CYAN),  # 5
+    ("Blue", COLORS.BLUE),  # 6
+    ("Purple", COLORS.PURPLE),  # 7
+    ("Magenta", COLORS.MAGENTA),  # 8
+    ("Pink", COLORS.PINK),  # 9
+]
+
 # Playback State Colors
 # These colors override mode colors when the pad is in a specific state
 
@@ -55,6 +73,12 @@ def get_pad_color(pad, is_playing: bool = False) -> Color:
     This is the single source of truth for pad colors.
     Both TUI and LED UI use this function to determine colors.
 
+    Color priority:
+    1. Playing state (yellow) - always takes highest priority
+    2. Sample custom color - if assigned sample has a color override
+    3. Playback mode color - default based on pad's playback mode
+    4. Empty color (black) - for pads without samples
+
     Args:
         pad: The Pad model
         is_playing: Whether the pad is currently playing audio
@@ -66,8 +90,11 @@ def get_pad_color(pad, is_playing: bool = False) -> Color:
     if is_playing:
         return PLAYING_COLOR
 
-    # Assigned pad shows mode color
+    # Assigned pad shows sample color (if set) or mode color
     if pad.is_assigned:
+        # Check if sample has a custom color override
+        if pad.sample is not None and pad.sample.color is not None:
+            return pad.sample.color
         return MODE_COLORS[pad.mode]
 
     # Empty pad is off

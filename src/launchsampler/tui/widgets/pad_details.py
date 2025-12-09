@@ -3,10 +3,11 @@
 from textual.app import ComposeResult
 from textual.containers import Grid, Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import Button, Input, Label, RadioButton, RadioSet, Rule
+from textual.widgets import Button, Input, Label, RadioButton, RadioSet, Rule, Select
 
 from launchsampler.audio.data import AudioData
-from launchsampler.models import Pad
+from launchsampler.models import Color, Pad
+from launchsampler.ui_shared.colors import SAMPLE_COLORS
 
 
 class NoTabInput(Input):
@@ -196,6 +197,26 @@ class PadDetailsPanel(Vertical, can_focus=True):
         border: none;
     }
 
+    PadDetailsPanel .color-container {
+        height: 1;
+        margin: 1 0;
+        layout: horizontal;
+    }
+
+    PadDetailsPanel .color-container > Label {
+        width: 30%;
+    }
+
+    PadDetailsPanel .color-container > Select {
+        width: 70%;
+    }
+
+    PadDetailsPanel #color-select {
+        height: 1;
+        margin: 0;
+        padding: 0;
+    }
+
     PadDetailsPanel .control-buttons {
         grid-size: 2;
         grid-gutter: 1;
@@ -254,6 +275,21 @@ class PadDetailsPanel(Vertical, can_focus=True):
             self.source_index = source_index
             self.target_index = target_index
 
+    class ColorChanged(Message):
+        """Message sent when sample color is changed."""
+
+        def __init__(self, pad_index: int, color: Color | None) -> None:
+            """
+            Initialize message.
+
+            Args:
+                pad_index: Index of pad (0-63)
+                color: New sample color (None for default/mode color)
+            """
+            super().__init__()
+            self.pad_index = pad_index
+            self.color = color
+
     def __init__(self) -> None:
         """Initialize details panel."""
         super().__init__()
@@ -285,6 +321,16 @@ class PadDetailsPanel(Vertical, can_focus=True):
             yield RadioButton("\\[3] Hold", id="mode-hold", disabled=True)
             yield RadioButton("\\[4] Loop", id="mode-loop", disabled=True)
             yield RadioButton("\\[5] Loop Toggle", id="mode-looptoggle", disabled=True)
+
+        # Color selector - Shift+0 to Shift+9 shortcuts
+        with Horizontal(classes="color-container"):
+            yield Label("Color:", shrink=True)
+            yield Select(
+                options=[(name, idx) for idx, (name, _) in enumerate(SAMPLE_COLORS)],
+                value=0,
+                id="color-select",
+                disabled=True,
+            )
 
         yield Rule()
         with Grid(classes="button-grid"):
@@ -378,9 +424,10 @@ class PadDetailsPanel(Vertical, can_focus=True):
         # Browse button - always enabled (can assign to empty pads)
         self.query_one("#browse-btn", Button).disabled = False
 
-        # Clear button and mode radio - only enabled if pad has sample
+        # Clear button, mode radio, and color select - only enabled if pad has sample
         self.query_one("#clear-btn", Button).disabled = not pad.is_assigned
         self.query_one("#mode-radio", RadioSet).disabled = not pad.is_assigned
+        self.query_one("#color-select", Select).disabled = not pad.is_assigned
 
         # Test/stop controls - only enabled if pad has sample
         self.query_one("#test-btn", Button).disabled = not pad.is_assigned
@@ -406,6 +453,33 @@ class PadDetailsPanel(Vertical, can_focus=True):
                     radio_button.value = True
                 except Exception:
                     pass
+
+            # Set the color selector based on sample's custom color
+            color_select = self.query_one("#color-select", Select)
+            if pad.sample is not None and pad.sample.color is not None:
+                # Find the matching color index in SAMPLE_COLORS
+                sample_color = pad.sample.color
+                color_idx = 0  # Default to "Default" if not found
+                for idx, (_, color) in enumerate(SAMPLE_COLORS):
+                    if color is not None and color == sample_color:
+                        color_idx = idx
+                        break
+                color_select.value = color_idx
+            else:
+                # No custom color set, use "Default"
+                color_select.value = 0
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle color selection change."""
+        if self.selected_pad_index is None:
+            return
+
+        if event.select.id == "color-select":
+            # Get the color from the palette
+            color_idx = event.value
+            if color_idx is not None and 0 <= color_idx < len(SAMPLE_COLORS):
+                _, color = SAMPLE_COLORS[color_idx]
+                self.post_message(self.ColorChanged(self.selected_pad_index, color))
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submissions."""
