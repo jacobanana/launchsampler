@@ -4,7 +4,7 @@ from textual.message import Message
 from textual.widgets import Static
 
 from launchsampler.models import Pad
-from launchsampler.ui_shared.colors import MODE_COLORS, PLAYING_COLOR
+from launchsampler.ui_shared.colors import MODE_COLORS, PLAYING_COLOR, SAMPLE_COLORS
 
 
 def _generate_pad_css() -> str:
@@ -119,8 +119,44 @@ def _generate_pad_css() -> str:
             "PadWidget.unavailable.midi_on {",
             "    border: double $primary 60%;",
             "}",
+            "",
         ]
     )
+
+    # Generate custom sample color CSS classes
+    # These are applied when a sample has a custom color override
+    for color_name, sample_color in SAMPLE_COLORS:
+        if sample_color is not None:  # Skip "Default" (None)
+            # Create safe CSS class name from color name (lowercase, no spaces)
+            css_class = f"sample_color_{color_name.lower()}"
+            hex_color = sample_color.to_hex()
+            css_lines.extend(
+                [
+                    f"PadWidget.{css_class} {{",
+                    f"    background: {hex_color} 20%;",
+                    f"    border: solid {hex_color};",
+                    "}",
+                    "",
+                    # Selected state with custom color - selection border takes priority
+                    f"PadWidget.{css_class}.selected {{",
+                    f"    background: {hex_color} 20%;",
+                    "    border: double $warning 80%;",
+                    "}",
+                    "",
+                    # Active/playing state with custom color - playing style takes priority
+                    f"PadWidget.{css_class}.active {{",
+                    f"    background: {playing_hex} 60%;",
+                    f"    border: solid {playing_hex};",
+                    "}",
+                    "",
+                    # MIDI on state with custom color
+                    f"PadWidget.{css_class}.midi_on {{",
+                    f"    background: {hex_color} 20%;",
+                    "    border: double $primary 60%;",
+                    "}",
+                    "",
+                ]
+            )
 
     return "\n".join(css_lines)
 
@@ -172,8 +208,12 @@ class PadWidget(Static):
 
     def update_display(self) -> None:
         """Render current pad state."""
-        # Clear mode classes (but preserve playing/midi state classes)
+        # Clear mode classes and sample color classes (but preserve playing/midi state classes)
         self.remove_class("one_shot", "toggle", "hold", "loop", "loop_toggle", "empty")
+        # Remove all sample color classes
+        for name, color in SAMPLE_COLORS:
+            if color is not None:
+                self.remove_class(f"sample_color_{name.lower()}")
 
         if self._pad.is_assigned:
             # Show pad index and sample name with warning if unavailable
@@ -185,8 +225,16 @@ class PadWidget(Static):
 
             super().update(f"[b]{self.pad_index}[/b]\n{name}")
 
-            # Add mode class for styling (from centralized colors)
-            self.add_class(self._pad.mode.value)
+            # Check for custom sample color (takes priority over mode color)
+            if self._pad.sample is not None and self._pad.sample.color is not None:
+                # Find the matching color name in SAMPLE_COLORS
+                for color_name, color in SAMPLE_COLORS:
+                    if color is not None and color == self._pad.sample.color:
+                        self.add_class(f"sample_color_{color_name.lower()}")
+                        break
+            else:
+                # Add mode class for styling (from centralized colors)
+                self.add_class(self._pad.mode.value)
         else:
             # Empty pad
             super().update(f"[dim]{self.pad_index}[/dim]\n—")

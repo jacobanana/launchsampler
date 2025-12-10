@@ -13,6 +13,7 @@ dependencies = [
     "sounddevice>=0.5.3",
     "soundfile>=0.13.0",
     "textual>=1.0.0",
+    "urllib3>=2.6.0",
 ]
 
 [project.scripts]
@@ -89,6 +90,7 @@ follow_imports = "normal"
 disallow_untyped_defs = false
 disallow_any_generics = false
 ignore_missing_imports = true
+exclude = ["tests/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -15,7 +15,13 @@ from launchsampler.models import (
     Sample,
     Set,
 )
-from launchsampler.ui_shared.colors import MODE_COLORS
+from launchsampler.ui_shared.colors import (
+    EMPTY_COLOR,
+    MODE_COLORS,
+    PLAYING_COLOR,
+    SAMPLE_COLORS,
+    get_pad_color,
+)
 
 
 class TestColor:
@@ -118,6 +124,62 @@ class TestSample:
         sample = Sample(name="test", path="test.wav")
         assert isinstance(sample.path, Path)
         assert sample.path == Path("test.wav")
+
+    @pytest.mark.unit
+    def test_color_defaults_to_none(self):
+        """Test that sample color defaults to None for backward compatibility."""
+        sample = Sample(name="test", path=Path("test.wav"))
+        assert sample.color is None
+
+    @pytest.mark.unit
+    def test_color_can_be_set(self):
+        """Test that sample color can be set to a Color instance."""
+        color = Color(r=255, g=0, b=0)
+        sample = Sample(name="test", path=Path("test.wav"), color=color)
+        assert sample.color == color
+        assert sample.color.r == 255
+
+    @pytest.mark.unit
+    def test_color_serialization_roundtrip(self):
+        """Test that sample with color can be serialized and deserialized."""
+        color = Color(r=128, g=64, b=32)
+        sample = Sample(name="test", path=Path("test.wav"), color=color)
+
+        # Serialize to JSON
+        json_str = sample.model_dump_json()
+
+        # Deserialize back
+        restored = Sample.model_validate_json(json_str)
+        assert restored.color == color
+        assert restored.color.r == 128
+        assert restored.color.g == 64
+        assert restored.color.b == 32
+
+    @pytest.mark.unit
+    def test_color_none_serialization_roundtrip(self):
+        """Test that sample without color can be serialized and deserialized."""
+        sample = Sample(name="test", path=Path("test.wav"))
+
+        json_str = sample.model_dump_json()
+        restored = Sample.model_validate_json(json_str)
+
+        assert restored.color is None
+
+    @pytest.mark.unit
+    def test_legacy_json_without_color_field(self):
+        """Test backward compatibility: loading JSON without color field."""
+        # Simulate legacy JSON that doesn't have the color field
+        legacy_json = '{"name": "legacy", "path": "legacy.wav"}'
+        sample = Sample.model_validate_json(legacy_json)
+
+        assert sample.name == "legacy"
+        assert sample.color is None  # Should default to None
+
+    @pytest.mark.unit
+    def test_from_file_has_no_color(self, sample_audio_file):
+        """Test that from_file creates sample without custom color."""
+        sample = Sample.from_file(sample_audio_file)
+        assert sample.color is None
 
 
 class TestPad:
@@ -327,6 +389,93 @@ class TestPlaybackMode:
         for mode in PlaybackMode:
             assert mode in MODE_COLORS
             assert isinstance(MODE_COLORS[mode], Color)
+
+
+class TestSampleColors:
+    """Test SAMPLE_COLORS palette and get_pad_color function."""
+
+    @pytest.mark.unit
+    def test_sample_colors_has_10_entries(self):
+        """Test SAMPLE_COLORS palette has exactly 10 entries."""
+        assert len(SAMPLE_COLORS) == 10
+
+    @pytest.mark.unit
+    def test_sample_colors_first_entry_is_default(self):
+        """Test first SAMPLE_COLORS entry is 'Default' with None color."""
+        name, color = SAMPLE_COLORS[0]
+        assert name == "Default"
+        assert color is None
+
+    @pytest.mark.unit
+    def test_sample_colors_all_have_names_and_colors(self):
+        """Test all SAMPLE_COLORS entries (except default) have valid colors."""
+        for idx, (name, color) in enumerate(SAMPLE_COLORS):
+            assert isinstance(name, str)
+            assert len(name) > 0
+            if idx == 0:
+                assert color is None  # Default entry
+            else:
+                assert isinstance(color, Color)
+
+
+class TestGetPadColor:
+    """Test get_pad_color function with custom sample colors."""
+
+    @pytest.mark.unit
+    def test_empty_pad_returns_empty_color(self):
+        """Test that empty pad returns EMPTY_COLOR."""
+        pad = Pad.empty(0, 0)
+        color = get_pad_color(pad)
+        assert color == EMPTY_COLOR
+
+    @pytest.mark.unit
+    def test_assigned_pad_without_custom_color_returns_mode_color(self, sample_model):
+        """Test that assigned pad without custom color returns mode color."""
+        pad = Pad(x=0, y=0, sample=sample_model, mode=PlaybackMode.ONE_SHOT)
+        color = get_pad_color(pad)
+        assert color == MODE_COLORS[PlaybackMode.ONE_SHOT]
+
+        # Test different mode
+        pad.mode = PlaybackMode.LOOP
+        color = get_pad_color(pad)
+        assert color == MODE_COLORS[PlaybackMode.LOOP]
+
+    @pytest.mark.unit
+    def test_assigned_pad_with_custom_color_overrides_mode_color(self, sample_model):
+        """Test that sample custom color overrides playback mode color."""
+        custom_color = Color(r=0, g=255, b=255)  # Cyan
+        sample_model.color = custom_color
+
+        pad = Pad(x=0, y=0, sample=sample_model, mode=PlaybackMode.ONE_SHOT)
+        color = get_pad_color(pad)
+
+        # Should return custom color, not mode color
+        assert color == custom_color
+        assert color != MODE_COLORS[PlaybackMode.ONE_SHOT]
+
+    @pytest.mark.unit
+    def test_playing_pad_returns_playing_color_regardless_of_custom_color(self, sample_model):
+        """Test that playing state always returns PLAYING_COLOR."""
+        custom_color = Color(r=128, g=0, b=128)
+        sample_model.color = custom_color
+
+        pad = Pad(x=0, y=0, sample=sample_model, mode=PlaybackMode.ONE_SHOT)
+
+        # Not playing - should return custom color
+        assert get_pad_color(pad, is_playing=False) == custom_color
+
+        # Playing - should return PLAYING_COLOR regardless of custom color
+        assert get_pad_color(pad, is_playing=True) == PLAYING_COLOR
+
+    @pytest.mark.unit
+    def test_sample_with_none_color_uses_mode_color(self, sample_model):
+        """Test that sample with explicit None color uses mode color."""
+        sample_model.color = None
+
+        pad = Pad(x=0, y=0, sample=sample_model, mode=PlaybackMode.HOLD)
+        color = get_pad_color(pad)
+
+        assert color == MODE_COLORS[PlaybackMode.HOLD]
 
 
 class TestSet:

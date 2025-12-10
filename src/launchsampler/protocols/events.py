@@ -45,6 +45,7 @@ class EditEvent(Enum):
     PAD_MODE_CHANGED = "pad_mode_changed"  # Playback mode changed
     PAD_VOLUME_CHANGED = "pad_volume_changed"  # Volume changed
     PAD_NAME_CHANGED = "pad_name_changed"  # Sample name changed
+    PAD_COLOR_CHANGED = "pad_color_changed"  # Sample custom color changed
     PADS_CLEARED = "pads_cleared"  # Multiple pads cleared
 
 

@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from launchsampler.model_manager import ObserverManager
-from launchsampler.models import AppConfig, Launchpad, Pad, PlaybackMode, Sample
+from launchsampler.models import AppConfig, Color, Launchpad, Pad, PlaybackMode, Sample
 from launchsampler.protocols import EditEvent, EditObserver
 from launchsampler.ui_shared import MODE_COLORS
 
@@ -304,6 +304,40 @@ class EditorService:
         self._notify_observers(EditEvent.PAD_NAME_CHANGED, [pad_index], [pad])
 
         logger.info(f"Set pad {pad_index} sample name to '{name}'")
+        return pad
+
+    def set_sample_color(self, pad_index: int, color: Color | None) -> Pad:
+        """
+        Set the custom color for a pad's sample.
+
+        When a sample has a custom color, it overrides the default playback mode color.
+        Set to None to revert to the default mode-based color.
+
+        Args:
+            pad_index: Index of pad to modify
+            color: New sample color (None to use default mode color)
+
+        Returns:
+            The modified Pad
+
+        Raises:
+            IndexError: If pad_index is out of range
+            ValueError: If pad has no sample assigned
+        """
+        self._validate_pad_index(pad_index)
+
+        pad = self.launchpad.pads[pad_index]
+
+        if not pad.is_assigned or not pad.sample:
+            raise ValueError(f"Cannot set color on empty pad {pad_index}")
+
+        pad.sample.color = color
+
+        # Notify observers
+        self._notify_observers(EditEvent.PAD_COLOR_CHANGED, [pad_index], [pad])
+
+        color_name = color.to_hex() if color else "default"
+        logger.info(f"Set pad {pad_index} sample color to {color_name}")
         return pad
 
     def move_pad(self, source_index: int, target_index: int, swap: bool = False) -> tuple[Pad, Pad]:

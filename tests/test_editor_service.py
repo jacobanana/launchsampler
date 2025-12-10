@@ -862,6 +862,44 @@ class TestEditorServiceEvents:
         assert pads[0].sample.name == "New Name"
 
     @pytest.mark.unit
+    def test_set_sample_color_fires_event(self, editor, observer, sample_audio_file):
+        """Test that set_sample_color fires PAD_COLOR_CHANGED event."""
+        editor.assign_sample(5, sample_audio_file)
+        editor.register_observer(observer)
+
+        custom_color = Color(r=0, g=255, b=255)
+        editor.set_sample_color(5, custom_color)
+
+        observer.on_edit_event.assert_called_once()
+        event, indices, pads = observer.on_edit_event.call_args[0]
+        assert event == EditEvent.PAD_COLOR_CHANGED
+        assert indices == [5]
+        assert pads[0].sample.color == custom_color
+
+    @pytest.mark.unit
+    def test_set_sample_color_to_none_fires_event(self, editor, observer, sample_audio_file):
+        """Test that setting sample color to None fires PAD_COLOR_CHANGED event."""
+        editor.assign_sample(6, sample_audio_file)
+        # First set a color
+        editor.set_sample_color(6, Color(r=255, g=0, b=0))
+        editor.register_observer(observer)
+
+        # Now set it back to None (default)
+        editor.set_sample_color(6, None)
+
+        observer.on_edit_event.assert_called_once()
+        event, indices, pads = observer.on_edit_event.call_args[0]
+        assert event == EditEvent.PAD_COLOR_CHANGED
+        assert indices == [6]
+        assert pads[0].sample.color is None
+
+    @pytest.mark.unit
+    def test_set_sample_color_on_empty_pad_raises(self, editor):
+        """Test that set_sample_color on empty pad raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot set color on empty pad"):
+            editor.set_sample_color(10, Color(r=255, g=0, b=0))
+
+    @pytest.mark.unit
     def test_move_pad_fires_event(self, editor, observer, sample_audio_file):
         """Test that move_pad fires PAD_MOVED event with both pads."""
         editor.assign_sample(4, sample_audio_file)

@@ -4,12 +4,18 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
+from launchsampler.models.color import Color
+
 
 class Sample(BaseModel):
     """Audio sample metadata (not the actual audio data)."""
 
     name: str = Field(description="Sample name")
     path: Path = Field(description="Path to audio file")
+    color: Color | None = Field(
+        default=None,
+        description="Optional custom color (overrides playback mode color when set)",
+    )
 
     @field_validator("path")
     @classmethod

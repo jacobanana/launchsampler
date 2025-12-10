@@ -13,6 +13,7 @@ from launchsampler.core.player import Player
 from launchsampler.models import Launchpad, PlaybackMode, Set
 from launchsampler.protocols import AppEvent, SelectionEvent
 from launchsampler.services import EditorService, SetManagerService
+from launchsampler.ui_shared.colors import SAMPLE_COLORS
 
 from .decorators import edit_only, handle_action_errors
 from .screens import (
@@ -85,6 +86,17 @@ class LaunchpadSampler(App):
         Binding("3", "set_mode_hold", "Hold", show=False),
         Binding("4", "set_mode_loop", "Loop", show=False),
         Binding("5", "set_mode_loop_toggle", "Loop Toggle", show=False),
+        # Color shortcuts (Function keys F1-F10)
+        Binding("f1", "set_color_1", "Red", show=False),
+        Binding("f2", "set_color_2", "Orange", show=False),
+        Binding("f3", "set_color_3", "Yellow", show=False),
+        Binding("f4", "set_color_4", "Green", show=False),
+        Binding("f5", "set_color_5", "Cyan", show=False),
+        Binding("f6", "set_color_6", "Blue", show=False),
+        Binding("f7", "set_color_7", "Purple", show=False),
+        Binding("f8", "set_color_8", "Magenta", show=False),
+        Binding("f9", "set_color_9", "Pink", show=False),
+        Binding("f10", "set_color_0", "Default Color", show=False),
         Binding("up", "navigate_up", "Up", show=False),
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
@@ -616,6 +628,17 @@ class LaunchpadSampler(App):
             self.notify(f"Error updating name: {e}", severity="error")
 
     @edit_only
+    def on_pad_details_panel_color_changed(self, event: PadDetailsPanel.ColorChanged) -> None:
+        """Handle color change from details panel."""
+        try:
+            # Update through editor service (events handle UI sync automatically)
+            _ = self.editor.set_sample_color(event.pad_index, event.color)
+
+        except Exception as e:
+            logger.error(f"Error updating color: {e}")
+            self.notify(f"Error updating color: {e}", severity="error")
+
+    @edit_only
     def on_pad_details_panel_move_pad_requested(
         self, event: PadDetailsPanel.MovePadRequested
     ) -> None:
@@ -1046,6 +1069,47 @@ class LaunchpadSampler(App):
         """Set selected pad to loop toggle mode."""
         self._set_pad_mode(PlaybackMode.LOOP_TOGGLE)
 
+    # Color selection actions (F1-F9 for colors, F10 for default)
+    def action_set_color_0(self) -> None:
+        """Set selected pad to default color (use mode color)."""
+        self._set_sample_color(0)
+
+    def action_set_color_1(self) -> None:
+        """Set selected pad color to Red."""
+        self._set_sample_color(1)
+
+    def action_set_color_2(self) -> None:
+        """Set selected pad color to Orange."""
+        self._set_sample_color(2)
+
+    def action_set_color_3(self) -> None:
+        """Set selected pad color to Yellow."""
+        self._set_sample_color(3)
+
+    def action_set_color_4(self) -> None:
+        """Set selected pad color to Green."""
+        self._set_sample_color(4)
+
+    def action_set_color_5(self) -> None:
+        """Set selected pad color to Cyan."""
+        self._set_sample_color(5)
+
+    def action_set_color_6(self) -> None:
+        """Set selected pad color to Blue."""
+        self._set_sample_color(6)
+
+    def action_set_color_7(self) -> None:
+        """Set selected pad color to Purple."""
+        self._set_sample_color(7)
+
+    def action_set_color_8(self) -> None:
+        """Set selected pad color to Magenta."""
+        self._set_sample_color(8)
+
+    def action_set_color_9(self) -> None:
+        """Set selected pad color to Pink."""
+        self._set_sample_color(9)
+
     # =================================================================
     # Operation Helpers - Internal helpers for pad operations
     # =================================================================
@@ -1220,4 +1284,35 @@ class LaunchpadSampler(App):
 
         except Exception as e:
             logger.error(f"Error setting mode: {e}")
+            self.notify(f"Error: {e}", severity="error")
+
+    @edit_only
+    def _set_sample_color(self, color_index: int) -> None:
+        """Set the sample color for selected pad.
+
+        Args:
+            color_index: Index into SAMPLE_COLORS (0=default, 1-9=custom colors)
+        """
+        selected_pad = self.selected_pad_index
+        if selected_pad is None:
+            return
+
+        try:
+            current_pad = self.editor.get_pad(selected_pad)
+            if not current_pad.is_assigned:
+                return
+
+            # Get color from palette (index 0 = None for default)
+            _, color = SAMPLE_COLORS[color_index]
+
+            # Check if color is actually changing
+            current_color = current_pad.sample.color if current_pad.sample else None
+            if current_color == color:
+                return
+
+            # Set color (events handle UI sync automatically)
+            self.editor.set_sample_color(selected_pad, color)
+
+        except Exception as e:
+            logger.error(f"Error setting color: {e}")
             self.notify(f"Error: {e}", severity="error")
