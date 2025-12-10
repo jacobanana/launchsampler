@@ -198,7 +198,7 @@ class PadDetailsPanel(Vertical, can_focus=True):
     }
 
     PadDetailsPanel .color-container {
-        height: 1;
+        height: 3;
         margin: 1 0;
         layout: horizontal;
     }
@@ -212,9 +212,13 @@ class PadDetailsPanel(Vertical, can_focus=True):
     }
 
     PadDetailsPanel #color-select {
-        height: 1;
+        height: 3;
         margin: 0;
         padding: 0;
+    }
+
+    PadDetailsPanel #color-select > SelectCurrent {
+        height: 3;
     }
 
     PadDetailsPanel .control-buttons {

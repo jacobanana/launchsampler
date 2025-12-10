@@ -86,17 +86,17 @@ class LaunchpadSampler(App):
         Binding("3", "set_mode_hold", "Hold", show=False),
         Binding("4", "set_mode_loop", "Loop", show=False),
         Binding("5", "set_mode_loop_toggle", "Loop Toggle", show=False),
-        # Color shortcuts (Shift + digit)
-        Binding("shift+0", "set_color_0", "Default Color", show=False),
-        Binding("shift+1", "set_color_1", "Red", show=False),
-        Binding("shift+2", "set_color_2", "Orange", show=False),
-        Binding("shift+3", "set_color_3", "Yellow", show=False),
-        Binding("shift+4", "set_color_4", "Green", show=False),
-        Binding("shift+5", "set_color_5", "Cyan", show=False),
-        Binding("shift+6", "set_color_6", "Blue", show=False),
-        Binding("shift+7", "set_color_7", "Purple", show=False),
-        Binding("shift+8", "set_color_8", "Magenta", show=False),
-        Binding("shift+9", "set_color_9", "Pink", show=False),
+        # Color shortcuts (Function keys F1-F10)
+        Binding("f1", "set_color_1", "Red", show=False),
+        Binding("f2", "set_color_2", "Orange", show=False),
+        Binding("f3", "set_color_3", "Yellow", show=False),
+        Binding("f4", "set_color_4", "Green", show=False),
+        Binding("f5", "set_color_5", "Cyan", show=False),
+        Binding("f6", "set_color_6", "Blue", show=False),
+        Binding("f7", "set_color_7", "Purple", show=False),
+        Binding("f8", "set_color_8", "Magenta", show=False),
+        Binding("f9", "set_color_9", "Pink", show=False),
+        Binding("f10", "set_color_0", "Default Color", show=False),
         Binding("up", "navigate_up", "Up", show=False),
         Binding("down", "navigate_down", "Down", show=False),
         Binding("left", "navigate_left", "Left", show=False),
@@ -1069,7 +1069,7 @@ class LaunchpadSampler(App):
         """Set selected pad to loop toggle mode."""
         self._set_pad_mode(PlaybackMode.LOOP_TOGGLE)
 
-    # Color selection actions (Shift + digit)
+    # Color selection actions (F1-F9 for colors, F10 for default)
     def action_set_color_0(self) -> None:
         """Set selected pad to default color (use mode color)."""
         self._set_sample_color(0)
