@@ -2,362 +2,362 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://launchsampler.dev/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/changelog/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/cli-reference/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/license/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/troubleshooting/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/audio/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/audio/data/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/audio/device/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/audio/loader/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/audio/mixer/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/colors/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/core/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/core/player/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/core/sampler_engine/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/core/state_machine/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/config/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/controller/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/device/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/input/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/protocols/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/registry/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/schema/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/adapters/launchpad_mk3/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/launchpad/palette_mk3/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/devices/launchpad/sysex/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/exceptions/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/exceptions/audio/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/exceptions/base/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/exceptions/config/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/exceptions/handlers/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/led_ui/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/led_ui/app/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/led_ui/services/led_event_handler/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/led_ui/services/led_renderer/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/midi/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/midi/base_manager/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/midi/input_manager/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/midi/manager/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/midi/output_manager/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/model_manager/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/model_manager/observer/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/model_manager/persistence/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/model_manager/protocols/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/model_manager/service/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/model_manager/cli/builder/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/color/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/config/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/enums/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/launchpad/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/pad/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/sample/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/models/set/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/orchestration/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/orchestration/orchestrator/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/protocols/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/protocols/events/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/protocols/observers/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/services/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/services/editor_service/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/services/set_manager_service/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/app/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/decorators/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/screens/base_browser/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/screens/directory_browser/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/screens/file_browser/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/screens/save_set_browser/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/screens/set_file_browser/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/services/navigation_service/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/services/tui_service/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/clear_confirmation_modal/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/move_confirmation_modal/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/pad_details/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/pad_grid/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/pad_widget/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/paste_confirmation_modal/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/tui/widgets/status_bar/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/ui_shared/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/ui_shared/adapter/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/ui_shared/colors/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/utils/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/utils/audio/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/api/utils/paths/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/architecture/overview/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/getting-started/configuration/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/getting-started/installation/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/getting-started/quick-start/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
     <url>
          <loc>https://launchsampler.dev/user-guide/overview/</loc>
-         <lastmod>2025-11-22</lastmod>
+         <lastmod>2025-12-10</lastmod>
     </url>
 </urlset>
